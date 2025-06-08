@@ -1126,17 +1126,5 @@ theme_btn = ctk.CTkSwitch(
     offvalue="light"
 )
 theme_btn.pack(side="left", padx=4)
-theme_btn.deselect()  # Startet im Light-Mode= ctk.CTkLabel(
-    root,
-def show_progress(text="Bitte warten..."):    text="📝 Prüfung",
-
-root.mainloop()    return win    # Gib das Fenster zurück, damit .destroy() später funktioniert    win.update()    label.pack()    label = tk.Label(win, text=text, padx=30, pady=20)    win.title("Bitte warten")    win = tk.Toplevel(root)    # Dummy-Dialog, der einfach ein Fenster anzeigt    font=("Segoe UI", 20, "bold"),
-    text_color=PRIMARY,
-    bg_color=BG,
-    anchor="center",
-    justify="center"
-)
-pruef_headline.pack(pady=(10, 8))
-
-root.mainloop()
+theme_btn.deselect()  # Startet im Light-Mode
 
