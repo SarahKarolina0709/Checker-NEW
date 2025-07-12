@@ -1,0 +1,16 @@
+{
+  "opaque_theme": {
+    "bg": "#FFFFFF",
+    "fg": "#000000", 
+    "btn": "#E0E0E0",
+    "btn_hover": "#D0D0D0",
+    "accent": "#0078D4"
+  },
+  "high_contrast_opaque": {
+    "bg": "#FFFFFF",
+    "fg": "#000000",
+    "btn": "#FFFFFF", 
+    "btn_hover": "#F0F0F0",
+    "accent": "#000000"
+  }
+}

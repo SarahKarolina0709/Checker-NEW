@@ -1,0 +1,32 @@
+
+============================================================
+📊 ANALYSEERGEBNISSE
+============================================================
+
+Kunde: Test Kunde
+Auftrag: 2025-001
+Analysedatum: 2025-06-09 15:30:00
+
+Anzahl Dateien: 1
+
+DETAILANALYSE PRO DATEI:
+----------------------------------------
+
+📄 angebots_test.txt
+   Zeichen (mit Leerz.): 450
+   Zeichen (ohne Leerz.): 380
+   Wörter: 60
+   Zeilen: 5
+   📏 Normzeilen (AC36): 10.5
+
+========================================
+GESAMTÜBERSICHT:
+========================================
+Gesamtzeichen (mit Leerz.): 450
+Gesamtzeichen (ohne Leerz.): 380
+📏 Gesamtnormzeilen (AC36): 10.5
+
+💰 PREISBERECHNUNG:
+--------------------
+Preis pro Zeile: 2.50 €
+Gesamtpreis: 26.25 €

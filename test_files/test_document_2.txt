@@ -1,0 +1,9 @@
+Dies ist das zweite Test-Dokument für den Multi-Upload-Test.
+
+Funktionen, die getestet werden:
+- Mehrere Dateien gleichzeitig auswählen
+- Progress-Dialog anzeigen
+- Batch-Verarbeitung
+- Zusammenfassung der Ergebnisse
+
+Test-Dokument 2 - Word-Format Simulation

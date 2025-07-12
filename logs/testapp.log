@@ -1,0 +1,170 @@
+2025-07-02 16:04:20,568 | INFO     | TestApp | log_info:213 | Test info message
+2025-07-02 16:04:20,568 | WARNING  | TestApp | log_warning:206 | Test warning message
+2025-07-02 16:04:20,568 | ERROR    | TestApp | log_error:181 | FILE Test file operation failed | Exception: Test file not found
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 42, in test_enhanced_error_handlers
+    raise FileNotFoundError("Test file not found")
+FileNotFoundError: Test file not found
+2025-07-02 16:04:20,577 | ERROR    | TestApp | log_error:181 | UI Test validation failed | Exception: Invalid test value
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 48, in test_enhanced_error_handlers
+    raise ValueError("Invalid test value")
+ValueError: Invalid test value
+2025-07-02 16:04:20,588 | ERROR    | TestApp | log_error:181 | TEST Error in test_safe_function: Test error in safe function | Exception: Test error in safe function
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\error_handlers.py", line 397, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 85, in test_safe_function
+    raise RuntimeError("Test error in safe function")
+RuntimeError: Test error in safe function
+2025-07-02 16:04:24,852 | ERROR    | TestApp | log_error:181 | TEST Test error 0 | Exception: Test connection error 0
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 125, in test_enhanced_error_handlers
+    raise ConnectionError(f"Test connection error {i}")
+ConnectionError: Test connection error 0
+2025-07-02 16:04:24,853 | ERROR    | TestApp | log_error:181 | TEST Test error 1 | Exception: Test permission error 1
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 127, in test_enhanced_error_handlers
+    raise PermissionError(f"Test permission error {i}")
+PermissionError: Test permission error 1
+2025-07-02 16:04:24,854 | ERROR    | TestApp | log_error:181 | TEST Test error 2 | Exception: 'Test key error 2'
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 129, in test_enhanced_error_handlers
+    raise KeyError(f"Test key error {i}")
+KeyError: 'Test key error 2'
+2025-07-02 16:04:25,855 | ERROR    | TestApp | log_error:181 | FILE Test FileNotFoundError | Exception: config.txt
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 158, in test_enhanced_error_handlers
+    raise error
+FileNotFoundError: config.txt
+2025-07-02 16:04:25,856 | ERROR    | TestApp | log_error:181 | FILE Test PermissionError | Exception: Access denied
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 158, in test_enhanced_error_handlers
+    raise error
+PermissionError: Access denied
+2025-07-02 16:04:25,857 | ERROR    | TestApp | log_error:181 | NETWORK Test ConnectionError | Exception: Network unreachable
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 158, in test_enhanced_error_handlers
+    raise error
+ConnectionError: Network unreachable
+2025-07-02 16:04:25,858 | ERROR    | TestApp | log_error:181 | STARTUP Test ImportError | Exception: Module not found
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 158, in test_enhanced_error_handlers
+    raise error
+ImportError: Module not found
+2025-07-02 16:04:25,859 | ERROR    | TestApp | log_error:181 | UI Test ValueError | Exception: Invalid input
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 158, in test_enhanced_error_handlers
+    raise error
+ValueError: Invalid input
+2025-07-02 16:04:25,860 | ERROR    | TestApp | log_error:181 | WORKFLOW Test KeyError | Exception: 'Missing key'
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 158, in test_enhanced_error_handlers
+    raise error
+KeyError: 'Missing key'
+2025-07-02 16:04:25,864 | ERROR    | TestApp | log_error:181 | Load test error 0 | Exception: Test exception 0
+NoneType: None
+2025-07-02 16:04:25,864 | INFO     | TestApp | log_info:213 | Load test info 1
+2025-07-02 16:04:25,864 | INFO     | TestApp | log_info:213 | Load test info 2
+2025-07-02 16:04:25,865 | INFO     | TestApp | log_info:213 | Load test info 3
+2025-07-02 16:04:25,865 | INFO     | TestApp | log_info:213 | Load test info 4
+2025-07-02 16:04:25,865 | INFO     | TestApp | log_info:213 | Load test info 5
+2025-07-02 16:04:25,865 | INFO     | TestApp | log_info:213 | Load test info 6
+2025-07-02 16:04:25,865 | INFO     | TestApp | log_info:213 | Load test info 7
+2025-07-02 16:04:25,866 | INFO     | TestApp | log_info:213 | Load test info 8
+2025-07-02 16:04:25,866 | INFO     | TestApp | log_info:213 | Load test info 9
+2025-07-02 16:04:25,866 | WARNING  | TestApp | log_warning:206 | Load test warning 10
+2025-07-02 16:04:25,866 | INFO     | TestApp | log_info:213 | Load test info 11
+2025-07-02 16:04:25,866 | INFO     | TestApp | log_info:213 | Load test info 12
+2025-07-02 16:04:25,867 | INFO     | TestApp | log_info:213 | Load test info 13
+2025-07-02 16:04:25,867 | INFO     | TestApp | log_info:213 | Load test info 14
+2025-07-02 16:04:25,867 | INFO     | TestApp | log_info:213 | Load test info 15
+2025-07-02 16:04:25,867 | INFO     | TestApp | log_info:213 | Load test info 16
+2025-07-02 16:04:25,868 | INFO     | TestApp | log_info:213 | Load test info 17
+2025-07-02 16:04:25,868 | INFO     | TestApp | log_info:213 | Load test info 18
+2025-07-02 16:04:25,868 | INFO     | TestApp | log_info:213 | Load test info 19
+2025-07-02 16:04:25,868 | ERROR    | TestApp | log_error:181 | Load test error 20 | Exception: Test exception 20
+NoneType: None
+2025-07-02 16:04:25,869 | INFO     | TestApp | log_info:213 | Load test info 21
+2025-07-02 16:04:25,869 | INFO     | TestApp | log_info:213 | Load test info 22
+2025-07-02 16:04:25,869 | INFO     | TestApp | log_info:213 | Load test info 23
+2025-07-02 16:04:25,869 | INFO     | TestApp | log_info:213 | Load test info 24
+2025-07-02 16:04:25,869 | INFO     | TestApp | log_info:213 | Load test info 25
+2025-07-02 16:04:25,870 | INFO     | TestApp | log_info:213 | Load test info 26
+2025-07-02 16:04:25,870 | INFO     | TestApp | log_info:213 | Load test info 27
+2025-07-02 16:04:25,870 | INFO     | TestApp | log_info:213 | Load test info 28
+2025-07-02 16:04:25,870 | INFO     | TestApp | log_info:213 | Load test info 29
+2025-07-02 16:04:25,870 | WARNING  | TestApp | log_warning:206 | Load test warning 30
+2025-07-02 16:04:25,871 | INFO     | TestApp | log_info:213 | Load test info 31
+2025-07-02 16:04:25,871 | INFO     | TestApp | log_info:213 | Load test info 32
+2025-07-02 16:04:25,871 | INFO     | TestApp | log_info:213 | Load test info 33
+2025-07-02 16:04:25,871 | INFO     | TestApp | log_info:213 | Load test info 34
+2025-07-02 16:04:25,871 | INFO     | TestApp | log_info:213 | Load test info 35
+2025-07-02 16:04:25,871 | INFO     | TestApp | log_info:213 | Load test info 36
+2025-07-02 16:04:25,872 | INFO     | TestApp | log_info:213 | Load test info 37
+2025-07-02 16:04:25,872 | INFO     | TestApp | log_info:213 | Load test info 38
+2025-07-02 16:04:25,872 | INFO     | TestApp | log_info:213 | Load test info 39
+2025-07-02 16:04:25,872 | ERROR    | TestApp | log_error:181 | Load test error 40 | Exception: Test exception 40
+NoneType: None
+2025-07-02 16:04:25,872 | INFO     | TestApp | log_info:213 | Load test info 41
+2025-07-02 16:04:25,872 | INFO     | TestApp | log_info:213 | Load test info 42
+2025-07-02 16:04:25,873 | INFO     | TestApp | log_info:213 | Load test info 43
+2025-07-02 16:04:25,873 | INFO     | TestApp | log_info:213 | Load test info 44
+2025-07-02 16:04:25,873 | INFO     | TestApp | log_info:213 | Load test info 45
+2025-07-02 16:04:25,873 | INFO     | TestApp | log_info:213 | Load test info 46
+2025-07-02 16:04:25,873 | INFO     | TestApp | log_info:213 | Load test info 47
+2025-07-02 16:04:25,873 | INFO     | TestApp | log_info:213 | Load test info 48
+2025-07-02 16:04:25,874 | INFO     | TestApp | log_info:213 | Load test info 49
+2025-07-02 16:04:25,874 | WARNING  | TestApp | log_warning:206 | Load test warning 50
+2025-07-02 16:04:25,874 | INFO     | TestApp | log_info:213 | Load test info 51
+2025-07-02 16:04:25,874 | INFO     | TestApp | log_info:213 | Load test info 52
+2025-07-02 16:04:25,874 | INFO     | TestApp | log_info:213 | Load test info 53
+2025-07-02 16:04:25,874 | INFO     | TestApp | log_info:213 | Load test info 54
+2025-07-02 16:04:25,874 | INFO     | TestApp | log_info:213 | Load test info 55
+2025-07-02 16:04:25,874 | INFO     | TestApp | log_info:213 | Load test info 56
+2025-07-02 16:04:25,875 | INFO     | TestApp | log_info:213 | Load test info 57
+2025-07-02 16:04:25,875 | INFO     | TestApp | log_info:213 | Load test info 58
+2025-07-02 16:04:25,875 | INFO     | TestApp | log_info:213 | Load test info 59
+2025-07-02 16:04:25,875 | ERROR    | TestApp | log_error:181 | Load test error 60 | Exception: Test exception 60
+NoneType: None
+2025-07-02 16:04:25,875 | INFO     | TestApp | log_info:213 | Load test info 61
+2025-07-02 16:04:25,875 | INFO     | TestApp | log_info:213 | Load test info 62
+2025-07-02 16:04:25,875 | INFO     | TestApp | log_info:213 | Load test info 63
+2025-07-02 16:04:25,876 | INFO     | TestApp | log_info:213 | Load test info 64
+2025-07-02 16:04:25,876 | INFO     | TestApp | log_info:213 | Load test info 65
+2025-07-02 16:04:25,876 | INFO     | TestApp | log_info:213 | Load test info 66
+2025-07-02 16:04:25,876 | INFO     | TestApp | log_info:213 | Load test info 67
+2025-07-02 16:04:25,876 | INFO     | TestApp | log_info:213 | Load test info 68
+2025-07-02 16:04:25,876 | INFO     | TestApp | log_info:213 | Load test info 69
+2025-07-02 16:04:25,876 | WARNING  | TestApp | log_warning:206 | Load test warning 70
+2025-07-02 16:04:25,876 | INFO     | TestApp | log_info:213 | Load test info 71
+2025-07-02 16:04:25,877 | INFO     | TestApp | log_info:213 | Load test info 72
+2025-07-02 16:04:25,877 | INFO     | TestApp | log_info:213 | Load test info 73
+2025-07-02 16:04:25,877 | INFO     | TestApp | log_info:213 | Load test info 74
+2025-07-02 16:04:25,877 | INFO     | TestApp | log_info:213 | Load test info 75
+2025-07-02 16:04:25,877 | INFO     | TestApp | log_info:213 | Load test info 76
+2025-07-02 16:04:25,877 | INFO     | TestApp | log_info:213 | Load test info 77
+2025-07-02 16:04:25,877 | INFO     | TestApp | log_info:213 | Load test info 78
+2025-07-02 16:04:25,877 | INFO     | TestApp | log_info:213 | Load test info 79
+2025-07-02 16:04:25,877 | ERROR    | TestApp | log_error:181 | Load test error 80 | Exception: Test exception 80
+NoneType: None
+2025-07-02 16:04:25,878 | INFO     | TestApp | log_info:213 | Load test info 81
+2025-07-02 16:04:25,878 | INFO     | TestApp | log_info:213 | Load test info 82
+2025-07-02 16:04:25,878 | INFO     | TestApp | log_info:213 | Load test info 83
+2025-07-02 16:04:25,878 | INFO     | TestApp | log_info:213 | Load test info 84
+2025-07-02 16:04:25,878 | INFO     | TestApp | log_info:213 | Load test info 85
+2025-07-02 16:04:25,878 | INFO     | TestApp | log_info:213 | Load test info 86
+2025-07-02 16:04:25,878 | INFO     | TestApp | log_info:213 | Load test info 87
+2025-07-02 16:04:25,879 | INFO     | TestApp | log_info:213 | Load test info 88
+2025-07-02 16:04:25,879 | INFO     | TestApp | log_info:213 | Load test info 89
+2025-07-02 16:04:25,879 | WARNING  | TestApp | log_warning:206 | Load test warning 90
+2025-07-02 16:04:25,879 | INFO     | TestApp | log_info:213 | Load test info 91
+2025-07-02 16:04:25,879 | INFO     | TestApp | log_info:213 | Load test info 92
+2025-07-02 16:04:25,879 | INFO     | TestApp | log_info:213 | Load test info 93
+2025-07-02 16:04:25,879 | INFO     | TestApp | log_info:213 | Load test info 94
+2025-07-02 16:04:25,879 | INFO     | TestApp | log_info:213 | Load test info 95
+2025-07-02 16:04:25,879 | INFO     | TestApp | log_info:213 | Load test info 96
+2025-07-02 16:04:25,880 | INFO     | TestApp | log_info:213 | Load test info 97
+2025-07-02 16:04:25,880 | INFO     | TestApp | log_info:213 | Load test info 98
+2025-07-02 16:04:25,880 | INFO     | TestApp | log_info:213 | Load test info 99

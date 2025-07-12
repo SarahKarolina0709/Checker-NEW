@@ -1,0 +1,4 @@
+INFO [CheckerApp.Startup] Logging system initialized
+INFO [test_module.test_workflow] Test workflow log [workflow: test_workflow]
+INFO [ui.test_component] Test UI log [component: test_component] [category: ui]
+INFO [performance.test_perf] Test performance log [component: test_perf] [category: performance]

@@ -1,0 +1,73 @@
+2025-07-02 16:04:20,568 | ERROR    | TestApp | log_error:181 | FILE Test file operation failed | Exception: Test file not found
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 42, in test_enhanced_error_handlers
+    raise FileNotFoundError("Test file not found")
+FileNotFoundError: Test file not found
+2025-07-02 16:04:20,577 | ERROR    | TestApp | log_error:181 | UI Test validation failed | Exception: Invalid test value
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 48, in test_enhanced_error_handlers
+    raise ValueError("Invalid test value")
+ValueError: Invalid test value
+2025-07-02 16:04:20,588 | ERROR    | TestApp | log_error:181 | TEST Error in test_safe_function: Test error in safe function | Exception: Test error in safe function
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\error_handlers.py", line 397, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 85, in test_safe_function
+    raise RuntimeError("Test error in safe function")
+RuntimeError: Test error in safe function
+2025-07-02 16:04:24,852 | ERROR    | TestApp | log_error:181 | TEST Test error 0 | Exception: Test connection error 0
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 125, in test_enhanced_error_handlers
+    raise ConnectionError(f"Test connection error {i}")
+ConnectionError: Test connection error 0
+2025-07-02 16:04:24,853 | ERROR    | TestApp | log_error:181 | TEST Test error 1 | Exception: Test permission error 1
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 127, in test_enhanced_error_handlers
+    raise PermissionError(f"Test permission error {i}")
+PermissionError: Test permission error 1
+2025-07-02 16:04:24,854 | ERROR    | TestApp | log_error:181 | TEST Test error 2 | Exception: 'Test key error 2'
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 129, in test_enhanced_error_handlers
+    raise KeyError(f"Test key error {i}")
+KeyError: 'Test key error 2'
+2025-07-02 16:04:25,855 | ERROR    | TestApp | log_error:181 | FILE Test FileNotFoundError | Exception: config.txt
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 158, in test_enhanced_error_handlers
+    raise error
+FileNotFoundError: config.txt
+2025-07-02 16:04:25,856 | ERROR    | TestApp | log_error:181 | FILE Test PermissionError | Exception: Access denied
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 158, in test_enhanced_error_handlers
+    raise error
+PermissionError: Access denied
+2025-07-02 16:04:25,857 | ERROR    | TestApp | log_error:181 | NETWORK Test ConnectionError | Exception: Network unreachable
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 158, in test_enhanced_error_handlers
+    raise error
+ConnectionError: Network unreachable
+2025-07-02 16:04:25,858 | ERROR    | TestApp | log_error:181 | STARTUP Test ImportError | Exception: Module not found
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 158, in test_enhanced_error_handlers
+    raise error
+ImportError: Module not found
+2025-07-02 16:04:25,859 | ERROR    | TestApp | log_error:181 | UI Test ValueError | Exception: Invalid input
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 158, in test_enhanced_error_handlers
+    raise error
+ValueError: Invalid input
+2025-07-02 16:04:25,860 | ERROR    | TestApp | log_error:181 | WORKFLOW Test KeyError | Exception: 'Missing key'
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\test_enhanced_error_handling.py", line 158, in test_enhanced_error_handlers
+    raise error
+KeyError: 'Missing key'
+2025-07-02 16:04:25,864 | ERROR    | TestApp | log_error:181 | Load test error 0 | Exception: Test exception 0
+NoneType: None
+2025-07-02 16:04:25,868 | ERROR    | TestApp | log_error:181 | Load test error 20 | Exception: Test exception 20
+NoneType: None
+2025-07-02 16:04:25,872 | ERROR    | TestApp | log_error:181 | Load test error 40 | Exception: Test exception 40
+NoneType: None
+2025-07-02 16:04:25,875 | ERROR    | TestApp | log_error:181 | Load test error 60 | Exception: Test exception 60
+NoneType: None
+2025-07-02 16:04:25,877 | ERROR    | TestApp | log_error:181 | Load test error 80 | Exception: Test exception 80
+NoneType: None

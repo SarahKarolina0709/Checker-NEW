@@ -1,0 +1,63 @@
+2025-06-29 14:29:03,859 [INFO] checker_app.config._load_config:30 - Configuration loaded successfully
+2025-06-29 14:29:04,017 [INFO] checker_app.ui.initialize:20 - Initializing scaling and DPI settings
+2025-06-29 14:29:04,017 [DEBUG] checker_app.ui.initialize:31 - DPI awareness deactivated
+2025-06-29 14:29:04,017 [DEBUG] checker_app.ui.initialize:36 - Scaling set: widget=1.0, window=1.0
+2025-06-29 14:29:04,017 [DEBUG] checker_app.ui._disable_scaling_tracker:57 - ScalingTracker disabled
+2025-06-29 14:29:04,017 [INFO] checker_app.ui.initialize:42 - Scaling initialization completed
+2025-06-29 14:29:04,036 [DEBUG] checker_app.main.test_logging_system:67 - Debug message from main
+2025-06-29 14:29:04,036 [INFO] checker_app.ui.test_logging_system:68 - Info message from UI
+2025-06-29 14:29:04,036 [WARNING] checker_app.workflow.test_logging_system:69 - Warning message from workflow
+2025-06-29 14:29:04,037 [DEBUG] checker_app.config.set:112 - Config updated: test.value = test_data
+2025-06-29 14:29:04,038 [INFO] checker_app.icons.__init__:52 - Icon manager initialized with assets path: assets
+2025-06-29 14:29:04,038 [INFO] checker_app.icons.preload_icons:104 - Preloading 3 icons
+2025-06-29 14:29:04,039 [INFO] checker_app.icons.preload_icons:109 - Icon preloading complete
+2025-06-29 14:29:04,039 [INFO] checker_app.workflow_manager.__init__:59 - Workflow manager initialized
+2025-06-29 14:29:04,039 [INFO] checker_app.workflow_manager.register_workflow:77 - Workflow 'test_workflow' registered
+2025-06-29 14:29:04,040 [INFO] checker_app.button.__init__:13 - PersistentButtonManager initialized
+2025-06-29 14:46:10,788 [INFO] checker_app.test_main.test_logger_system:28 - Main logger test message
+2025-06-29 14:46:10,789 [DEBUG] checker_app.test_ui.test_logger_system:29 - UI logger debug message
+2025-06-29 14:46:10,789 [WARNING] checker_app.test_workflow.test_logger_system:30 - Workflow logger warning message
+2025-06-29 14:46:10,794 [INFO] checker_app.config._load_config:30 - Configuration loaded successfully
+2025-06-29 14:46:10,794 [DEBUG] checker_app.config.set:112 - Config updated: test.value = test_data
+2025-06-29 14:46:10,795 [INFO] checker_app.button.__init__:13 - PersistentButtonManager initialized
+2025-06-29 14:46:10,951 [INFO] checker_app.scaling.__init__:13 - Scaling manager created
+2025-06-29 14:46:10,952 [INFO] checker_app.scaling.apply_scaling_config:20 - Applying scaling configuration
+2025-06-29 14:46:10,952 [DEBUG] checker_app.scaling.apply_scaling_config:25 - DPI awareness deactivated
+2025-06-29 14:46:10,952 [DEBUG] checker_app.scaling.apply_scaling_config:30 - Scaling set to 1.0
+2025-06-29 14:46:10,952 [DEBUG] checker_app.scaling._disable_scaling_tracker:78 - ScalingTracker disabled
+2025-06-29 14:46:10,952 [INFO] checker_app.scaling.apply_scaling_config:36 - Scaling configuration applied successfully
+2025-06-29 14:46:10,952 [DEBUG] checker_app.scaling._disable_scaling_tracker:78 - ScalingTracker disabled
+2025-06-29 14:46:10,952 [DEBUG] checker_app.scaling.stabilize_scaling:65 - Scaling stabilized
+2025-06-29 14:46:10,956 [INFO] checker_app.icons.__init__:52 - Icon manager initialized with assets path: assets
+2025-06-29 14:48:00,885 [INFO] checker_app.test_main.test_logger_system:28 - Main logger test message
+2025-06-29 14:48:00,886 [DEBUG] checker_app.test_ui.test_logger_system:29 - UI logger debug message
+2025-06-29 14:48:00,886 [WARNING] checker_app.test_workflow.test_logger_system:30 - Workflow logger warning message
+2025-06-29 14:48:00,891 [INFO] checker_app.config._load_config:30 - Configuration loaded successfully
+2025-06-29 14:48:00,892 [DEBUG] checker_app.config.set:112 - Config updated: test.value = test_data
+2025-06-29 14:48:01,055 [INFO] checker_app.scaling.__init__:13 - Scaling manager created
+2025-06-29 14:48:01,056 [INFO] checker_app.scaling.apply_scaling_config:20 - Applying scaling configuration
+2025-06-29 14:48:01,056 [DEBUG] checker_app.scaling.apply_scaling_config:25 - DPI awareness deactivated
+2025-06-29 14:48:01,056 [DEBUG] checker_app.scaling.apply_scaling_config:30 - Scaling set to 1.0
+2025-06-29 14:48:01,056 [DEBUG] checker_app.scaling._disable_scaling_tracker:78 - ScalingTracker disabled
+2025-06-29 14:48:01,056 [INFO] checker_app.scaling.apply_scaling_config:36 - Scaling configuration applied successfully
+2025-06-29 14:48:01,056 [DEBUG] checker_app.scaling._disable_scaling_tracker:78 - ScalingTracker disabled
+2025-06-29 14:48:01,056 [DEBUG] checker_app.scaling.stabilize_scaling:65 - Scaling stabilized
+2025-06-29 14:48:01,058 [INFO] checker_app.icons.__init__:52 - Icon manager initialized with assets path: assets
+2025-06-29 14:50:36,527 [INFO] checker_app.test_main.test_logger_system:28 - Main logger test message
+2025-06-29 14:50:36,527 [DEBUG] checker_app.test_ui.test_logger_system:29 - UI logger debug message
+2025-06-29 14:50:36,527 [WARNING] checker_app.test_workflow.test_logger_system:30 - Workflow logger warning message
+2025-06-29 14:50:36,538 [INFO] checker_app.config._load_config:30 - Configuration loaded successfully
+2025-06-29 14:50:36,539 [DEBUG] checker_app.config.set:112 - Config updated: test.value = test_data
+2025-06-29 14:50:36,699 [INFO] checker_app.scaling.__init__:13 - Scaling manager created
+2025-06-29 14:50:36,699 [INFO] checker_app.scaling.apply_scaling_config:20 - Applying scaling configuration
+2025-06-29 14:50:36,699 [DEBUG] checker_app.scaling.apply_scaling_config:25 - DPI awareness deactivated
+2025-06-29 14:50:36,699 [DEBUG] checker_app.scaling.apply_scaling_config:30 - Scaling set to 1.0
+2025-06-29 14:50:36,700 [DEBUG] checker_app.scaling._disable_scaling_tracker:78 - ScalingTracker disabled
+2025-06-29 14:50:36,700 [INFO] checker_app.scaling.apply_scaling_config:36 - Scaling configuration applied successfully
+2025-06-29 14:50:36,700 [DEBUG] checker_app.scaling._disable_scaling_tracker:78 - ScalingTracker disabled
+2025-06-29 14:50:36,700 [DEBUG] checker_app.scaling.stabilize_scaling:65 - Scaling stabilized
+2025-06-29 14:50:36,702 [INFO] checker_app.icons.__init__:52 - Icon manager initialized with assets path: assets
+2025-06-29 15:00:23,224 [INFO] checker_app.config._load_config:30 - Configuration loaded successfully
+2025-06-29 15:02:36,041 [INFO] checker_app.config._load_config:30 - Configuration loaded successfully
+2025-06-29 15:02:43,212 [INFO] checker_app.config._load_config:30 - Configuration loaded successfully
+2025-06-29 15:03:21,083 [INFO] checker_app.config._load_config:30 - Configuration loaded successfully

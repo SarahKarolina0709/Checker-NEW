@@ -1,0 +1,1029 @@
+"""
+Vereinfachte Version der Ultra-Modern Welcome Screen für die Checker-App
+Fokussiert auf Kundenauswahl und Workflow-Auswahl
+"""
+
+import customtkinter as ctk
+import tkinter as tk
+from tkinter import messagebox
+import os
+import logging
+from datetime import datetime
+import traceback
+
+# Centralized Theme and UI Components
+from ui_theme import UITheme
+
+class UltraModernWelcomeScreen(ctk.CTkFrame):
+    """
+    Vereinfachte Welcome Screen mit Fokus auf:
+    - Kundenauswahl
+    - Workflow-Auswahl  
+    - Sauberes, modernes Design
+    """
+    
+    def __init__(self, master, app, app_callback=None, **kwargs):
+        """Initialisiert den vereinfachten Welcome Screen"""
+        super().__init__(master=master, fg_color="transparent", **kwargs)
+        
+        self.app = app
+        self.main_window = getattr(app, 'root', None) if app else None
+        self.app_callback = app_callback
+        self.root = master
+        
+        # State Management
+        self.current_customer_data = {}
+        
+        # Logging Setup
+        self.logger = logging.getLogger(__name__)
+        
+        # Startzeit für Runtime-Tracking
+        self._start_time = datetime.now()
+        
+        # Grid configuration
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        
+        # Initialisierung
+        self.setup_ui()
+
+    def setup_ui(self):
+        """Initialisiert die vereinfachte Benutzeroberfläche"""
+        try:
+            self.clear_content()
+            
+            # Animated background
+            self.create_animated_background()
+            
+            # Main scrollable container mit glassmorphism
+            self.main_container = ctk.CTkScrollableFrame(
+                self,
+                fg_color="transparent",
+                scrollbar_button_color=["#3b82f6", "#2563eb"],
+                scrollbar_button_hover_color=["#2563eb", "#1d4ed8"]
+            )
+            self.main_container.grid(row=0, column=0, sticky="nsew", padx=25, pady=25)
+            
+            # Configure grid
+            self.main_container.grid_columnconfigure(0, weight=1)
+            
+            # Create sections with animation delay
+            self.create_header()
+            self.after(100, self.create_customer_section)
+            self.after(200, self.create_workflow_section)
+            self.after(300, self.create_footer)
+            
+            self.logger.info("Ultra-moderne Welcome Screen erfolgreich initialisiert")
+            
+        except Exception as e:
+            self.logger.error(f"Fehler beim Setup der UI: {e}")
+            traceback.print_exc()
+            self.show_error_fallback()
+
+    def create_animated_background(self):
+        """Erstellt einen modernen Hintergrund mit UITheme-Konformität"""
+        # Verwende UITheme-konforme Hintergrundfarben statt hardcoded gradients
+        bg_frame = ctk.CTkFrame(
+            self,
+            fg_color=UITheme.COLOR_BACKGROUND,
+            corner_radius=0
+        )
+        bg_frame.place(x=0, y=0, relwidth=1, relheight=1)
+
+    def create_header(self):
+        """Erstellt den ultra-modernen Header mit UITheme-konformen Farben"""
+        # Glassmorphism container mit UITheme-Farben
+        glass_container = ctk.CTkFrame(
+            self.main_container,
+            fg_color="transparent",
+            corner_radius=UITheme.CORNER_RADIUS_LARGE
+        )
+        glass_container.grid(row=0, column=0, sticky="ew", pady=(0, 35), padx=15)
+        glass_container.grid_columnconfigure(0, weight=1)
+        
+        # Multi-layer glassmorphism effect mit UITheme
+        main_layer = ctk.CTkFrame(
+            glass_container,
+            fg_color=UITheme.COLOR_SURFACE,
+            border_width=2,
+            border_color=UITheme.COLOR_BORDER,
+            corner_radius=UITheme.CORNER_RADIUS_LARGE,
+            height=200
+        )
+        main_layer.grid(row=0, column=0, sticky="ew", padx=2, pady=2)
+        main_layer.grid_columnconfigure(0, weight=1)
+        
+        # Content mit modernem Layout
+        content_frame = ctk.CTkFrame(main_layer, fg_color="transparent")
+        content_frame.grid(row=0, column=0, sticky="ew", padx=45, pady=35)
+        content_frame.grid_columnconfigure(1, weight=1)
+        
+        # Logo Sektion - kein fixer Container
+        logo_section = ctk.CTkFrame(content_frame, fg_color="transparent")
+        logo_section.grid(row=0, column=0, sticky="w", padx=(0, 40))
+        
+        # Logo container mit UITheme-Farben
+        logo_bg = ctk.CTkFrame(
+            logo_section,
+            fg_color=UITheme.COLOR_PRIMARY,
+            corner_radius=UITheme.CORNER_RADIUS,
+            width=90,
+            height=90
+        )
+        logo_bg.grid(row=0, column=0)
+        
+        # Logo mit korrekter Icon-Verwaltung (JPG aus assets/icons/)
+        try:
+            # Verwende UITheme get_icon Methode für JPG-Icons aus assets/icons/
+            logo_icon = self.app.get_icon("rocket", (60, 60))
+            if logo_icon:
+                logo_label = ctk.CTkLabel(logo_bg, image=logo_icon, text="")
+                logo_label.place(relx=0.5, rely=0.5, anchor="center")
+        except Exception as e:
+            self.logger.warning(f"Logo-Icon konnte nicht geladen werden: {e}")
+            # Fallback ohne externe Assets
+            emoji_logo = ctk.CTkLabel(
+                logo_bg,
+                text="🚀",
+                font=UITheme.get_font("h1"),
+                text_color=UITheme.COLOR_TEXT_ON_PRIMARY
+            )
+            emoji_logo.place(relx=0.5, rely=0.5, anchor="center")
+            
+        # Title und Badge Section mit Grid
+        text_section = ctk.CTkFrame(content_frame, fg_color="transparent")
+        text_section.grid(row=0, column=1, sticky="ew")
+        text_section.grid_columnconfigure(0, weight=1)
+        
+        # Main title mit UITheme-Fonts
+        title_label = ctk.CTkLabel(
+            text_section,
+            text="✨ Checker Pro Suite",
+            font=UITheme.get_font("h1"),
+            text_color=UITheme.COLOR_TEXT_PRIMARY,
+            anchor="w"
+        )
+        title_label.grid(row=0, column=0, sticky="w")
+        
+        # Subtitle mit UITheme
+        subtitle_label = ctk.CTkLabel(
+            text_section,
+            text="🌟 Enterprise Translation Management Platform",
+            font=UITheme.get_font("h3"),
+            text_color=UITheme.COLOR_TEXT_SECONDARY,
+            anchor="w"
+        )
+        subtitle_label.grid(row=1, column=0, sticky="w", pady=(10, 0))
+        
+        # Feature badges mit UITheme-Farben
+        badges_container = ctk.CTkFrame(text_section, fg_color="transparent")
+        badges_container.grid(row=2, column=0, sticky="ew", pady=(20, 0))
+        
+        badges = [
+            {"text": "🏆 Premium", "color": UITheme.COLOR_WARNING},
+            {"text": "⚡ Fast", "color": UITheme.COLOR_SUCCESS},
+            {"text": "🔒 Secure", "color": UITheme.COLOR_PRIMARY}
+        ]
+        
+        for i, badge in enumerate(badges):
+            badge_frame = ctk.CTkLabel(
+                badges_container,
+                text=badge["text"],
+                font=UITheme.get_font("caption"),
+                text_color=UITheme.COLOR_TEXT_ON_PRIMARY,
+                fg_color=badge["color"],
+                corner_radius=UITheme.CORNER_RADIUS,
+                width=80,
+                height=30
+            )
+            badge_frame.grid(row=0, column=i, padx=(0, 10) if i < len(badges)-1 else (0, 0))
+
+    def animate_logo(self, widget):
+        """Logo-Animation-Placeholder - Performance-optimiert"""
+        # Entfernt da laut Richtlinien Animationen sparsam eingesetzt werden sollen
+        # und keine überflüssigen Animationen implementiert werden sollen
+        pass
+
+    def create_customer_section(self):
+        """Erstellt den modernen Kundenauswahl-Bereich"""
+        # Outer container mit Schatten-Effekt
+        shadow_container = ctk.CTkFrame(
+            self.main_container,
+            fg_color="rgba(0,0,0,0.1)",
+            border_width=0,
+            corner_radius=18
+        )
+        shadow_container.grid(row=1, column=0, sticky="ew", pady=(2, 30), padx=12)
+        
+        # Hauptcontainer
+        customer_frame = ctk.CTkFrame(
+            shadow_container,
+            fg_color=["#ffffff", "#1a1a1a"],
+            border_width=1,
+            border_color=["#e5e7eb", "#374151"],
+            corner_radius=16
+        )
+        customer_frame.pack(fill="both", expand=True, padx=2, pady=2)
+        
+        # Header mit Gradient-Akzent
+        header_accent = ctk.CTkFrame(
+            customer_frame,
+            fg_color=["#f3f4f6", "#2d2d2d"],
+            corner_radius=(16, 16, 0, 0),
+            height=80
+        )
+        header_accent.pack(fill="x")
+        header_accent.pack_propagate(False)
+        
+        header_container = ctk.CTkFrame(header_accent, fg_color="transparent")
+        header_container.pack(fill="both", expand=True, padx=30, pady=20)
+        
+        # Icon und Titel mit modernem Layout
+        header_content = ctk.CTkFrame(header_container, fg_color="transparent")
+        header_content.pack(side="left")
+        
+        # Icon Container mit Hintergrund
+        icon_bg = ctk.CTkFrame(
+            header_content,
+            fg_color=["#3b82f6", "#2563eb"],
+            corner_radius=12,
+            width=48,
+            height=48
+        )
+        icon_bg.pack(side="left", padx=(0, 15))
+        icon_bg.pack_propagate(False)
+        
+        try:
+            customer_icon = self.app.get_icon("person", (32, 32))
+            if customer_icon:
+                icon_label = ctk.CTkLabel(
+                    icon_bg,
+                    image=customer_icon,
+                    text=""
+                )
+                icon_label.pack(expand=True)
+        except:
+            # Fallback emoji
+            emoji_label = ctk.CTkLabel(
+                icon_bg,
+                text="👤",
+                font=("Arial", 24),
+                text_color="white"
+            )
+            emoji_label.pack(expand=True)
+            
+        # Titel Container
+        title_container = ctk.CTkFrame(header_content, fg_color="transparent")
+        title_container.pack(side="left")
+        
+        title_label = ctk.CTkLabel(
+            title_container,
+            text="📝 Kundendaten",
+            font=("Arial", 24, "bold"),
+            text_color=UITheme.COLOR_TEXT_PRIMARY,
+            anchor="w"
+        )
+        title_label.pack(anchor="w")
+        
+        subtitle_label = ctk.CTkLabel(
+            title_container,
+            text="Geben Sie die Projektinformationen ein",
+            font=("Arial", 14),
+            text_color=UITheme.COLOR_TEXT_SECONDARY,
+            anchor="w"
+        )
+        subtitle_label.pack(anchor="w", pady=(2, 0))
+        
+    def create_customer_section(self):
+        """Erstellt den modernen Kundenauswahl-Bereich mit UITheme-Konformität"""
+        # Container mit UITheme-Farben
+        customer_frame = ctk.CTkFrame(
+            self.main_container,
+            fg_color=UITheme.COLOR_SURFACE,
+            border_width=2,
+            border_color=UITheme.COLOR_BORDER,
+            corner_radius=UITheme.CORNER_RADIUS_LARGE
+        )
+        customer_frame.grid(row=1, column=0, sticky="ew", pady=(0, 30), padx=15)
+        customer_frame.grid_columnconfigure(0, weight=1)
+        
+        # Header mit UITheme-Design
+        header_accent = ctk.CTkFrame(
+            customer_frame,
+            fg_color=UITheme.COLOR_CARD,
+            corner_radius=(UITheme.CORNER_RADIUS_LARGE, UITheme.CORNER_RADIUS_LARGE, 0, 0),
+            height=80
+        )
+        header_accent.grid(row=0, column=0, sticky="ew")
+        header_accent.grid_columnconfigure(0, weight=1)
+        
+        header_container = ctk.CTkFrame(header_accent, fg_color="transparent")
+        header_container.grid(row=0, column=0, sticky="ew", padx=30, pady=20)
+        header_container.grid_columnconfigure(1, weight=1)
+        
+        # Icon Container mit UITheme
+        icon_bg = ctk.CTkFrame(
+            header_container,
+            fg_color=UITheme.COLOR_PRIMARY,
+            corner_radius=UITheme.CORNER_RADIUS,
+            width=48,
+            height=48
+        )
+        icon_bg.grid(row=0, column=0, padx=(0, 15))
+        
+        try:
+            # Verwende korrekte Icon-Verwaltung (JPG aus assets/icons/)
+            customer_icon = self.app.get_icon("person", (32, 32))
+            if customer_icon:
+                icon_label = ctk.CTkLabel(icon_bg, image=customer_icon, text="")
+                icon_label.place(relx=0.5, rely=0.5, anchor="center")
+        except Exception as e:
+            self.logger.warning(f"Customer-Icon konnte nicht geladen werden: {e}")
+            # Fallback emoji
+            emoji_label = ctk.CTkLabel(
+                icon_bg,
+                text="👤",
+                font=UITheme.get_font("h3"),
+                text_color=UITheme.COLOR_TEXT_ON_PRIMARY
+            )
+            emoji_label.place(relx=0.5, rely=0.5, anchor="center")
+            
+        # Titel Container mit Grid
+        title_container = ctk.CTkFrame(header_container, fg_color="transparent")
+        title_container.grid(row=0, column=1, sticky="ew")
+        
+        title_label = ctk.CTkLabel(
+            title_container,
+            text="📝 Kundendaten",
+            font=UITheme.get_font("h2"),
+            text_color=UITheme.COLOR_TEXT_PRIMARY,
+            anchor="w"
+        )
+        title_label.pack(anchor="w")
+        
+        subtitle_label = ctk.CTkLabel(
+            title_container,
+            text="Geben Sie die Projektinformationen ein",
+            font=UITheme.get_font("body"),
+            text_color=UITheme.COLOR_TEXT_SECONDARY,
+            anchor="w"
+        )
+        subtitle_label.pack(anchor="w", pady=(2, 0))
+        
+        # Input Bereich mit responsivem Grid
+        input_container = ctk.CTkFrame(customer_frame, fg_color="transparent")
+        input_container.pack(fill="x", padx=35, pady=(0, 35))
+        input_container.grid_columnconfigure(0, weight=1)
+        
+        # Kundenname mit Grid-Layout
+        name_frame = ctk.CTkFrame(input_container, fg_color="transparent")
+        name_frame.grid(row=0, column=0, sticky="ew", pady=(0, 25))
+        name_frame.grid_columnconfigure(0, weight=1)
+        
+        name_label_container = ctk.CTkFrame(name_frame, fg_color="transparent")
+        name_label_container.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        name_label_container.grid_columnconfigure(0, weight=1)
+        
+        name_label = ctk.CTkLabel(
+            name_label_container,
+            text="🏢 Kundenname",
+            font=UITheme.get_font("label"),
+            text_color=UITheme.COLOR_TEXT_PRIMARY,
+            anchor="w"
+        )
+        name_label.grid(row=0, column=0, sticky="w")
+        
+        # Badge mit UITheme-Farben
+        required_badge = ctk.CTkLabel(
+            name_label_container,
+            text="● ERFORDERLICH",
+            font=UITheme.get_font("caption"),
+            text_color=UITheme.COLOR_TEXT_ON_ERROR,
+            fg_color=UITheme.COLOR_ERROR,
+            corner_radius=UITheme.CORNER_RADIUS
+        )
+        required_badge.grid(row=0, column=1, sticky="e", padx=(15, 0))
+        
+        # Enhanced input field mit UITheme
+        self.customer_name_entry = ctk.CTkEntry(
+            name_frame,
+            placeholder_text="💼 Geben Sie den Kundennamen ein...",
+            font=UITheme.get_font("body"),
+            height=56,
+            border_width=2,
+            border_color=UITheme.COLOR_BORDER,
+            fg_color=UITheme.COLOR_INPUT,
+            corner_radius=UITheme.CORNER_RADIUS,
+            text_color=UITheme.COLOR_TEXT_PRIMARY
+        )
+        self.customer_name_entry.grid(row=1, column=0, sticky="ew")
+        
+        # Bind focus events für responsives Verhalten
+        self.customer_name_entry.bind("<FocusIn>", self.on_name_focus_in)
+        self.customer_name_entry.bind("<FocusOut>", self.on_name_focus_out)
+        
+        # Auftragsnummer mit Grid
+        order_frame = ctk.CTkFrame(input_container, fg_color="transparent")
+        order_frame.grid(row=1, column=0, sticky="ew")
+        order_frame.grid_columnconfigure(0, weight=1)
+        
+        order_label_container = ctk.CTkFrame(order_frame, fg_color="transparent")
+        order_label_container.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        order_label_container.grid_columnconfigure(0, weight=1)
+        
+        order_label = ctk.CTkLabel(
+            order_label_container,
+            text="📋 Auftragsnummer",
+            font=UITheme.get_font("label"),
+            text_color=UITheme.COLOR_TEXT_PRIMARY,
+            anchor="w"
+        )
+        order_label.grid(row=0, column=0, sticky="w")
+        
+        optional_badge = ctk.CTkLabel(
+            order_label_container,
+            text="○ OPTIONAL",
+            font=UITheme.get_font("caption"),
+            text_color=UITheme.COLOR_TEXT_ON_SUCCESS,
+            fg_color=UITheme.COLOR_SUCCESS,
+            corner_radius=UITheme.CORNER_RADIUS
+        )
+        optional_badge.grid(row=0, column=1, sticky="e", padx=(15, 0))
+        
+        self.order_number_entry = ctk.CTkEntry(
+            order_frame,
+            placeholder_text="🔢 Auftragsnummer (falls vorhanden)...",
+            font=UITheme.get_font("body"),
+            height=56,
+            border_width=2,
+            border_color=UITheme.COLOR_BORDER,
+            fg_color=UITheme.COLOR_INPUT,
+            corner_radius=UITheme.CORNER_RADIUS,
+            text_color=UITheme.COLOR_TEXT_PRIMARY
+        )
+        self.order_number_entry.grid(row=1, column=0, sticky="ew")
+        
+        # Bind focus events
+        self.order_number_entry.bind("<FocusIn>", self.on_order_focus_in)
+        self.order_number_entry.bind("<FocusOut>", self.on_order_focus_out)
+
+    def on_name_focus_in(self, event):
+        """Handler für Fokus auf Namensfeld mit UITheme-Farben"""
+        self.customer_name_entry.configure(border_color=UITheme.COLOR_PRIMARY)
+        
+    def on_name_focus_out(self, event):
+        """Handler für Fokusverlust auf Namensfeld"""
+        self.customer_name_entry.configure(border_color=UITheme.COLOR_BORDER)
+        
+    def on_order_focus_in(self, event):
+        """Handler für Fokus auf Auftragsfeld mit UITheme-Farben"""
+        self.order_number_entry.configure(border_color=UITheme.COLOR_SUCCESS)
+        
+    def on_order_focus_out(self, event):
+        """Handler für Fokusverlust auf Auftragsfeld"""
+        self.order_number_entry.configure(border_color=UITheme.COLOR_BORDER)
+
+    def create_workflow_section(self):
+        """Erstellt die moderne Workflow-Auswahl mit Karten-Design"""
+        # Outer container mit Schatten
+        shadow_container = ctk.CTkFrame(
+            self.main_container,
+            fg_color="rgba(0,0,0,0.1)",
+            border_width=0,
+            corner_radius=18
+        )
+        shadow_container.grid(row=2, column=0, sticky="ew", pady=(2, 30), padx=12)
+        
+        # Hauptcontainer
+        workflow_frame = ctk.CTkFrame(
+            shadow_container,
+            fg_color=["#ffffff", "#1a1a1a"],
+            border_width=1,
+            border_color=["#e5e7eb", "#374151"],
+            corner_radius=16
+        )
+        workflow_frame.pack(fill="both", expand=True, padx=2, pady=2)
+        
+        # Header mit Gradient
+        header_accent = ctk.CTkFrame(
+            workflow_frame,
+            fg_color=["#f3f4f6", "#2d2d2d"],
+            corner_radius=(16, 16, 0, 0),
+            height=80
+        )
+        header_accent.pack(fill="x")
+        header_accent.pack_propagate(False)
+        
+        header_container = ctk.CTkFrame(header_accent, fg_color="transparent")
+        header_container.pack(fill="both", expand=True, padx=30, pady=20)
+        
+        # Icon und Titel
+        header_content = ctk.CTkFrame(header_container, fg_color="transparent")
+        header_content.pack(side="left")
+        
+        # Icon Container
+        icon_bg = ctk.CTkFrame(
+            header_content,
+            fg_color=["#8b5cf6", "#7c3aed"],
+            corner_radius=12,
+            width=48,
+            height=48
+        )
+        icon_bg.pack(side="left", padx=(0, 15))
+        icon_bg.pack_propagate(False)
+        
+        try:
+            workflow_icon = self.app.get_icon("workflow", (32, 32))
+            if workflow_icon:
+                icon_label = ctk.CTkLabel(
+                    icon_bg,
+                    image=workflow_icon,
+                    text=""
+                )
+                icon_label.pack(expand=True)
+        except:
+            # Fallback emoji
+            emoji_label = ctk.CTkLabel(
+                icon_bg,
+                text="⚡",
+                font=("Arial", 24),
+                text_color="white"
+            )
+            emoji_label.pack(expand=True)
+            
+        # Titel Container
+        title_container = ctk.CTkFrame(header_content, fg_color="transparent")
+        title_container.pack(side="left")
+        
+        title_label = ctk.CTkLabel(
+            title_container,
+            text="🚀 Workflow auswählen",
+            font=("Arial", 24, "bold"),
+            text_color=UITheme.COLOR_TEXT_PRIMARY,
+            anchor="w"
+        )
+        title_label.pack(anchor="w")
+        
+        subtitle_label = ctk.CTkLabel(
+            title_container,
+            text="Wählen Sie den gewünschten Arbeitsablauf",
+            font=("Arial", 14),
+            text_color=UITheme.COLOR_TEXT_SECONDARY,
+            anchor="w"
+        )
+        subtitle_label.pack(anchor="w", pady=(2, 0))
+        
+        # Card Container mit Grid-System
+        cards_container = ctk.CTkFrame(workflow_frame, fg_color="transparent")
+        cards_container.pack(fill="x", padx=35, pady=(0, 35))
+        
+        # Responsive Grid für Cards - keine fixen Größen
+        cards_container.grid_columnconfigure([0, 1, 2], weight=1, uniform="cards")
+        
+        # UITheme-konforme Workflow Definitions
+        workflows = [
+            {
+                "text": "Angebotsanalyse",
+                "workflow": "angebots_workflow",
+                "icon": "analyze_icon",
+                "emoji": "📊",
+                "description": "Neue Angebotsanfrage analysieren und bewerten",
+                "details": "KI-gestützte Analyse • Kostenschätzung • Zeitplanung",
+                "color": UITheme.COLOR_PRIMARY,
+                "column": 0,
+                "accent": UITheme.COLOR_PRIMARY_HOVER
+            },
+            {
+                "text": "Prüfung",
+                "workflow": "pruefung_workflow", 
+                "icon": "quality",
+                "emoji": "🔍",
+                "description": "Übersetzung prüfen und Qualität sicherstellen",
+                "details": "Qualitätskontrolle • Fehlerkorrektur • Validierung",
+                "color": UITheme.COLOR_SUCCESS,
+                "column": 1,
+                "accent": UITheme.COLOR_SUCCESS_HOVER
+            },
+            {
+                "text": "Finalisierung",
+                "workflow": "finalisierung_workflow",
+                "icon": "done",
+                "emoji": "✅",
+                "description": "Projekt abschließen und exportieren",
+                "details": "Export • Archivierung • Kundenlieferung",
+                "color": UITheme.COLOR_WARNING,
+                "column": 2,
+                "accent": UITheme.COLOR_WARNING_HOVER
+            }
+        ]
+        
+        for workflow in workflows:
+            self.create_premium_workflow_card(cards_container, workflow)
+
+    def create_premium_workflow_card(self, parent, workflow_info):
+        """Erstellt eine Premium-Workflow-Karte mit UITheme-Konformität"""
+        # Responsiver Card-Container ohne feste Größen
+        card_container = ctk.CTkFrame(
+            parent,
+            fg_color="transparent",
+            corner_radius=UITheme.CORNER_RADIUS_LARGE
+        )
+        card_container.grid(
+            row=0, 
+            column=workflow_info["column"], 
+            padx=15, 
+            pady=12, 
+            sticky="nsew"  # Wichtig für responsives Verhalten
+        )
+        
+        # Main card mit UITheme-Farben - keine feste Höhe
+        main_card = ctk.CTkFrame(
+            card_container,
+            fg_color=UITheme.COLOR_SURFACE,
+            border_width=2,
+            border_color=workflow_info["color"],
+            corner_radius=UITheme.CORNER_RADIUS_LARGE
+        )
+        main_card.pack(fill="both", expand=True, padx=3, pady=3)
+        
+        # Header mit UITheme - keine feste Höhe
+        header_gradient = ctk.CTkFrame(
+            main_card,
+            fg_color=workflow_info["color"],
+            corner_radius=(UITheme.CORNER_RADIUS_LARGE, UITheme.CORNER_RADIUS_LARGE, 0, 0)
+        )
+        header_gradient.pack(fill="x", pady=(0, 0))
+        
+        # Header content mit Grid
+        header_content = ctk.CTkFrame(header_gradient, fg_color="transparent")
+        header_content.pack(expand=True, pady=20)
+        
+        # Icon Container mit UITheme - keine feste Größe
+        icon_container = ctk.CTkFrame(
+            header_content,
+            fg_color=UITheme.COLOR_SURFACE_VARIANT,
+            corner_radius=UITheme.CORNER_RADIUS,
+            width=70,
+            height=70
+        )
+        icon_container.pack(expand=True)
+        icon_container.pack_propagate(False)
+        
+        try:
+            # Korrekte Icon-Verwaltung aus assets/icons/ (JPG)
+            icon = self.app.get_icon(workflow_info["icon"], (45, 45))
+            if icon:
+                icon_label = ctk.CTkLabel(icon_container, image=icon, text="")
+                icon_label.pack(expand=True)
+        except Exception as e:
+            self.logger.warning(f"Workflow-Icon '{workflow_info['icon']}' konnte nicht geladen werden: {e}")
+            emoji_label = ctk.CTkLabel(
+                icon_container,
+                text=workflow_info["emoji"],
+                font=UITheme.get_font("emoji"),
+                text_color=UITheme.COLOR_TEXT_ON_PRIMARY
+            )
+            emoji_label.pack(expand=True)
+        
+        # Content area mit Grid-System
+        content_area = ctk.CTkFrame(main_card, fg_color="transparent")
+        content_area.pack(fill="both", expand=True, padx=30, pady=30)
+        content_area.grid_rowconfigure([0,1,2,3,4,5], weight=0)
+        content_area.grid_columnconfigure(0, weight=1)
+        
+        # Title mit UITheme
+        title_label = ctk.CTkLabel(
+            content_area,
+            text=workflow_info["text"],
+            font=UITheme.get_font("h3"),
+            text_color=UITheme.COLOR_TEXT_PRIMARY
+        )
+        title_label.grid(row=0, column=0, pady=(0, 12), sticky="ew")
+        
+        # Description mit UITheme
+        desc_label = ctk.CTkLabel(
+            content_area,
+            text=workflow_info["description"],
+            font=UITheme.get_font("body"),
+            text_color=UITheme.COLOR_TEXT_SECONDARY,
+            wraplength=220,
+            justify="center"
+        )
+        desc_label.grid(row=1, column=0, pady=(0, 15), sticky="ew")
+        
+        # Feature details mit UITheme-Farben
+        details_label = ctk.CTkLabel(
+            content_area,
+            text=workflow_info["details"],
+            font=UITheme.get_font("caption"),
+            text_color=workflow_info["accent"],
+            wraplength=200,
+            justify="center"
+        )
+        details_label.grid(row=2, column=0, pady=(0, 20), sticky="ew")
+        
+        # Separator mit UITheme
+        separator = ctk.CTkFrame(
+            content_area,
+            fg_color=workflow_info["color"],
+            height=2,
+            corner_radius=UITheme.CORNER_RADIUS
+        )
+        separator.grid(row=3, column=0, pady=(0, 25), sticky="ew")
+        
+        # CTA button mit UITheme und responsivem Design
+        action_button = ctk.CTkButton(
+            content_area,
+            text=f"🚀 {workflow_info['text']} starten",
+            command=lambda: self.start_workflow(workflow_info["workflow"]),
+            height=52,
+            font=UITheme.get_font("button"),
+            **UITheme.BUTTON_STYLE_PRIMARY,
+            fg_color=workflow_info["color"],
+            hover_color=workflow_info["accent"],
+            corner_radius=UITheme.CORNER_RADIUS
+        )
+        action_button.grid(row=4, column=0, pady=(0, 15), sticky="ew")
+        
+        # Status row mit Grid
+        status_row = ctk.CTkFrame(content_area, fg_color="transparent")
+        status_row.grid(row=5, column=0, sticky="ew")
+        status_row.grid_columnconfigure(1, weight=1)
+        
+        # Status indicator mit UITheme
+        status_dot = ctk.CTkFrame(
+            status_row,
+            fg_color=UITheme.COLOR_SUCCESS,
+            corner_radius=6,
+            width=12,
+            height=12
+        )
+        status_dot.grid(row=0, column=0, padx=(0, 10))
+        
+        status_text = ctk.CTkLabel(
+            status_row,
+            text="Verfügbar",
+            font=UITheme.get_font("caption"),
+            text_color=UITheme.COLOR_SUCCESS
+        )
+        status_text.grid(row=0, column=1, sticky="w")
+        
+        # Premium badge mit UITheme
+        premium_badge = ctk.CTkLabel(
+            status_row,
+            text="PRO",
+            font=UITheme.get_font("caption"),
+            text_color=UITheme.COLOR_TEXT_ON_PRIMARY,
+            fg_color=workflow_info["accent"],
+            corner_radius=UITheme.CORNER_RADIUS,
+            width=35,
+            height=20
+        )
+        premium_badge.grid(row=0, column=2, sticky="e")
+
+    def create_footer(self):
+        """Erstellt den Footer mit UITheme-Konformität und responsivem Design"""
+        # Footer container mit UITheme
+        footer_container = ctk.CTkFrame(
+            self.main_container,
+            fg_color=UITheme.COLOR_SURFACE,
+            border_width=1,
+            border_color=UITheme.COLOR_BORDER,
+            corner_radius=UITheme.CORNER_RADIUS_LARGE
+        )
+        footer_container.grid(row=3, column=0, sticky="ew", padx=15, pady=(5, 0))
+        
+        # Content layout mit Grid-System
+        content_layout = ctk.CTkFrame(footer_container, fg_color="transparent")
+        content_layout.pack(fill="both", expand=True, padx=40, pady=25)
+        content_layout.grid_columnconfigure(1, weight=1)
+        
+        # Left section - Status mit Grid
+        left_section = ctk.CTkFrame(content_layout, fg_color="transparent")
+        left_section.grid(row=0, column=0, sticky="w")
+        left_section.grid_columnconfigure(1, weight=1)
+        
+        # Status icon mit UITheme
+        status_icon_container = ctk.CTkFrame(
+            left_section,
+            fg_color=UITheme.COLOR_SUCCESS,
+            corner_radius=UITheme.CORNER_RADIUS,
+            width=32,
+            height=32
+        )
+        status_icon_container.grid(row=0, column=0, padx=(0, 15))
+        status_icon_container.pack_propagate(False)
+        
+        status_icon = ctk.CTkLabel(
+            status_icon_container,
+            text="✓",
+            font=UITheme.get_font("button"),
+            text_color=UITheme.COLOR_TEXT_ON_SUCCESS
+        )
+        status_icon.pack(expand=True)
+        
+        # Status text container mit Grid
+        status_text_container = ctk.CTkFrame(left_section, fg_color="transparent")
+        status_text_container.grid(row=0, column=1, sticky="w")
+        
+        self.status_label = ctk.CTkLabel(
+            status_text_container,
+            text="🎯 System operational - Wählen Sie Ihren Workflow",
+            font=UITheme.get_font("h4"),
+            text_color=UITheme.COLOR_TEXT_PRIMARY
+        )
+        self.status_label.pack(anchor="w")
+        
+        self.status_detail = ctk.CTkLabel(
+            status_text_container,
+            text="Alle Services verfügbar • KI-Unterstützung aktiv",
+            font=UITheme.get_font("caption"),
+            text_color=UITheme.COLOR_TEXT_SECONDARY
+        )
+        self.status_detail.pack(anchor="w")
+        
+        # Right section - Badges mit Grid
+        right_section = ctk.CTkFrame(content_layout, fg_color="transparent")
+        right_section.grid(row=0, column=2, sticky="e")
+        
+        # Version info mit UITheme
+        version_info = ctk.CTkFrame(
+            right_section,
+            fg_color=UITheme.COLOR_PRIMARY,
+            corner_radius=UITheme.CORNER_RADIUS
+        )
+        version_info.pack(side="right", padx=(0, 12))
+        
+        version_label = ctk.CTkLabel(
+            version_info,
+            text="v2.1 Enterprise",
+            font=UITheme.get_font("caption"),
+            text_color=UITheme.COLOR_TEXT_ON_PRIMARY
+        )
+        version_label.pack(padx=15, pady=6)
+        
+        # Online status mit UITheme
+        online_status = ctk.CTkFrame(
+            right_section,
+            fg_color=UITheme.COLOR_SUCCESS,
+            corner_radius=UITheme.CORNER_RADIUS
+        )
+        online_status.pack(side="right")
+        
+        online_label = ctk.CTkLabel(
+            online_status,
+            text="● Online",
+            font=UITheme.get_font("caption"),
+            text_color=UITheme.COLOR_TEXT_ON_SUCCESS
+        )
+        online_label.pack(padx=15, pady=6)
+
+    def start_workflow(self, workflow_type):
+        """Startet einen ausgewählten Workflow mit Enhanced UX"""
+        # Enhanced validation
+        if not self.validate_input_fields():
+            messagebox.showwarning(
+                "⚠️ Eingabe erforderlich",
+                "Bitte geben Sie einen Kundennamen ein, um fortzufahren."
+            )
+            self.customer_name_entry.focus()
+            return
+            
+        # Sammle Daten
+        customer_name = self.customer_name_entry.get().strip()
+        order_number = self.order_number_entry.get().strip()
+        
+        # Status mit Animation aktualisieren
+        workflow_names = {
+            "angebots_workflow": "📊 Angebotsanalyse",
+            "pruefung_workflow": "🔍 Prüfung", 
+            "finalisierung_workflow": "✅ Finalisierung"
+        }
+        
+        workflow_name = workflow_names.get(workflow_type, workflow_type)
+        
+        # Loading state
+        self.update_status_with_animation(
+            f"Initialisiere {workflow_name} für {customer_name}...", 
+            "loading"
+        )
+        
+        # Kundendaten zusammenstellen
+        customer_data = {
+            "kunde_name": customer_name,
+            "auftragsnummer": order_number if order_number else None,
+            "timestamp": datetime.now().isoformat(),
+            "workflow_type": workflow_type
+        }
+        
+        # Workflow starten
+        try:
+            self.app.start_workflow(workflow_type, customer_data)
+            self.update_status_with_animation(
+                f"✨ {workflow_name} erfolgreich gestartet!", 
+                "success"
+            )
+        except Exception as e:
+            messagebox.showerror(
+                "❌ Fehler",
+                f"Fehler beim Starten des Workflows:\n{str(e)}"
+            )
+            self.update_status_with_animation(
+                "Fehler beim Starten des Workflows",
+                "error"
+            )
+
+    def clear_content(self):
+        """Löscht alle Inhalte"""
+        for widget in self.winfo_children():
+            widget.destroy()
+
+    def show_error_fallback(self):
+        """Zeigt eine Fehler-Fallback UI"""
+        error_frame = ctk.CTkFrame(self, fg_color=UITheme.COLOR_SURFACE)
+        error_frame.pack(fill="both", expand=True, padx=50, pady=50)
+        
+        error_label = ctk.CTkLabel(
+            error_frame,
+            text="⚠️ Fehler beim Laden der Welcome Screen",
+            font=UITheme.get_font("h2"),
+            text_color=UITheme.COLOR_TEXT_PRIMARY
+        )
+        error_label.pack(pady=20)
+        
+        retry_button = ctk.CTkButton(
+            error_frame,
+            text="Erneut versuchen",
+            command=self.setup_ui,
+            **UITheme.BUTTON_STYLE_PRIMARY
+        )
+        retry_button.pack(pady=10)
+
+    def cleanup(self):
+        """Cleanup-Methode für Speicher-Management"""
+        try:
+            self.clear_content()
+        except:
+            pass
+
+    def get_customer_data(self):
+        """Gibt die aktuellen Kundendaten zurück"""
+        return {
+            "kunde_name": self.customer_name_entry.get().strip(),
+            "auftragsnummer": self.order_number_entry.get().strip()
+        }
+
+    def _update_layout_after_resize(self):
+        """Aktualisiert das Layout nach Größenänderungen"""
+        try:
+            self.update_idletasks()
+        except:
+            pass
+
+    def validate_input_fields(self):
+        """Validiert Eingabefelder mit visueller Rückmeldung und UITheme-Farben"""
+        customer_name = self.customer_name_entry.get().strip()
+        
+        if not customer_name:
+            # Visual feedback mit UITheme-Farben
+            self.customer_name_entry.configure(
+                border_color=UITheme.COLOR_ERROR,
+                placeholder_text="❌ Kundenname ist erforderlich!"
+            )
+            # Reset nach kurzer Zeit
+            self.after(2000, lambda: self.customer_name_entry.configure(
+                border_color=UITheme.COLOR_BORDER,
+                placeholder_text="💼 Geben Sie den Kundennamen ein..."
+            ))
+            return False
+        else:
+            # Success feedback mit UITheme
+            self.customer_name_entry.configure(
+                border_color=UITheme.COLOR_SUCCESS
+            )
+            return True
+
+    def update_status_with_animation(self, message, status_type="info"):
+        """Aktualisiert Status mit Animation und UITheme-konformen Farben"""
+        icons = {
+            "info": "🎯",
+            "success": "✅", 
+            "error": "❌",
+            "loading": "🚀"
+        }
+        
+        # Verwende UITheme-Farben statt hardcoded Werte
+        colors = {
+            "info": UITheme.COLOR_TEXT_PRIMARY,
+            "success": UITheme.COLOR_SUCCESS,
+            "error": UITheme.COLOR_ERROR, 
+            "loading": UITheme.COLOR_PRIMARY
+        }
+        
+        icon = icons.get(status_type, "🎯")
+        color = colors.get(status_type, UITheme.COLOR_TEXT_PRIMARY)
+        
+        self.status_label.configure(
+            text=f"{icon} {message}",
+            text_color=color
+        )

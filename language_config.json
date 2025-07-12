@@ -1,0 +1,25 @@
+{
+  "language_tool_map": {
+    "de": "de-DE", "en": "en-US", "fr": "fr", "es": "es", "it": "it",
+    "pt": "pt-PT", "nl": "nl-NL", "ru": "ru-RU", "pl": "pl-PL",
+    "ja": "ja-JP", "zh-cn": "zh-CN", "cs": "cs-CZ", "hu": "hu-HU",
+    "ro": "ro-RO", "sk": "sk-SK", "uk": "uk-UA", "da": "da-DK",
+    "no": "nb-NO", "sv": "sv-SE", "fi": "fi-FI"
+  },
+  "tesseract_map": {
+    "de-DE": "deu", "en-US": "eng", "fr": "fra", "es": "spa", "it": "ita",
+    "pt-PT": "por", "nl-NL": "nld", "ru-RU": "rus", "pl-PL": "pol",
+    "ja-JP": "jpn", "zh-CN": "chi_sim", "cs-CZ": "ces", "hu-HU": "hun",
+    "ro-RO": "ron", "sk-SK": "slk", "uk-UA": "ukr", "da-DK": "dan",
+    "nb-NO": "nor", "sv-SE": "swe", "fi-FI": "fin"
+  },
+  "ui_language_map": {
+    "Deutsch": "de-DE", "English": "en-US", "Français": "fr",
+    "Español": "es", "Italiano": "it", "Português": "pt-PT",
+    "Nederlands": "nl-NL", "Русский": "ru-RU", "Polski": "pl-PL",
+    "日本語": "ja-JP", "中文 (简体)": "zh-CN", "Čeština": "cs-CZ",
+    "Magyar": "hu-HU", "Română": "ro-RO", "Slovenčina": "sk-SK",
+    "Українська": "uk-UA", "Dansk": "da-DK", "Norsk (Bokmål)": "nb-NO",
+    "Svenska": "sv-SE", "Suomi": "fi-FI"
+  }
+}

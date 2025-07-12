@@ -1,0 +1,12 @@
+{
+  "kunde_name": "Test_Kunde_1",
+  "auftragsnummer": "AUF2024-001",
+  "kundenbetreuer": "Max Mustermann",
+  "zielsprache": "Deutsch → Englisch",
+  "dateien": [
+    "dokument1.docx",
+    "dokument2.pdf"
+  ],
+  "erstellt_am": "2025-07-01T16:13:02.795516",
+  "status": "in_bearbeitung"
+}

@@ -1,0 +1,17 @@
+{
+  "theme": "minimal",
+  "use_unicode_fallback": true,
+  "custom_icons": {
+    "workflow_start": "▶",
+    "workflow_pause": "⏸",
+    "workflow_stop": "⏹",
+    "customer_new": "+",
+    "customer_edit": "✎",
+    "project_active": "●",
+    "project_completed": "✓",
+    "quality_high": "★★★",
+    "quality_medium": "★★",
+    "quality_low": "★"
+  },
+  "version": "1.0"
+}

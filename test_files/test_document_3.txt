@@ -1,0 +1,10 @@
+Test-Dokument 3 für Multi-Upload-Funktionalität
+
+Diese Datei ist Teil des Tests für:
+✅ Mehrfach-Dateiauswahl
+✅ Drag & Drop für mehrere Dateien
+✅ Progress-Anzeige
+✅ Fehlerbehandlung
+✅ Upload-Zusammenfassung
+
+Simuliert eine Text-Datei im Batch-Upload.

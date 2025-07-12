@@ -1,0 +1,5 @@
+Dies ist ein Testtext für die Angebotsanalyse-Workflow-Funktionalität.
+Dieser Text sollte mit detaillierten Textmetriken wie Zeichenanzahl, Wortanzahl, etc. angezeigt werden.
+Diese Informationen sollten im Angebotsanalyse-Workflow deutlich sichtbar sein.
+Der Angebotsanalyse-Workflow sollte alle Textmetriken ausführlich darstellen.
+Das ist wichtig für die Erstellung von Angeboten und die Berechnung der Normzeilen (AC36).

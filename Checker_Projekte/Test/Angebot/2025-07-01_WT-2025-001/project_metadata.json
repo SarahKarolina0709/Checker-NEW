@@ -1,0 +1,10 @@
+{
+  "kunde_name": "Workflow Test GmbH",
+  "auftragsnummer": "WT-2025-001",
+  "workflow": "Angebot",
+  "kundenbetreuer": "Test Betreuer",
+  "zielsprache": "DE → EN",
+  "erstellt_am": "2025-07-01T16:47:18.596526",
+  "status": "aktiv",
+  "dateien": []
+}

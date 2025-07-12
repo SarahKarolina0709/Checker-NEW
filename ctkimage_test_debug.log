@@ -1,0 +1,21 @@
+2025-06-29 23:19:57,085 - DEBUG - Gescannte Icons: ['about', 'add-20', 'add_20', 'add-48', 'add_48', 'analytics', 'analyze_icon', 'analyze-icon', 'arrow_left', 'arrow-left', 'bookmark', 'calendar', 'certificate', 'chain', 'check-all-20', 'check_all_20', 'check-all-48', 'check_all_48', 'check-mark', 'check_mark', 'check', 'check_all', 'check-all', 'clock', 'close', 'connect', 'doc-file', 'doc_file', 'done', 'download', 'edit', 'error', 'export', 'export_icon', 'export-icon', 'favorites', 'file_icon', 'file-icon', 'folder', 'folder_icon', 'folder-icon', 'folder_open', 'folder-open', 'help_icon', 'help-icon', 'home', 'idea', 'image-file', 'image_file', 'import', 'info', 'key', 'link', 'load_icon', 'load-icon', 'lock', 'mailbox', 'menu', 'notification', 'opened-folder', 'opened_folder', 'options_icon', 'options-icon', 'padlock', 'pdf-file', 'pdf_file', 'pdf', 'person', 'picture', 'pin', 'play', 'plus', 'print', 'puzzle', 'quality', 'quit_icon', 'quit-icon', 'refresh', 'report_icon', 'report-icon', 'restart', 'rocket', 'save', 'save_icon', 'save-icon', 'search', 'settings', 'share', 'speech-bubble', 'speech_bubble', 'spell-check-20', 'spell_check_20', 'spell-check-48', 'spell_check_48', 'star', 'success', 'tag', 'theme', 'tick-box', 'tick_box', 'toolbox', 'trash-can', 'trash_can', 'txt-file', 'txt_file', 'upload', 'user', 'workflow', 'file']
+2025-06-29 23:19:57,086 - INFO - Enhanced FluentIconManager initialisiert mit Workspace: C:\Users\sarah\Desktop\Checker
+2025-06-29 23:19:57,086 - DEBUG - Icon-Pfade: ['C:\\Users\\sarah\\Desktop\\Checker\\icons', 'C:\\Users\\sarah\\Desktop\\Checker\\assets', 'C:\\Users\\sarah\\Desktop\\Checker\\assets\\icons']
+2025-06-29 23:19:57,087 - DEBUG - Verfügbare lokale Icons: 109
+2025-06-29 23:19:57,154 - DEBUG - STREAM b'IHDR' 16 13
+2025-06-29 23:19:57,154 - DEBUG - STREAM b'pHYs' 41 9
+2025-06-29 23:19:57,154 - DEBUG - STREAM b'IDAT' 62 1625
+2025-06-29 23:19:57,154 - DEBUG - STREAM b'IHDR' 16 13
+2025-06-29 23:19:57,154 - DEBUG - STREAM b'pHYs' 41 9
+2025-06-29 23:19:57,159 - DEBUG - STREAM b'IDAT' 62 880
+2025-06-29 23:19:57,160 - DEBUG - STREAM b'IHDR' 16 13
+2025-06-29 23:19:57,160 - DEBUG - STREAM b'pHYs' 41 9
+2025-06-29 23:19:57,160 - DEBUG - STREAM b'IDAT' 62 1745
+2025-06-29 23:19:57,162 - DEBUG - STREAM b'IHDR' 16 13
+2025-06-29 23:19:57,162 - DEBUG - STREAM b'IDAT' 41 104
+2025-06-29 23:19:57,163 - DEBUG - STREAM b'IHDR' 16 13
+2025-06-29 23:19:57,164 - DEBUG - STREAM b'pHYs' 41 9
+2025-06-29 23:19:57,164 - DEBUG - STREAM b'IDAT' 62 2112
+2025-06-29 23:19:57,165 - DEBUG - STREAM b'IHDR' 16 13
+2025-06-29 23:19:57,165 - DEBUG - STREAM b'IDAT' 41 200
+2025-06-29 23:19:57,171 - INFO - Icon-Cache geleert

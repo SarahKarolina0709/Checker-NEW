@@ -1,0 +1,25 @@
+Analyzing text: Dies ist ein Testtext. Er enthält mehrere Sätze und Wörter.
+
+Analysis Results:
+- characters_with_spaces: 59
+- characters_without_spaces: 50
+- words: 10
+- sentences: 2
+- paragraphs: 1
+- lines: 1
+- normzeilen_ac36: 2
+- line_repetition_summary: Keine Zeilen mind. 2x wiederholt (Mindestlänge 15 Zeichen).
+
+
+Testing with file content:
+Read 319 characters from test.txt
+
+File Analysis Results:
+- characters_with_spaces: 319
+- characters_without_spaces: 284
+- words: 35
+- sentences: 5
+- paragraphs: 1
+- lines: 4
+- normzeilen_ac36: 9
+- line_repetition_summary: Keine Zeilen mind. 2x wiederholt (Mindestlänge 15 Zeichen).

@@ -1,0 +1,57 @@
+Teste Import des KI-Moduls...
+KI-Modul erfolgreich importiert!
+Verfügbare Funktionen im KI-Modul:
+- KIModule
+- OllamaWorker
+- Queue
+- RequestError
+- ResponseError
+- Thread
+- ki_abschnitts_check
+- ki_glossa_check
+- ki_konsistenzpruefung
+- ki_korrekturvorschlaege
+- ki_kulturelle_pruefung
+- ki_qualitaetspruefung
+- ki_qualitaetspruefung_vergleich
+- ki_referenz_vergleich
+- ki_stilistik_pruefung
+- ki_terminologiepruefung
+- ki_tonfall_pruefung
+- ki_zusammenfassung
+- klassifiziere_fehler
+Test abgeschlossen!
+🔍 Teste KundenManagerV2...
+📋 Erstelle Projekt für TestKunde_AG...
+✅ Projekt erstellt!
+   🆔 Projekt-ID: 2025-01-20_Website_Update
+   📁 Pfad: Test_Projekte\TestKunde_AG\2025-01-20_Website_Update
+📂 Prüfe Workflow-Ordner:
+   ✅ Ausgangstexte: Test_Projekte\TestKunde_AG\2025-01-20_Website_Update\Ausgangstexte
+   ✅ Angebot: Test_Projekte\TestKunde_AG\2025-01-20_Website_Update\Angebot
+   ✅ Pruefung: Test_Projekte\TestKunde_AG\2025-01-20_Website_Update\Pruefung
+   ✅ Finalisierung: Test_Projekte\TestKunde_AG\2025-01-20_Website_Update\Finalisierung
+
+📊 Ordnerstruktur unter Test_Projekte\TestKunde_AG\2025-01-20_Website_Update:
+   📁 Angebot
+   📁 Ausgangstexte
+   📁 Finalisierung
+   📁 Pruefung
+
+🏁 Test abgeschlossen
+Testing PruefungWorkflow instantiation...
+✓ Imports successful
+✓ Root window created
+[NUCLEAR] Blocked scaling callback: check_dpi_scaling
+✓ Content frame created
+[INFO] Language configuration loaded successfully.
+[INFO] No 'uploaded_files' in project_data to populate from.
+[WARN] Could not form any file pairs from the provided uploaded_files.
+✅ SUCCESS: PruefungWorkflow created without errors!
+   - Controller exists: True
+   - View exists: True
+   - select_all_checks: ✓
+   - clear_all_file_pairs: ✓
+   - start_checking_process: ✗
+
+Test completed.
