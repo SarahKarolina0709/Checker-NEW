@@ -757,34 +757,45 @@ class CheckerApp:
         return None
     
     def refresh_customer_view(self):
-        """Global method to refresh customer view from anywhere in the app."""
+        """
+        Aktualisiert die Kundenverwaltungsansicht.
+        
+        Optimierte Version mit zentralisiertem Logging und 
+        klarer Prioritätssetzung für verfügbare UI-Systeme.
+        """
         try:
-            print(f"[DEBUG] refresh_customer_view called")
+            self.logger.info("Aktualisiere Kundenverwaltungsansicht")
             
-            # If SimplifiedModernCustomerUI is active, refresh it
-            if hasattr(self, '_simplified_customer_ui'):
-                print(f"[DEBUG] Refreshing SimplifiedModernCustomerUI")
+            # Priorität 1: ModernCustomerGUI über ViewStack
+            if (hasattr(self, 'views') and self.views and 
+                self.views.has_view('customer_management')):
                 try:
-                    self._simplified_customer_ui.refresh_current_view()
-                    return True
+                    # Aktualisiere bestehende ModernCustomerGUI
+                    if hasattr(self, 'modern_customer_gui') and self.modern_customer_gui:
+                        if hasattr(self.modern_customer_gui, 'refresh_current_view'):
+                            self.modern_customer_gui.refresh_current_view()
+                            self.logger.info("✅ Kundenverwaltung über ViewStack aktualisiert")
+                            return True
                 except Exception as e:
-                    print(f"[DEBUG] Error refreshing SimplifiedModernCustomerUI: {e}")
-                    
-            # Fallback to other customer management systems
-            if hasattr(self, 'ui_modernizer') and self.ui_modernizer:
+                    self.logger.warning(f"Fehler beim Aktualisieren über ViewStack: {e}")
+            
+            # Priorität 2: Direkte ModernCustomerGUI-Aktualisierung
+            if hasattr(self, 'modern_customer_gui') and self.modern_customer_gui:
                 try:
-                    print(f"[DEBUG] 🔧 Attempting to refresh via show_customer_menu (using ModernCustomerGUI)")
-                    # Use the CORRECT customer menu (ModernCustomerGUI)
-                    self.show_customer_menu()
-                    return True
+                    if hasattr(self.modern_customer_gui, 'refresh_current_view'):
+                        self.modern_customer_gui.refresh_current_view()
+                        self.logger.info("✅ ModernCustomerGUI direkt aktualisiert")
+                        return True
                 except Exception as e:
-                    print(f"[DEBUG] Error refreshing via show_customer_menu: {e}")
-                    
-            print(f"[DEBUG] No customer UI system found to refresh")
-            return False
+                    self.logger.warning(f"Fehler bei direkter GUI-Aktualisierung: {e}")
+            
+            # Priorität 3: Neuladen der gesamten Kundenverwaltung
+            self.logger.info("Lade Kundenverwaltung komplett neu")
+            self.show_customer_menu()
+            return True
             
         except Exception as e:
-            print(f"[DEBUG] Error in refresh_customer_view: {e}")
+            self.logger.error(f"Fehler beim Aktualisieren der Kundenverwaltung: {e}")
             return False
     
     def _upload_for_customer(self, customer_name):
@@ -1417,185 +1428,119 @@ class CheckerApp:
             self.error_monitor.handle_error(e, "File Menu", "warning")
 
     def show_customer_menu(self):
-        """Shows the modern customer management interface."""
+        """
+        Zeigt die moderne Kundenverwaltungsschnittstelle an.
+        
+        Optimierte Version mit zentralisiertem Logging und 
+        sauberer Fehlerbehandlung ohne redundante Fallbacks.
+        """
         try:
-            print("[DEBUG] show_customer_menu called - using ModernCustomerGUI")
+            self.logger.info("Öffne Kundenverwaltung")
             
-            # Prüfe ob die App noch läuft
+            # Validiere grundlegende App-Komponenten
             if not hasattr(self, 'root') or not self.root:
-                print("[DEBUG] App ist nicht initialisiert")
-                return
+                raise RuntimeError("App ist nicht korrekt initialisiert")
             
-            # Prüfe ViewStack Verfügbarkeit
-            if not hasattr(self, 'views') or not self.views:
-                print("[DEBUG] ViewStack nicht verfügbar - verwende direkte Anzeige")
-                self._show_modern_customer_gui_direct()
-                return
-            
-            # Entferne alte customer_management View falls vorhanden
-            if self.views.has_view('customer_management'):
-                print("[DEBUG] Customer management view bereits vorhanden - zeige bestehende")
-                self.views.show('customer_management')
-                return
+            # Verwende ViewStack wenn verfügbar, sonst direkte Anzeige
+            if hasattr(self, 'views') and self.views:
+                self._show_customer_menu_via_viewstack()
             else:
-                print("[DEBUG] Erstelle neue customer_management View")
+                self.logger.warning("ViewStack nicht verfügbar - verwende direkte Anzeige")
+                self._show_modern_customer_gui_optimized()
+                
+        except Exception as e:
+            self.logger.error(f"Fehler beim Öffnen der Kundenverwaltung: {e}")
+            if hasattr(self, 'notification_center') and self.notification_center:
+                self.notification_center.show_error(
+                    "Kundenverwaltung", 
+                    f"Fehler beim Laden: {str(e)}"
+                )
+            else:
+                messagebox.showerror(
+                    "Fehler", 
+                    f"Kundenverwaltung konnte nicht geladen werden:\n{str(e)}"
+                )
+    
+    def _show_customer_menu_via_viewstack(self):
+        """Zeigt die Kundenverwaltung über das ViewStack-System an."""
+        # Prüfe ob View bereits existiert
+        if self.views.has_view('customer_management'):
+            self.logger.info("Kundenverwaltung bereits geladen - zeige bestehende View")
+            self.views.show('customer_management')
+            return
+        
+        # Erstelle neuen Container für ModernCustomerGUI
+        customer_container = ctk.CTkFrame(self.views, fg_color="transparent")
+        customer_container.grid_columnconfigure(0, weight=1)
+        customer_container.grid_rowconfigure(0, weight=1)
+        
+        # Importiere und erstelle ModernCustomerGUI
+        from modern_customer_gui import ModernCustomerGUI
+        
+        self.modern_customer_gui = ModernCustomerGUI(
+            master=customer_container,
+            app=self
+        )
+        
+        # Verwende grid Layout für bessere Kontrolle
+        self.modern_customer_gui.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+        
+        # Füge zur ViewStack hinzu
+        self.views.add(
+            'customer_management',
+            customer_container,
+            on_show=self._on_customer_management_shown,
+            on_hide=self._on_customer_management_hidden
+        )
+        
+        # Zeige die neue GUI an
+        self.views.show('customer_management')
+        self.logger.info("✅ Kundenverwaltung erfolgreich über ViewStack geladen")
+    
+    def _show_modern_customer_gui_optimized(self):
+        """
+        Optimierte und einheitliche Methode zum Anzeigen der ModernCustomerGUI.
+        
+        Diese Methode ersetzt alle redundanten Fallback-Methoden und bietet
+        eine robuste, aber saubere Implementierung.
+        """
+        try:
+            self.logger.info("Initialisiere optimierte ModernCustomerGUI")
             
-            # Erstelle neuen Container für ModernCustomerGUI
-            customer_container = ctk.CTkFrame(self.views, fg_color="transparent")
-            customer_container.grid_columnconfigure(0, weight=1)
-            customer_container.grid_rowconfigure(0, weight=1)
-            
-            # Erstelle ModernCustomerGUI
-            print("[DEBUG] Erstelle ModernCustomerGUI...")
+            # Importiere ModernCustomerGUI
             from modern_customer_gui import ModernCustomerGUI
             
-            self.modern_customer_gui = ModernCustomerGUI(
-                master=customer_container,
-                app=self
-            )
-            self.modern_customer_gui.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
+            # Prüfe ob main_container verfügbar ist
+            if not hasattr(self, 'main_container') or not self.main_container:
+                raise ValueError("main_container ist nicht verfügbar")
             
-            # Füge zur ViewStack hinzu
-            self.views.add(
-                'customer_management',
-                customer_container,
-                on_show=self._on_customer_management_shown,
-                on_hide=self._on_customer_management_hidden
-            )
-            
-            # Zeige die neue GUI an
-            self.views.show('customer_management')
-            print("[DEBUG] ✅ ModernCustomerGUI erfolgreich angezeigt!")
-            
-        except Exception as e:
-            print(f"[DEBUG] Fehler in show_customer_menu: {e}")
-            import traceback
-            traceback.print_exc()
-            
-            # Versuche mehrere Fallback-Strategien für ModernCustomerGUI
-            print("[DEBUG] Versuche robuste ModernCustomerGUI-Fallbacks...")
-            
-            # Fallback 1: Direkte Anzeige
-            try:
-                print("[DEBUG] Fallback 1: Direkte ModernCustomerGUI-Anzeige")
-                self._show_modern_customer_gui_direct()
-            except Exception as fallback_error:
-                print(f"[DEBUG] Fallback 1 fehlgeschlagen: {fallback_error}")
-                
-                # Fallback 2: Einfache Containererstellung 
-                try:
-                    print("[DEBUG] Fallback 2: Einfache ModernCustomerGUI-Erstellung")
-                    self._show_modern_customer_gui_simple()
-                except Exception as fallback_error2:
-                    print(f"[DEBUG] Fallback 2 fehlgeschlagen: {fallback_error2}")
-                    
-                    # Fallback 3: Minimaler UI-Modus
-                    try:
-                        print("[DEBUG] Fallback 3: Minimaler ModernCustomerGUI-Modus")
-                        self._show_modern_customer_gui_minimal()
-                    except Exception as fallback_error3:
-                        print(f"[DEBUG] Fallback 3 fehlgeschlagen: {fallback_error3}")
-                        # Letzter Fallback: Informative Nachricht
-                        messagebox.showinfo(
-                            "Kundenverwaltung", 
-                            "Die Kundenverwaltung wird geladen...\nBitte versuchen Sie es in einem Moment erneut."
-                        )
-    
-    def _show_modern_customer_gui_direct(self):
-        """Zeige ModernCustomerGUI direkt ohne ViewStack an."""
-        try:
-            print("[DEBUG] Zeige ModernCustomerGUI direkt an")
-            
-            # Leere das main_container
+            # Leere den Container sauber
             for widget in self.main_container.winfo_children():
                 widget.destroy()
             
-            # Erstelle ModernCustomerGUI direkt
-            from modern_customer_gui import ModernCustomerGUI
-            
+            # Erstelle ModernCustomerGUI mit optimierten Einstellungen
             self.modern_customer_gui = ModernCustomerGUI(
                 master=self.main_container,
                 app=self
             )
-            self.modern_customer_gui.pack(fill="both", expand=True, padx=20, pady=20)
             
-            print("[DEBUG] ✅ ModernCustomerGUI direkt angezeigt")
+            # Verwende grid für bessere Layout-Kontrolle
+            self.modern_customer_gui.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
             
-        except Exception as e:
-            print(f"[DEBUG] Fehler in _show_modern_customer_gui_direct: {e}")
-    
-    def _show_modern_customer_gui_simple(self):
-        """Zeige ModernCustomerGUI mit einfachster Container-Struktur."""
-        try:
-            print("[DEBUG] Zeige ModernCustomerGUI mit einfacher Container-Struktur")
+            # Stelle sicher, dass der Container responsive ist
+            self.main_container.grid_rowconfigure(0, weight=1)
+            self.main_container.grid_columnconfigure(0, weight=1)
             
-            # Leere das main_container komplett
-            for widget in self.main_container.winfo_children():
-                widget.destroy()
-            
-            # Erstelle einfachsten Container
-            simple_container = ctk.CTkFrame(self.main_container, fg_color="transparent")
-            simple_container.pack(fill="both", expand=True)
-            
-            # Erstelle ModernCustomerGUI direkt in einfachstem Container
-            from modern_customer_gui import ModernCustomerGUI
-            
-            self.modern_customer_gui = ModernCustomerGUI(
-                master=simple_container,
-                app=self
-            )
-            self.modern_customer_gui.pack(fill="both", expand=True)
-            
-            print("[DEBUG] ✅ ModernCustomerGUI einfach angezeigt")
+            self.logger.info("✅ ModernCustomerGUI erfolgreich geladen")
             
         except Exception as e:
-            print(f"[DEBUG] Fehler in _show_modern_customer_gui_simple: {e}")
-    
-    def _show_modern_customer_gui_minimal(self):
-        """Zeige ModernCustomerGUI im minimalen Modus."""
-        try:
-            print("[DEBUG] Zeige ModernCustomerGUI im minimalen Modus")
-            
-            # Direkteste Implementierung möglich
-            from modern_customer_gui import ModernCustomerGUI
-            
-            # Erstelle temporäres Fenster falls main_container nicht funktioniert
-            if hasattr(self, 'main_container') and self.main_container:
-                try:
-                    # Leere den Container
-                    for widget in self.main_container.winfo_children():
-                        widget.destroy()
-                    
-                    # Erstelle GUI direkt im main_container
-                    self.modern_customer_gui = ModernCustomerGUI(self.main_container, self)
-                    self.modern_customer_gui.pack(fill="both", expand=True)
-                    print("[DEBUG] ✅ ModernCustomerGUI minimal angezeigt")
-                except:
-                    # Plan B: Direkt in root
-                    self.modern_customer_gui = ModernCustomerGUI(self.root, self)
-                    self.modern_customer_gui.pack(fill="both", expand=True)
-                    print("[DEBUG] ✅ ModernCustomerGUI minimal in root angezeigt")
-            else:
-                # Fallback zu root
-                self.modern_customer_gui = ModernCustomerGUI(self.root, self)
-                self.modern_customer_gui.pack(fill="both", expand=True)
-                print("[DEBUG] ✅ ModernCustomerGUI minimal in root angezeigt")
-            
-        except Exception as e:
-            print(f"[DEBUG] Fehler in _show_modern_customer_gui_minimal: {e}")
-            import traceback
-            traceback.print_exc()
-            raise
-    
-    def show_customer_section_complete(self):
-        """Deprecated: Redirects to ModernCustomerGUI."""
-        print("[DEBUG] show_customer_section_complete called - redirecting to ModernCustomerGUI")
-        self.show_customer_menu()
-    
-    def show_customer_section_complete_direct(self):
-        """Deprecated: Redirects to ModernCustomerGUI."""
-        print("[DEBUG] show_customer_section_complete_direct called - redirecting to ModernCustomerGUI")  
-        self.show_customer_menu()
+            self.logger.error(f"Fehler beim Laden der ModernCustomerGUI: {e}")
+            # Fallback zu Fehlermeldung
+            if hasattr(self, 'notification_center') and self.notification_center:
+                self.notification_center.show_error(
+                    "Kundenverwaltung", 
+                    f"Fehler beim Laden der Kundenverwaltung: {e}\nBitte versuchen Sie es erneut."
+                )
     
     def _on_customer_management_shown(self, previous_view=None, **kwargs):
         """Callback wenn customer_management View angezeigt wird."""
@@ -2552,181 +2497,15 @@ def lade_letzte_werte():
         pass
 
 offene_fenster = {}
-
-def öffne_ordner():
-    pfad = kundenordner_pfad.get()
-    if not pfad or not os.path.isdir(pfad):
-        messagebox.showwarning("Fehler", "Kein gültiger Ordnerpfad angegeben!")
-        return
+def main():
+    """Main entry point for the application."""
     try:
-        if platform.system() == "Windows":
-            os.startfile(pfad)
-        elif platform.system() == "Darwin":
-            subprocess.Popen(["open", pfad])
-        else:
-            subprocess.Popen(["xdg-open", pfad])
+        app = CheckerApp()
+        app.run()
     except Exception as e:
-        messagebox.showerror("Fehler", f"Ordner konnte nicht geöffnet werden:\n{e}")
-
-def vergleich_starten():
-    pruefe_uebersetzungsvergleich()
-
-# ----- Icons und Toolleiste -----
-icons = lade_icons(MODE, master=root)
-
-file_frame = ctk.CTkFrame(root, corner_radius=15)
-file_frame.pack(pady=20, padx=30, fill="x")
-
-headline = ctk.CTkLabel(
-    file_frame,
-    text="📂 Dateien auswählen",
-    font=("Segoe UI", 20, "bold"),
-    text_color=PRIMARY,
-    bg_color=BG,
-    anchor="center",
-    justify="center"
-).pack(pady=(10, 18))
-
-ctk.CTkFrame(file_frame, height=2, fg_color=PRIMARY).pack(fill="x", padx=40, pady=(0, 18))
-
-# Container für die drei Buttons nebeneinander
-btn_row = ctk.CTkFrame(file_frame, fg_color="transparent")
-btn_row.pack(pady=6)
-
-# Ausgangsdatei
-ausgang_frame = ctk.CTkFrame(btn_row, fg_color="transparent")
-ausgang_frame.pack(side="left", padx=18)
-btn_ausgang = ctk.CTkButton(
-    ausgang_frame,
-    text="Ausgangsdatei wählen",
-    command=lade_ausgangsdatei,
-    fg_color=PRIMARY,
-    hover_color=PRIMARY_HOVER,
-    text_color="white"
-)
-btn_ausgang.pack()
-Tooltip(btn_ausgang, "Wähle die Ausgangsdatei (Originaltext) aus.")
-label_ausgang = ctk.CTkLabel(ausgang_frame, text="", font=("Segoe UI", 11), text_color="#b0bec5")
-label_ausgang.pack(pady=(4,0))
-# Übersetzungsdatei
-uebersetzung_frame = ctk.CTkFrame(btn_row, fg_color="transparent")
-uebersetzung_frame.pack(side="left", padx=18)
-btn_uebersetzung = ctk.CTkButton(
-    uebersetzung_frame,
-    text="Übersetzungsdatei wählen",
-    command=lade_uebersetzungsdatei,
-    fg_color=PRIMARY,
-    hover_color=PRIMARY_HOVER,
-    text_color="white"  # <-- geändert!
-)
-btn_uebersetzung.pack()
-Tooltip(btn_uebersetzung, "Wähle die Übersetzungsdatei (Zieltext) aus.")
-label_uebersetzung = ctk.CTkLabel(uebersetzung_frame, text="", font=("Segoe UI", 11), text_color="#b0bec5")
-label_uebersetzung.pack(pady=(4,0))
-
-# Referenzübersetzung
-referenz_frame = ctk.CTkFrame(btn_row, fg_color="transparent")
-referenz_frame.pack(side="left", padx=18)
-
-btn_referenz = ctk.CTkButton(
-    referenz_frame,
-    text="Referenzübersetzung wählen",
-    command=lade_referenzdatei,
-    fg_color=PRIMARY,
-    hover_color=PRIMARY_HOVER,
-    text_color="white"  # <-- geändert!
-)
-btn_referenz.pack()
-Tooltip(btn_referenz, "Optional: Wähle eine Referenzübersetzung zum Vergleich aus.")
-label_referenz = ctk.CTkLabel(referenz_frame, text="", font=("Segoe UI", 11), text_color="#b0bec5")
-label_referenz.pack(pady=(4,0))
-
-# Überschrift für Prüfungen
-pruef_headline = ctk.CTkLabel(
-    root,
-    text="📝 Prüfung",
-    font=("Segoe UI", 20, "bold"),
-    text_color=PRIMARY,
-    bg_color=BG,
-    anchor="center",
-    justify="center"
-)
-pruef_headline.pack(pady=(10, 8))
-
-# Prüfungs-Buttons
-pruef_frame = ctk.CTkFrame(root, corner_radius=15)
-pruef_frame.pack(pady=10, padx=30, fill="x")
-
-pruefung_btn = ctk.CTkButton(
-    pruef_frame,
-    text="Übersetzung prüfen",
-    command=pruefe_uebersetzung_threaded,
-    fg_color=PRIMARY,
-    hover_color=PRIMARY_HOVER,
-    text_color="white",
-    corner_radius=8,
-    width=180,
-    height=40
-)
-pruefung_btn.pack(pady=10)
-Tooltip(pruefung_btn, "Startet die automatische Prüfung der Übersetzung.")
-
-umfassend_btn = ctk.CTkButton(
-    pruef_frame,
-    text="Umfassende Prüfung",
-    command=umfassende_pruefung,
-    fg_color=PRIMARY,           # <-- jetzt blau!
-    hover_color=PRIMARY_HOVER,  # <-- jetzt blau!
-    text_color="white",
-    corner_radius=8,
-    width=180,
-    height=40
-)
-umfassend_btn.pack(pady=8)
-Tooltip(umfassend_btn, "Startet die umfassende KI-Prüfung mit zusätzlichen Checks.")
-
-toolbar_buttons = [
-    {"text": "PDF Export", "command": exportiere_reduziertes_pdf},
-    {"text": "Score Export", "command": exportiere_score_pdf},
-    {"text": "Mail", "command": zeige_emailtext},
-]
-
-toolbar_frame = ctk.CTkFrame(root, corner_radius=10)
-toolbar_frame.pack(pady=(10, 0), padx=30, fill="x")
-for btn in toolbar_buttons:
-    b = ctk.CTkButton(
-        toolbar_frame,
-        text=btn["text"],
-        command=btn["command"],
-        fg_color=PRIMARY,
-        text_color="white",  # <-- geändert!
-        hover_color=PRIMARY_HOVER,
-        corner_radius=8,
-        width=130,
-        height=36
-    )
-    b.pack(side="left", padx=4, pady=4)
-    Tooltip(b, f"{btn['text']} ausführen")
-
-def toggle_theme():
-    pass  # Hier kannst du später die Theme-Umschaltung implementieren
-
-# Theme-Umschalter direkt unter der Toolbar
-theme_switch_frame = ctk.CTkFrame(root, fg_color="transparent")
-theme_switch_frame.pack(fill="x", padx=10, pady=(10, 0))
-
-theme_label = ctk.CTkLabel(theme_switch_frame, text="Theme:", font=("Segoe UI", 12, "bold"), text_color=FG)
-theme_label.pack(side="left", padx=(4, 2))
-
-theme_btn = ctk.CTkSwitch(
-    theme_switch_frame,
-    text="Dark-Mode",
-    command=toggle_theme,
-    onvalue="dark",
-    offvalue="light"
-)
-theme_btn.pack(side="left", padx=4)
-theme_btn.deselect()  # Startet im Light-Mode
+        print(f"Critical error starting application: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()

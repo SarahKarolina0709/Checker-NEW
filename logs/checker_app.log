@@ -23846,3 +23846,63 @@ INFO [root] Icon cache cleared
 INFO [root] Icon cache cleared
 INFO [root] Icon-Cache erfolgreich geleert
 INFO [root] Icon-Manager Ressourcen bereinigt
+INFO [CheckerApp.Startup] Logging system initialized
+INFO [ui.CheckerApp] Application logging system initialized [component: CheckerApp] [category: ui]
+INFO [ui.CheckerApp] [INIT] TkinterDnD available - enabling native DnD [category: ui]
+INFO [ui.CheckerApp] [INIT] Using TkinterDnD backend for native DnD [category: ui]
+INFO [ui.CheckerApp] [INIT] GUI backend initialized - Native DnD: True [category: ui]
+INFO [ui.CheckerApp] [INIT] Window centered at 112,101 with size 1280x800 [category: ui]
+INFO [ui.CheckerApp] [INIT] Main window initialized [category: ui]
+INFO [ui.CheckerApp] Upload-Manager initialisiert [category: ui]
+INFO [root] Enhanced FluentIconManager initialisiert mit Workspace: C:\Users\sarah\Desktop\Checker
+INFO [ui.CheckerApp] [INIT] Native Drag & Drop Manager initialized [category: ui]
+INFO [ui.CheckerApp] [INIT] TkinterDnD properly initialized [category: ui]
+INFO [ui.CheckerApp] [INIT] Core data structures initialized [category: ui]
+INFO [app_managers_module.NotificationCenter] [NOTIFICATION] Notification system initialized [component: notification_center] [category: ui]
+INFO [root] Memory monitoring started (threshold: 250.0MB)
+INFO [ui.CheckerApp] [MEMORY] Memory monitoring initialized [category: ui]
+INFO [ui.CheckerApp] [MANAGERS] All manager classes initialized successfully [category: ui]
+INFO [ui.CheckerApp] [CORE] Core system initialized successfully [category: ui]
+INFO [app_managers_module.UIInitializer] [UI] Window resize handler setup with debouncing [category: ui]
+INFO [app_managers_module.UIInitializer] [UI] Main window configured successfully [category: ui]
+INFO [root] Icon 'settings.png' erfolgreich geladen und skaliert von (50, 50) auf (16, 16)
+INFO [app_managers_module.UIInitializer] [UI] Menu bar created successfully with pack layout [category: ui]
+INFO [app_managers_module.UIInitializer] [UI] Status bar created successfully [category: ui]
+INFO [app_managers_module.UIInitializer] [UI] Main container created successfully with optimized layout [category: ui]
+INFO [app_managers_module.UIInitializer] [UI] Keyboard shortcuts configured successfully [category: ui]
+INFO [app_managers_module.WorkflowRouter] [WORKFLOW] Workflow container set successfully - Using ViewStack [component: workflow_router]
+INFO [ui.CheckerApp] Upload-Manager initialisiert [category: ui]
+INFO [ui.CheckerApp] [UPLOAD] Upload menu integration complete [category: ui]
+INFO [ui.CheckerApp] [UPLOAD] Upload Manager successfully initialized [category: ui]
+INFO [view_stack] ViewStack: Added view 'welcome' to stack
+INFO [app_managers_module.WorkflowRouter] Initializing workflows [component: workflow_router]
+INFO [app_managers_module.angebots_workflow] Initializing angebots workflow [workflow: angebots_workflow]
+INFO [root] Icon 'play.png' erfolgreich geladen und skaliert von (20, 20) auf (16, 16)
+INFO [angebots_workflow] Angebotsanalyse workflow initialized [workflow: angebots_workflow]
+INFO [view_stack] ViewStack: Added view 'angebots_workflow' to stack
+INFO [app_managers_module.angebots_workflow] Angebots workflow initialized successfully [workflow: angebots_workflow]
+INFO [app_managers_module.pruefung_workflow] Initializing pruefung workflow [workflow: pruefung_workflow]
+INFO [view_stack] ViewStack: Added view 'pruefung_workflow' to stack
+INFO [app_managers_module.pruefung_workflow] Pruefung workflow initialized successfully [workflow: pruefung_workflow]
+INFO [app_managers_module.finalisierung_workflow] Initializing finalisierung workflow [workflow: finalisierung_workflow]
+INFO [root] Icon 'check-mark.png' erfolgreich geladen und skaliert von (32, 32) auf (16, 16)
+INFO [view_stack] ViewStack: Added view 'finalisierung_workflow' to stack
+INFO [app_managers_module.finalisierung_workflow] Finalisierung workflow initialized successfully [workflow: finalisierung_workflow]
+INFO [app_managers_module.projekt_workflow] Initializing projekt workflow [workflow: projekt_workflow]
+INFO [root] Icon 'restart.png' erfolgreich geladen und skaliert von (50, 50) auf (16, 16)
+INFO [view_stack] ViewStack: Added view 'projekt_workflow' to stack
+INFO [app_managers_module.projekt_workflow] Projekt workflow initialized successfully [workflow: projekt_workflow]
+INFO [app_managers_module.WorkflowRouter] Workflows initialized successfully [component: workflow_router]
+INFO [ui.CheckerApp] [VIEWSTACK] Welcome screen shown (previous: None) [category: ui]
+INFO [view_stack] ViewStack: Showing view 'welcome' (was: 'None')
+INFO [ui.CheckerApp] [APP] Welcome screen shown via ViewStack [category: ui]
+INFO [ui.CheckerApp] ✨ Willkommen bei Checker Pro Suite! Enhanced with ViewStack. [category: ui]
+INFO [ui.CheckerApp] [APP] Application initialization complete with ViewStack [category: ui]
+INFO [ui.CheckerApp] [MAIN] Application closing... [category: ui]
+INFO [root] Icon cache cleared
+INFO [root] Memory optimization cleanup completed
+INFO [app_managers_module.UIInitializer] [UI] Resources cleaned up successfully [category: ui]
+INFO [root] Icon cache cleared
+INFO [root] Icon cache cleared
+INFO [root] Icon-Cache erfolgreich geleert
+INFO [root] Icon-Manager Ressourcen bereinigt
