@@ -2192,6 +2192,541 @@ def main():
         except:
             pass
 
+        c.setFont("Helvetica-Bold", 20)
+        c.setFillColor(colors.HexColor("#333333"))
+        c.drawString(160, height - 100, "Checker – Übersetzungsbericht")
+
+        c.setFont("Helvetica", 12)
+        c.setFillColor(colors.black)
+        c.drawString(60, height - 180, f"Erstellt am: {datum}")
+
+        c.setFont("Helvetica-Oblique", 10)
+        c.setFillColor(colors.darkgray)
+        c.drawString(60, height - 200, "Fehlerübersicht nach Regeltyp, automatisch erstellt mit dem Checker-Tool.")
+        c.showPage()
+
+        # Gruppieren & sortieren
+        gruppen = defaultdict(list)
+        for m in matches:
+            gruppen[m.ruleId].append(m)
+
+        for regel, eintraege in sorted(gruppen.items()):
+            beschreibung = REGEL_BESCHREIBUNG.get(regel, eintraege[0].message)
+
+            c.setFont("Helvetica-Bold", 11)
+            c.setFillColor(colors.HexColor("#333333"))
+            c.drawString(40, y, f"🔸 {beschreibung}")
+            y -= 20
+
+            for m in eintraege:
+                if y < 60:
+                    c.showPage()
+                    y = height - 50
+
+                c.setFont("Courier", 9)
+                c.setFillColor(colors.darkgray)
+                c.drawString(40, y, f"📍 Kontext: {m.context[:80]}")
+                y -= 12
+
+                c.setFillColor(colors.green)
+                c.drawString(40, y, f"💡 Vorschlag: {', '.join(m.replacements) if m.replacements else '–'}")
+                y -= 20
+
+        c.save()
+
+        # Automatisch öffnen
+        if platform.system() == "Windows":
+            os.startfile(dateiname)
+        elif platform.system() == "Darwin":  # macOS
+            subprocess.call(["open", dateiname])
+        else:
+            subprocess.call(["xdg-open", dateiname])
+
+    except Exception as e:
+        messagebox.showerror("Exportfehler", f"PDF-Export fehlgeschlagen:\n{e}")
+
+def exportiere_bericht_pdf(matches, ki_text, dateiname="Uebersetzerbericht.pdf"):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    from reportlab.lib import colors
+    from reportlab.lib.utils import ImageReader
+
+    c = canvas.Canvas(dateiname, pagesize=A4)
+    width, height = A4
+    y = height - 50
+
+    # Logo (optional)
+    try:
+        logo = ImageReader("checker_icon.png")  # Passe den Pfad ggf. an
+        c.drawImage(logo, 50, y - 60, width=60, height=60, mask='auto')
+    except Exception:
+        pass
+
+    # Überschrift
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(120, y, "Übersetzungs-Fehlerbericht")
+    y -= 40
+
+    # Kommentar
+    c.setFont("Helvetica-Oblique", 11)
+    c.setFillColor(colors.darkgray)
+    kommentar = kommentar_übersetzer.get() or "-"
+    c.drawString(50, y, f"Kommentar: {kommentar}")
+    y -= 30
+
+    # Fehlerübersicht nach Regeltyp gruppiert, Duplikate vermeiden
+    c.setFont("Helvetica-Bold", 14)
+    c.setFillColor(colors.HexColor("#333333"))
+    c.drawString(50, y, "Gefundene Fehler (gruppiert):")
+    y -= 20
+
+    gruppen = defaultdict(list)
+    for m in matches:
+        gruppen[m.ruleId].append(m)
+
+    if not matches:
+        c.setFont("Helvetica", 11)
+        c.setFillColor(colors.red)
+        c.drawString(60, y, "Keine Fehler gefunden.")
+        y -= 15
+    else:
+        for regel, eintraege in sorted(gruppen.items()):
+            beschreibung = REGEL_BESCHREIBUNG.get(regel, eintraege[0].message)
+            c.setFont("Helvetica-Bold", 12)
+            c.setFillColor(colors.HexColor("#333333"))
+            c.drawString(60, y, f"🔸 {beschreibung}")
+            y -= 16
+            c.setFont("Helvetica", 10)
+            c.setFillColor(colors.red)
+            seen = set()
+            for m in eintraege:
+                key = (m.context[:80], tuple(m.replacements))
+                if key in seen:
+                    continue
+                seen.add(key)
+                fehlertext = f"- Kontext: {m.context[:80]}"
+                vorschlag = f"  Vorschlag: {', '.join(m.replacements) if m.replacements else '–'}"
+                c.drawString(70, y, fehlertext)
+                y -= 12
+                c.setFillColor(colors.green)
+                c.drawString(90, y, vorschlag)
+                y -= 14
+                c.setFillColor(colors.red)
+                if y < 60:
+                    c.showPage()
+                    y = height - 50
+            y -= 6
+
+    y -= 10
+    c.setFillColor(colors.black)
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(50, y, "KI-Kommentar:")
+    y -= 20
+
+    c.setFont("Helvetica", 11)
+    for line in ki_text.splitlines():
+        c.drawString(60, y, line)
+        y -= 15
+        if y < 60:
+            c.showPage()
+            y = height - 50
+
+    c.save()
+    os.startfile(dateiname)
+
+def exportiere_umfassende_pruefung_pdf(konsistenz_ki, ki_ergebnis, zusammenfassung, glossar_check, tonfall, dateiname="Umfassende_Pruefung.pdf"):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    from reportlab.lib import colors
+    from reportlab.lib.utils import ImageReader
+
+    c = canvas.Canvas(dateiname, pagesize=A4)
+    width, height = A4
+    y = height - 50
+
+    # Logo (optional)
+    try:
+        logo = ImageReader("checker_icon.png")
+        c.drawImage(logo, 50, y - 60, width=60, height=60, mask='auto')
+    except Exception:
+        pass
+
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(120, y, "Umfassende KI-Prüfung")
+    y -= 40
+
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(50, y, "Konsistenz Kernbegriffe (KI):")
+    y -= 20
+    for line in konsistenz_ki.splitlines():
+        c.drawString(60, y, line)
+        y -= 15
+        if y < 60:
+            c.showPage()
+            y = height - 50
+
+    y -= 10
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(50, y, "KI-Analyse:")
+    y -= 20
+    for line in ki_ergebnis.splitlines():
+        c.drawString(60, y, line)
+        y -= 15
+        if y < 60:
+            c.showPage()
+            y = height - 50
+
+    y -= 10
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(50, y, "Automatische Zusammenfassung:")
+    y -= 20
+    for line in zusammenfassung.splitlines():
+        c.drawString(60, y, line)
+        y -= 15
+        if y < 60:
+            c.showPage()
+            y = height - 50
+
+    y -= 10
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(50, y, "Glossar-Check:")
+    y -= 20
+    for line in glossar_check.splitlines():
+        c.drawString(60, y, line)
+        y -= 15
+        if y < 60:
+            c.showPage()
+            y = height - 50
+
+    y -= 10
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(50, y, "Tonfall-/Register-Prüfung:")
+    y -= 20
+    for line in tonfall.splitlines():
+        c.drawString(60, y, line)
+        y -= 15
+        if y < 60:
+            c.showPage()
+            y = height - 50
+
+    y -= 10
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(50, y, "Kulturelle Anpassungen:")
+    y -= 20
+    for line in kulturell.splitlines():
+        c.drawString(60, y, line)
+        y -= 15
+        if y < 60:
+            c.showPage()
+            y = height - 50
+
+    y -= 10
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(50, y, "Stilistische Hinweise:")
+    y -= 20
+    for line in stilistische_hinweise.splitlines():
+        c.drawString(60, y, line)
+        y -= 15
+        if y < 60:
+            c.showPage()
+            y = height - 50
+
+    c.save()
+    os.startfile(dateiname)
+
+# ----- UI-Hilfsfunktionen -----
+def zeige_emailtext():
+    kommentar = kommentar_übersetzer.get().strip()
+    text = f"""Betreff: Korrekturbericht zur Übersetzung
+
+Hallo,
+
+anbei finden Sie den automatisierten Korrekturbericht zur letzten Übersetzung.
+Bitte prüfen Sie die markierten Abschnitte und überarbeiten Sie diese entsprechend.
+
+Kommentar: {kommentar or '- keine Nachricht -'}
+
+Beste Grüße
+{kundenname.get().strip() or 'Ihr Profi Team'}"""
+    win = tk.Toplevel(root)
+    win.title("E-Mail-Vorschau")
+    textfeld = tk.Text(win, width=80, height=20)
+    textfeld.insert("1.0", text)
+    textfeld.pack(padx=10, pady=10)
+
+def zeige_ergebnisfenster(titel, text):
+    win = tk.Toplevel(root)
+    win.title(titel)
+    textfeld = tk.Text(win, width=80, height=25)
+    textfeld.insert("1.0", text)
+    textfeld.pack(padx=10, pady=10)
+
+def zeige_ergebnis_im_textfeld(text):
+    ergebnis_textfeld.config(state="normal")
+    ergebnis_textfeld.delete("1.0", tk.END)
+    ergebnis_textfeld.insert("1.0", text)
+    ergebnis_textfeld.config(state="disabled")
+
+def zeige_sortierte_fehler(matches):
+    ergebnis_textfeld.config(state="normal")
+    ergebnis_textfeld.delete("1.0", tk.END)
+
+    ergebnis_textfeld.tag_config("regel", foreground="#FFA500", font=("Arial", 10, "bold"))
+    ergebnis_textfeld.tag_config("kontext", foreground="#CCCCCC")
+    ergebnis_textfeld.tag_config("vorschlag", foreground="#80ff80")
+    ergebnis_textfeld.tag_config("heading", foreground="#00BFFF", font=("Arial", 11, "bold"))
+    ergebnis_textfeld.tag_config("diff", background="#ffcccc")
+
+    gruppen = defaultdict(list)
+    for match in matches:
+        gruppen[match.ruleId].append(match)
+
+    def zeige_detailfenster(regel, eintraege):
+        if regel in offene_fenster:
+            try:
+                offene_fenster[regel].lift()
+                return
+            except:
+                del offene_fenster[regel]
+
+        win = tk.Toplevel(root)
+        win.title(f"{REGEL_BESCHREIBUNG.get(regel, regel)} – Details")
+        win.geometry("600x400")
+        offene_fenster[regel] = win
+
+        textfeld = tk.Text(win, wrap="word", font=("Arial", 10), bg="#1e1e1e", fg="#eaeaea", insertbackground="white")
+        textfeld.pack(expand=True, fill="both", padx=10, pady=10)
+
+        textfeld.tag_config("kontext", foreground="#CCCCCC")
+        textfeld.tag_config("vorschlag", foreground="#80ff80")
+
+        for i, m in enumerate(eintraege, 1):
+            textfeld.insert("end", f"{i}. 📍 Kontext: „", "standard")
+            textfeld.insert("end", m.context, "kontext")
+            textfeld.insert("end", "“\n   💡 Vorschlag: ", "standard")
+            textfeld.insert("end", ", ".join(m.replacements) if m.replacements else "–", "vorschlag")
+            textfeld.insert("end", "\n\n")
+
+        textfeld.config(state="disabled")
+
+    for regel, regel_matches in sorted(gruppen.items()):
+        beschreibung = REGEL_BESCHREIBUNG.get(regel, regel_matches[0].message)
+        btn = tk.Button(
+            ergebnis_textfeld,
+            text=f"🔽 {beschreibung}",
+            bg="#444", fg="white",
+            font=("Arial", 10, "bold"),
+            command=lambda r=regel, m=regel_matches: zeige_detailfenster(r, m)
+        )
+        ergebnis_textfeld.window_create("end", window=btn)
+        ergebnis_textfeld.insert("end", "\n\n")
+
+    ergebnis_textfeld.config(state="disabled")
+
+def speichere_profil():
+    profile = {
+        "kunde": kundenname.get(),
+        "ordner": kundenordner_pfad.get(),
+        "kommentar": kommentar_übersetzer.get()
+    }
+    with open("profil.json", "w", encoding="utf-8") as f:
+        import json
+        json.dump(profile, f, indent=2)
+    messagebox.showinfo("Gespeichert", "Profil wurde gespeichert.")
+
+def speichere_letzte_werte():
+    daten = {
+        "ausgangsdatei": ausgangsdatei.get(),
+        "uebersetzungsdatei": uebersetzungsdatei.get()
+    }
+    with open("letzte_werte.json", "w", encoding="utf-8") as f:
+        json.dump(daten, f)
+
+def lade_letzte_werte():
+    try:
+        with open("letzte_werte.json", "r", encoding="utf-8") as f:
+            daten = json.load(f)
+            ausgangsdatei.set(daten.get("ausgangsdatei", ""))
+            uebersetzungsdatei.set(daten.get("uebersetzungsdatei", ""))
+    except:
+        pass
+
+offene_fenster = {}
+
+def öffne_ordner():
+    pfad = kundenordner_pfad.get()
+    if not pfad or not os.path.isdir(pfad):
+        messagebox.showwarning("Fehler", "Kein gültiger Ordnerpfad angegeben!")
+        return
+    try:
+        if platform.system() == "Windows":
+            os.startfile(pfad)
+        elif platform.system() == "Darwin":
+            subprocess.Popen(["open", pfad])
+        else:
+            subprocess.Popen(["xdg-open", pfad])
+    except Exception as e:
+        messagebox.showerror("Fehler", f"Ordner konnte nicht geöffnet werden:\n{e}")
+
+def vergleich_starten():
+    pruefe_uebersetzungsvergleich()
+
+# ----- Icons und Toolleiste -----
+icons = lade_icons(MODE, master=root)
+
+file_frame = ctk.CTkFrame(root, corner_radius=15)
+file_frame.pack(pady=20, padx=30, fill="x")
+
+headline = ctk.CTkLabel(
+    file_frame,
+    text="📂 Dateien auswählen",
+    font=("Segoe UI", 20, "bold"),
+    text_color=PRIMARY,
+    bg_color=BG,
+    anchor="center",
+    justify="center"
+).pack(pady=(10, 18))
+
+ctk.CTkFrame(file_frame, height=2, fg_color=PRIMARY).pack(fill="x", padx=40, pady=(0, 18))
+
+# Container für die drei Buttons nebeneinander
+btn_row = ctk.CTkFrame(file_frame, fg_color="transparent")
+btn_row.pack(pady=6)
+
+# Ausgangsdatei
+ausgang_frame = ctk.CTkFrame(btn_row, fg_color="transparent")
+ausgang_frame.pack(side="left", padx=18)
+btn_ausgang = ctk.CTkButton(
+    ausgang_frame,
+    text="Ausgangsdatei wählen",
+    command=lade_ausgangsdatei,
+    fg_color=PRIMARY,
+    hover_color=PRIMARY_HOVER,
+    text_color="white"
+)
+btn_ausgang.pack()
+Tooltip(btn_ausgang, "Wähle die Ausgangsdatei (Originaltext) aus.")
+label_ausgang = ctk.CTkLabel(ausgang_frame, text="", font=("Segoe UI", 11), text_color="#b0bec5")
+label_ausgang.pack(pady=(4,0))
+# Übersetzungsdatei
+uebersetzung_frame = ctk.CTkFrame(btn_row, fg_color="transparent")
+uebersetzung_frame.pack(side="left", padx=18)
+btn_uebersetzung = ctk.CTkButton(
+    uebersetzung_frame,
+    text="Übersetzungsdatei wählen",
+    command=lade_uebersetzungsdatei,
+    fg_color=PRIMARY,
+    hover_color=PRIMARY_HOVER,
+    text_color="white"  # <-- geändert!
+)
+btn_uebersetzung.pack()
+Tooltip(btn_uebersetzung, "Wähle die Übersetzungsdatei (Zieltext) aus.")
+label_uebersetzung = ctk.CTkLabel(uebersetzung_frame, text="", font=("Segoe UI", 11), text_color="#b0bec5")
+label_uebersetzung.pack(pady=(4,0))
+
+# Referenzübersetzung
+referenz_frame = ctk.CTkFrame(btn_row, fg_color="transparent")
+referenz_frame.pack(side="left", padx=18)
+
+btn_referenz = ctk.CTkButton(
+    referenz_frame,
+    text="Referenzübersetzung wählen",
+    command=lade_referenzdatei,
+    fg_color=PRIMARY,
+    hover_color=PRIMARY_HOVER,
+    text_color="white"  # <-- geändert!
+)
+btn_referenz.pack()
+Tooltip(btn_referenz, "Optional: Wähle eine Referenzübersetzung zum Vergleich aus.")
+label_referenz = ctk.CTkLabel(referenz_frame, text="", font=("Segoe UI", 11), text_color="#b0bec5")
+label_referenz.pack(pady=(4,0))
+
+# Überschrift für Prüfungen
+pruef_headline = ctk.CTkLabel(
+    root,
+    text="📝 Prüfung",
+    font=("Segoe UI", 20, "bold"),
+    text_color=PRIMARY,
+    bg_color=BG,
+    anchor="center",
+    justify="center"
+)
+pruef_headline.pack(pady=(10, 8))
+
+# Prüfungs-Buttons
+pruef_frame = ctk.CTkFrame(root, corner_radius=15)
+pruef_frame.pack(pady=10, padx=30, fill="x")
+
+pruefung_btn = ctk.CTkButton(
+    pruef_frame,
+    text="Übersetzung prüfen",
+    command=pruefe_uebersetzung_threaded,
+    fg_color=PRIMARY,
+    hover_color=PRIMARY_HOVER,
+    text_color="white",
+    corner_radius=8,
+    width=180,
+    height=40
+)
+pruefung_btn.pack(pady=10)
+Tooltip(pruefung_btn, "Startet die automatische Prüfung der Übersetzung.")
+
+umfassend_btn = ctk.CTkButton(
+    pruef_frame,
+    text="Umfassende Prüfung",
+    command=umfassende_pruefung,
+    fg_color=PRIMARY,           # <-- jetzt blau!
+    hover_color=PRIMARY_HOVER,  # <-- jetzt blau!
+    text_color="white",
+    corner_radius=8,
+    width=180,
+    height=40
+)
+umfassend_btn.pack(pady=8)
+Tooltip(umfassend_btn, "Startet die umfassende KI-Prüfung mit zusätzlichen Checks.")
+
+toolbar_buttons = [
+    {"text": "PDF Export", "command": exportiere_reduziertes_pdf},
+    {"text": "Score Export", "command": exportiere_score_pdf},
+    {"text": "Mail", "command": zeige_emailtext},
+]
+
+toolbar_frame = ctk.CTkFrame(root, corner_radius=10)
+toolbar_frame.pack(pady=(10, 0), padx=30, fill="x")
+for btn in toolbar_buttons:
+    b = ctk.CTkButton(
+        toolbar_frame,
+        text=btn["text"],
+        command=btn["command"],
+        fg_color=PRIMARY,
+        text_color="white",  # <-- geändert!
+        hover_color=PRIMARY_HOVER,
+        corner_radius=8,
+        width=130,
+        height=36
+    )
+    b.pack(side="left", padx=4, pady=4)
+    Tooltip(b, f"{btn['text']} ausführen")
+
+def toggle_theme():
+    pass  # Hier kannst du später die Theme-Umschaltung implementieren
+
+# Theme-Umschalter direkt unter der Toolbar
+theme_switch_frame = ctk.CTkFrame(root, fg_color="transparent")
+theme_switch_frame.pack(fill="x", padx=10, pady=(10, 0))
+
+theme_label = ctk.CTkLabel(theme_switch_frame, text="Theme:", font=("Segoe UI", 12, "bold"), text_color=FG)
+theme_label.pack(side="left", padx=(4, 2))
+
+theme_btn = ctk.CTkSwitch(
+    theme_switch_frame,
+    text="Dark-Mode",
+    command=toggle_theme,
+    onvalue="dark",
+    offvalue="light"
+)
+theme_btn.pack(side="left", padx=4)
+theme_btn.deselect()  # Startet im Light-Mode
 
 if __name__ == "__main__":
     main()
