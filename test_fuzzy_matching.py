@@ -17,7 +17,7 @@ def test_fuzzy_customer_matching():
     print("=" * 60)
     
     try:
-        from kunden_manager_v2 import KundenManagerV2
+        from kunden_manager import KundenManager
     except ImportError as e:
         print(f"❌ Fehler beim Import: {e}")
         return False
@@ -31,8 +31,8 @@ def test_fuzzy_customer_matching():
     
     print(f"📁 Erstelle Test-Verzeichnis: {test_dir}")
     
-    # Initialisiere KundenManagerV2
-    km = KundenManagerV2(test_dir)
+    # Initialisiere KundenManager
+    km = KundenManager(test_dir)
     
     # Erstelle einige Test-Kunden
     test_kunden = [

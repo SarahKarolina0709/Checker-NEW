@@ -170,21 +170,28 @@ class CustomerSectionComplete(ctk.CTkFrame, SectionHeaderMixin):
                 "text": "Projekt bestätigen",
                 "icon_name": "check-circle",
                 "callback": self.confirm_project_selection,
-                "padx": (0, 10),
+                "padx": (0, 5),
                 "style": UITheme.BUTTON_STYLE_PRIMARY
             },
             {
                 "text": "Kalender öffnen",
                 "icon_name": "calendar",
                 "callback": self.open_calendar_view,
-                "padx": (10, 0),
+                "padx": (5, 5),
                 "style": UITheme.BUTTON_STYLE_SECONDARY
+            },
+            {
+                "text": "🏢 Kundenverwaltung",
+                "icon_name": "users",
+                "callback": self.open_modern_customer_management,
+                "padx": (5, 0),
+                "style": UITheme.BUTTON_STYLE_PRIMARY
             }
         ]
         
         button_frame = ctk.CTkFrame(parent, fg_color="transparent")
         button_frame.grid(row=3, column=0, sticky="ew", pady=(0, UITheme.SPACING_L))
-        button_frame.grid_columnconfigure((0, 1), weight=1)
+        button_frame.grid_columnconfigure((0, 1, 2), weight=1)
         
         for i, config in enumerate(button_configs):
             btn = ctk.CTkButton(
@@ -201,6 +208,8 @@ class CustomerSectionComplete(ctk.CTkFrame, SectionHeaderMixin):
                 self.confirm_btn = btn
             elif i == 1:
                 self.calendar_btn = btn
+            elif i == 2:
+                self.customer_mgmt_btn = btn
 
     def create_recent_projects_section(self, parent):
         """Erstellt die Recent Projects Sektion"""
@@ -443,6 +452,25 @@ class CustomerSectionComplete(ctk.CTkFrame, SectionHeaderMixin):
             self.welcome_screen.open_calendar_view(self.current_customer)
         else:
             self.logger.warning("Kalender-Ansicht nicht verfügbar")
+    
+    def open_modern_customer_management(self):
+        """Öffnet die moderne Kundenverwaltung (ModernCustomerGUI)"""
+        try:
+            if hasattr(self.app, 'show_customer_menu'):
+                self.logger.info("🏢 Öffne moderne Kundenverwaltung...")
+                self.app.show_customer_menu()
+            else:
+                self.logger.error("Kundenverwaltung nicht verfügbar")
+                messagebox.showerror(
+                    "Fehler", 
+                    "Die Kundenverwaltung ist derzeit nicht verfügbar."
+                )
+        except Exception as e:
+            self.logger.error(f"Fehler beim Öffnen der Kundenverwaltung: {e}")
+            messagebox.showerror(
+                "Fehler", 
+                f"Fehler beim Öffnen der Kundenverwaltung:\n{str(e)}"
+            )
 
     def load_customer_data(self):
         """Lädt gespeicherte Kundendaten"""

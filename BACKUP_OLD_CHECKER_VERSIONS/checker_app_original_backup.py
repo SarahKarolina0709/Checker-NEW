@@ -37,7 +37,7 @@ from error_handlers import CrashRecoveryManager, EnhancedLogger, ErrorMonitor
 from fluent_icons_manager import FluentIconManager
 from improved_drag_drop import get_improved_dnd_manager
 from kunden_manager import KundenManager
-from kunden_manager_v2 import KundenManagerV2
+from kunden_manager import KundenManager
 from ui_theme import UITheme
 from ultra_modern_welcome_screen_simplified import UltraModernWelcomeScreen
 
@@ -243,7 +243,7 @@ class CheckerApp:
             
             # Customer management
             self.kunden_manager = KundenManager()
-            self.kunden_manager_v2 = KundenManagerV2()
+            self.kunden_manager_v2 = KundenManager()
             
             # Icon manager
             try:

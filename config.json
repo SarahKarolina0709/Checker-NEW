@@ -33,7 +33,13 @@
     "logs": "logs",
     "data": "data",
     "customer_base": "kunden",
-    "workflows": "workflows"
+    "workflows": "workflows",
+    "projects": {
+      "default_directory": "C:\\Users\\sarah\\Desktop\\Checker_Projekte",
+      "auto_create": true,
+      "allowed_extensions": [".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".png", ".jpg", ".jpeg"],
+      "watch_subdirectories": true
+    }
   },
   "features": {
     "optimizations_enabled": false,

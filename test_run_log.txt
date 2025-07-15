@@ -21,37 +21,14 @@ Verfügbare Funktionen im KI-Modul:
 - ki_zusammenfassung
 - klassifiziere_fehler
 Test abgeschlossen!
-🔍 Teste KundenManagerV2...
-📋 Erstelle Projekt für TestKunde_AG...
-✅ Projekt erstellt!
-   🆔 Projekt-ID: 2025-01-20_Website_Update
-   📁 Pfad: Test_Projekte\TestKunde_AG\2025-01-20_Website_Update
-📂 Prüfe Workflow-Ordner:
-   ✅ Ausgangstexte: Test_Projekte\TestKunde_AG\2025-01-20_Website_Update\Ausgangstexte
-   ✅ Angebot: Test_Projekte\TestKunde_AG\2025-01-20_Website_Update\Angebot
-   ✅ Pruefung: Test_Projekte\TestKunde_AG\2025-01-20_Website_Update\Pruefung
-   ✅ Finalisierung: Test_Projekte\TestKunde_AG\2025-01-20_Website_Update\Finalisierung
-
-📊 Ordnerstruktur unter Test_Projekte\TestKunde_AG\2025-01-20_Website_Update:
-   📁 Angebot
-   📁 Ausgangstexte
-   📁 Finalisierung
-   📁 Pruefung
+❌ Import-Fehler: No module named 'kunden_manager'
 
 🏁 Test abgeschlossen
 Testing PruefungWorkflow instantiation...
-✓ Imports successful
-✓ Root window created
-[NUCLEAR] Blocked scaling callback: check_dpi_scaling
-✓ Content frame created
-[INFO] Language configuration loaded successfully.
-[INFO] No 'uploaded_files' in project_data to populate from.
-[WARN] Could not form any file pairs from the provided uploaded_files.
-✅ SUCCESS: PruefungWorkflow created without errors!
-   - Controller exists: True
-   - View exists: True
-   - select_all_checks: ✓
-   - clear_all_file_pairs: ✓
-   - start_checking_process: ✗
+❌ ERROR: No module named 'pruefung_workflow'
+Traceback (most recent call last):
+  File "c:\Users\sarah\Desktop\Checker\workflow_instantiation_test.py", line 28, in <module>
+    from pruefung_workflow import PruefungWorkflow
+ModuleNotFoundError: No module named 'pruefung_workflow'
 
 Test completed.

@@ -1,0 +1,2 @@
+Test-Inhalt für Upload-Test
+Diese Datei sollte im 01_Ausgangstext Ordner landen.

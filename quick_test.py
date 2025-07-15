@@ -1,5 +1,5 @@
 """
-Einfacher Test für KundenManagerV2 Ordnerstruktur
+Einfacher Test für KundenManager Ordnerstruktur
 """
 
 import os
@@ -10,12 +10,12 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from kunden_manager_v2 import KundenManagerV2
+    from kunden_manager import KundenManager
     
-    print("🔍 Teste KundenManagerV2...")
+    print("🔍 Teste KundenManager...")
     
     # Erstelle eine Test-Instanz
-    km = KundenManagerV2("Test_Projekte")
+    km = KundenManager("Test_Projekte")
     
     # Test: Erstelle ein Projekt
     kunde_name = "TestKunde_AG"
