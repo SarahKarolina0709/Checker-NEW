@@ -1095,251 +1095,237 @@ class CheckerApp:
     
     def _create_customer_section(self, parent):
         """Erstellt die Kundenverwaltungssektion mit harmonischem Design ohne Überlappungen."""
-        # Haupt-Container mit einheitlichem Radius-Design
+        # Haupt-Container mit einheitlichem Design - blau-harmonisch
         customer_frame = ctk.CTkFrame(
             parent, 
-            fg_color=("#F0F8FF", "#1A1D23"),
-            corner_radius=20,  # Einheitlicher Radius
-            border_width=1,    # Dünnerer Rahmen
-            border_color=("#DBEAFE", "#374151")
+            fg_color=UITheme.get_color('surface'),
+            corner_radius=16,  # Einheitlicher Radius für alle Container
+            border_width=1,
+            border_color=UITheme.get_color('border')
         )
-        customer_frame.grid(row=0, column=0, padx=(0, 15), pady=10, sticky="nsew")
+        customer_frame.grid(row=0, column=0, padx=(0, UITheme.get_spacing('sm')), pady=UITheme.get_spacing('sm'), sticky="nsew")
         
-        # Eleganter Innen-Schatten ohne Überlappung
+        # Eleganter Innen-Container
         inner_container = ctk.CTkFrame(
             customer_frame, 
             fg_color="transparent",
-            corner_radius=18
+            corner_radius=14
         )
-        inner_container.pack(fill="both", expand=True, padx=4, pady=4)
+        inner_container.pack(fill="both", expand=True, padx=UITheme.get_spacing('sm'), pady=UITheme.get_spacing('sm'))
         
-        # Moderner Header mit konsistentem Radius
+        # Moderner Header mit konsistentem Design
         customer_header = ctk.CTkFrame(
             inner_container, 
-            fg_color=("#1E40AF", "#2563EB"),
-            corner_radius=16,  # Konsistent kleinerer Radius
-            border_width=1,
-            border_color=("#3B82F6", "#60A5FA")
+            fg_color=UITheme.get_color('primary'),
+            corner_radius=12,
+            border_width=0
         )
-        customer_header.pack(fill="x", padx=16, pady=(16, 12))
+        customer_header.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(UITheme.get_spacing('md'), UITheme.get_spacing('sm')))
         
         customer_title = ctk.CTkLabel(
             customer_header,
             text="👥 KUNDENVERWALTUNG",
-            font=ctk.CTkFont(size=16, weight="bold"),
             text_color="white"
         )
-        customer_title.pack(pady=10)
+        self._apply_font_safe(customer_title, 'heading_md')
+        customer_title.pack(pady=UITheme.get_spacing('md'))
         
         # Suchbereich mit harmonischem Design
         search_frame = ctk.CTkFrame(
             inner_container, 
-            fg_color=("#FFFFFF", "#1F2937"),
-            corner_radius=12,  # Konsistenter Radius
+            fg_color=UITheme.get_color('background'),
+            corner_radius=12,
             border_width=1,
-            border_color=("#E5E7EB", "#374151")
+            border_color=UITheme.get_color('border')
         )
-        search_frame.pack(fill="x", padx=16, pady=(0, 12))
+        search_frame.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('sm')))
         
         search_label = ctk.CTkLabel(
             search_frame, 
             text="🔍 Kunde finden:", 
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("#1F2937", "#F9FAFB")
+            text_color=UITheme.get_color('text_primary')
         )
-        search_label.pack(pady=(12, 6))
+        self._apply_font_safe(search_label, 'body_bold')
+        search_label.pack(pady=(UITheme.get_spacing('md'), UITheme.get_spacing('xs')))
         
         self.customer_search_entry = ctk.CTkEntry(
             search_frame,
             placeholder_text="Kundenname eingeben...",
             height=36,
-            font=ctk.CTkFont(size=12),
             corner_radius=10,
             border_width=1,
-            border_color=("#E0E7FF", "#4B5563"),
-            fg_color=("#F8FAFC", "#111827")
+            border_color=UITheme.get_color('border'),
+            fg_color=UITheme.get_color('input_bg')
         )
-        self.customer_search_entry.pack(fill="x", padx=12, pady=(0, 6))
+        self._apply_font_safe(self.customer_search_entry, 'body')
+        self.customer_search_entry.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('xs')))
         self.customer_search_entry.bind("<KeyRelease>", self._on_customer_search)
         
         search_btn = ctk.CTkButton(
             search_frame,
             text="🔍 Suchen",
             height=32,
-            font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color=("#2563EB", "#3B82F6"),
-            hover_color=("#1D4ED8", "#2563EB"),
-            corner_radius=10,
+            **UITheme.create_button_style('primary'),
             command=self._search_customer
         )
-        search_btn.pack(fill="x", padx=12, pady=(0, 12))
+        self._apply_font_safe(search_btn, 'button_small')
+        search_btn.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('md')))
         
         # Aktionsbereich mit harmonischem Design
         actions_frame = ctk.CTkFrame(
             inner_container, 
-            fg_color=("#FFFFFF", "#1F2937"),
+            fg_color=UITheme.get_color('background'),
             corner_radius=12,
             border_width=1,
-            border_color=("#E5E7EB", "#374151")
+            border_color=UITheme.get_color('border')
         )
-        actions_frame.pack(fill="x", padx=16, pady=(0, 12))
+        actions_frame.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('sm')))
         
         actions_label = ctk.CTkLabel(
             actions_frame, 
             text="⚡ Schnellaktionen:", 
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("#1F2937", "#F9FAFB")
+            text_color=UITheme.get_color('text_primary')
         )
-        actions_label.pack(pady=(12, 6))
+        self._apply_font_safe(actions_label, 'body_bold')
+        actions_label.pack(pady=(UITheme.get_spacing('md'), UITheme.get_spacing('xs')))
         
         # Harmonische Button-Designs
         refresh_btn = ctk.CTkButton(
             actions_frame,
             text="🔄 Kunde wechseln",
             height=34,
-            font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color=("#3B82F6", "#2563EB"),
-            hover_color=("#2563EB", "#1D4ED8"),
-            corner_radius=10,
+            **UITheme.create_button_style('primary'),
             command=self._refresh_customer_selection
         )
-        refresh_btn.pack(fill="x", padx=12, pady=(0, 6))
+        self._apply_font_safe(refresh_btn, 'button_small')
+        refresh_btn.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('xs')))
         
         new_customer_btn = ctk.CTkButton(
             actions_frame,
             text="➕ Neuer Kunde",
             height=34,
-            font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color=("#10B981", "#059669"),
-            hover_color=("#059669", "#047857"),
-            corner_radius=10,
+            **UITheme.create_button_style('success'),
             command=self._create_new_customer
         )
-        new_customer_btn.pack(fill="x", padx=12, pady=(0, 6))
+        self._apply_font_safe(new_customer_btn, 'button_small')
+        new_customer_btn.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('xs')))
         
         list_customers_btn = ctk.CTkButton(
             actions_frame,
             text="📋 Alle Kunden",
             height=34,
-            font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color=("#6B7280", "#4B5563"),
-            hover_color=("#4B5563", "#374151"),
-            corner_radius=10,
+            **UITheme.create_button_style('neutral'),
             command=self._show_all_customers
         )
-        list_customers_btn.pack(fill="x", padx=12, pady=(0, 12))
+        self._apply_font_safe(list_customers_btn, 'button_small')
+        list_customers_btn.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('md')))
         
         # Letzter Kunde mit harmonischem Design
         recent_frame = ctk.CTkFrame(
             inner_container, 
-            fg_color=("#F8FAFC", "#111827"),
+            fg_color=UITheme.get_color('bg_gray'),
             corner_radius=12,
             border_width=1,
-            border_color=("#E2E8F0", "#374151")
+            border_color=UITheme.get_color('border_light')
         )
-        recent_frame.pack(fill="x", padx=16, pady=(0, 16))
+        recent_frame.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('md')))
         
         recent_label = ctk.CTkLabel(
             recent_frame, 
             text="🕒 Letzter Kunde:", 
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color=("#475569", "#CBD5E1")
+            text_color=UITheme.get_color('text_secondary')
         )
-        recent_label.pack(pady=(10, 3))
+        self._apply_font_safe(recent_label, 'caption')
+        recent_label.pack(pady=(UITheme.get_spacing('sm'), UITheme.get_spacing('xs')))
         
         self.last_customer_label = ctk.CTkLabel(
             recent_frame, 
             text=self.last_customer["name"], 
-            font=ctk.CTkFont(size=11),
-            text_color=("#6B7280", "#9CA3AF")
+            text_color=UITheme.get_color('text_muted')
         )
-        self.last_customer_label.pack(pady=(0, 10))
+        self._apply_font_safe(self.last_customer_label, 'caption')
+        self.last_customer_label.pack(pady=(0, UITheme.get_spacing('sm')))
     
     def _create_compact_upload_section(self, parent):
         """Erstellt die Upload-Sektion mit harmonischem Design ohne Überlappungen."""
         # Haupt-Upload-Container mit einheitlichem Design
         upload_frame = ctk.CTkFrame(
             parent, 
-            fg_color=("#FFF7ED", "#1A1A1A"),
-            corner_radius=20,  # Einheitlicher Radius
-            border_width=1,    # Dünnerer Rahmen
-            border_color=("#FED7AA", "#92400E")
+            fg_color=UITheme.get_color('surface'),
+            corner_radius=16,  # Einheitlicher Radius für alle Container
+            border_width=1,
+            border_color=UITheme.get_color('border')
         )
         upload_frame.grid(row=0, column=1, padx=UITheme.get_spacing('xs'), pady=UITheme.get_spacing('sm'), sticky="nsew")
         
-        # Innerer Container ohne Überlappung
+        # Innerer Container
         inner_container = ctk.CTkFrame(
             upload_frame,
             fg_color="transparent",
-            corner_radius=18
+            corner_radius=14
         )
-        inner_container.pack(fill="both", expand=True, padx=4, pady=4)
+        inner_container.pack(fill="both", expand=True, padx=UITheme.get_spacing('sm'), pady=UITheme.get_spacing('sm'))
         
         # Header mit konsistentem Design
         upload_header = ctk.CTkFrame(
             inner_container, 
-            fg_color=("#EA580C", "#F97316"),
-            corner_radius=16,
-            border_width=1,
-            border_color=("#FB923C", "#FDBA74")
+            fg_color=UITheme.get_color('accent'),
+            corner_radius=12,
+            border_width=0
         )
-        upload_header.pack(fill="x", padx=16, pady=(16, 12))
+        upload_header.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(UITheme.get_spacing('md'), UITheme.get_spacing('sm')))
         
         upload_title = ctk.CTkLabel(
             upload_header,
             text="📤 DATEI-UPLOAD & VERWALTUNG",
-            text_color="white",
-            font=ctk.CTkFont(size=16, weight="bold")
+            text_color="white"
         )
-        upload_title.pack(pady=10)
+        self._apply_font_safe(upload_title, 'heading_md')
+        upload_title.pack(pady=UITheme.get_spacing('md'))
         
         # Upload-Buttons mit harmonischem Design
         buttons_frame = ctk.CTkFrame(
             inner_container, 
-            fg_color=("#FFFFFF", "#1F2937"),
+            fg_color=UITheme.get_color('background'),
             corner_radius=12,
             border_width=1,
-            border_color=("#E5E7EB", "#374151")
+            border_color=UITheme.get_color('border')
         )
-        buttons_frame.pack(fill="x", padx=16, pady=(0, 12))
+        buttons_frame.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('sm')))
         
         # Info-Text
         info_label = ctk.CTkLabel(
             buttons_frame,
             text="📁 Dateien hochladen und verwalten",
-            text_color=("#6B7280", "#9CA3AF"),
-            font=ctk.CTkFont(size=12)
+            text_color=UITheme.get_color('text_secondary')
         )
-        info_label.pack(pady=(12, 8))
+        self._apply_font_safe(info_label, 'body')
+        info_label.pack(pady=(UITheme.get_spacing('md'), UITheme.get_spacing('xs')))
         
         # Upload-Buttons Container
         upload_buttons_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
-        upload_buttons_frame.pack(fill="x", padx=12, pady=(0, 12))
+        upload_buttons_frame.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('md')))
         
         # Harmonischer Hauptbutton
         main_upload_btn = ctk.CTkButton(
             upload_buttons_frame,
             text="📂 DATEIEN AUSWÄHLEN",
             height=40,
-            font=ctk.CTkFont(size=13, weight="bold"),
-            fg_color=("#EA580C", "#F97316"),
-            hover_color=("#DC2626", "#EA580C"),
-            corner_radius=10,
+            **UITheme.create_button_style('accent'),
             command=self._select_upload_files
         )
-        main_upload_btn.pack(fill="x", pady=(0, 6))
+        self._apply_font_safe(main_upload_btn, 'button')
+        main_upload_btn.pack(fill="x", pady=(0, UITheme.get_spacing('xs')))
         
         # Zwischenablage-Button
         clipboard_btn = ctk.CTkButton(
             upload_buttons_frame,
             text="📋 Aus Zwischenablage",
             height=34,
-            font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color=("#8B5CF6", "#7C3AED"),
-            hover_color=("#7C3AED", "#6D28D9"),
-            corner_radius=10,
+            **UITheme.create_button_style('secondary'),
             command=self._try_clipboard_upload
         )
+        self._apply_font_safe(clipboard_btn, 'button_small')
         clipboard_btn.pack(fill="x")
         
         # Datei-Liste Frame mit Vorschau-Bereich
@@ -1535,352 +1521,304 @@ class CheckerApp:
         return True
     
     def _create_workflows_section(self, parent):
-        """Erstellt die Workflows-Sektion mit ruhigem, harmonischem Design."""
-        # Haupt-Workflows-Container mit sanftem Gelb-Design
+        """Erstellt die Workflows-Sektion mit harmonischem Design ohne Live-Dashboard."""
+        # Haupt-Workflows-Container mit einheitlichem Design
         workflows_frame = ctk.CTkFrame(
             parent, 
-            fg_color=("#FFFDF7", "#1A1B16"),  # Sehr sanfter gelber Hintergrund
-            corner_radius=20,
+            fg_color=UITheme.get_color('surface'),
+            corner_radius=16,  # Einheitlicher Radius für alle Container
             border_width=1,
-            border_color=("#F3E8A6", "#8B7355")  # Gedämpfter Rahmen
+            border_color=UITheme.get_color('border')
         )
-        workflows_frame.grid(row=0, column=2, padx=(15, 0), pady=10, sticky="nsew")
+        workflows_frame.grid(row=0, column=2, padx=(UITheme.get_spacing('sm'), 0), pady=UITheme.get_spacing('sm'), sticky="nsew")
         
-        # Einfacher Innen-Container
+        # Innerer Container
         inner_container = ctk.CTkFrame(
             workflows_frame,
             fg_color="transparent",
-            corner_radius=18
+            corner_radius=14
         )
-        inner_container.pack(fill="both", expand=True, padx=8, pady=8)
+        inner_container.pack(fill="both", expand=True, padx=UITheme.get_spacing('sm'), pady=UITheme.get_spacing('sm'))
         
-        # Ruhiger Header mit sanftem Design
+        # Header mit konsistentem Design
         workflows_header = ctk.CTkFrame(
             inner_container, 
-            fg_color=("#F3C623", "#B8860B"),  # Gedämpftes goldgelb
+            fg_color=UITheme.get_color('warning'),  # Goldgelb für Workflows
             corner_radius=12,
-            border_width=0  # Kein Rahmen für mehr Ruhe
+            border_width=0
         )
-        workflows_header.pack(fill="x", padx=12, pady=(12, 16))
+        workflows_header.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(UITheme.get_spacing('md'), UITheme.get_spacing('sm')))
         
-        # Einfacher Header-Text
+        # Header-Text
         workflows_title = ctk.CTkLabel(
             workflows_header,
             text="⚡ WORKFLOWS & PROZESSE",
-            font=ctk.CTkFont(size=15, weight="bold"),
             text_color="white"
         )
-        workflows_title.pack(pady=12)
+        self._apply_font_safe(workflows_title, 'heading_md')
+        workflows_title.pack(pady=UITheme.get_spacing('md'))
         
-        # Schöne Workflow-Karten mit detailliertem Design
+        # Workflow-Tools Container
         workflows_container = ctk.CTkFrame(
             inner_container, 
-            fg_color=("#FFFFFF", "#1F2937"),
+            fg_color=UITheme.get_color('background'),
             corner_radius=12,
             border_width=1,
-            border_color=("#E5E7EB", "#374151")
+            border_color=UITheme.get_color('border')
         )
-        workflows_container.pack(fill="x", padx=16, pady=(0, 12))
+        workflows_container.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('sm')))
         
         # Container-Titel mit Icon
         container_header = ctk.CTkFrame(workflows_container, fg_color="transparent")
-        container_header.pack(fill="x", padx=16, pady=(12, 8))
+        container_header.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(UITheme.get_spacing('md'), UITheme.get_spacing('xs')))
         
         container_icon = ctk.CTkLabel(
             container_header,
             text="🛠️",
-            font=ctk.CTkFont(size=18),
-            text_color=("#F59E0B", "#FBBF24")
+            text_color=UITheme.get_color('warning')
         )
-        container_icon.pack(side="left", padx=(0, 8))
+        self._apply_font_safe(container_icon, 'icon')
+        container_icon.pack(side="left", padx=(0, UITheme.get_spacing('xs')))
         
         container_title = ctk.CTkLabel(
             container_header, 
-            text="Verfügbare Workflow-Tools:", 
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color=("#1F2937", "#F9FAFB")
+            text="Professionelle Workflow-Tools:", 
+            text_color=UITheme.get_color('text_primary')
         )
+        self._apply_font_safe(container_title, 'body_bold')
         container_title.pack(side="left")
         
-        # Tool-Karten Container
+        # Tool-Karten Container mit schönerem Design
         tools_grid = ctk.CTkFrame(workflows_container, fg_color="transparent")
-        tools_grid.pack(fill="x", padx=12, pady=(0, 12))
+        tools_grid.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('md')))
         
-        # Qualitätsprüfung - Premium-Karte
+        # === PREMIUM WORKFLOW BUTTONS - 2x2 GRID ===
+        
+        # Grid für bessere Anordnung
+        tools_grid.grid_columnconfigure((0, 1), weight=1)
+        
+        # ROW 1: Qualitätsprüfung + Übersetzung
         quality_card = ctk.CTkFrame(
             tools_grid,
-            fg_color=("#FEF3C7", "#1C1B00"),
+            fg_color=("#FEF3C7", "#2A2A2A"),  # Warmes Gelb/Gold
             corner_radius=12,
             border_width=2,
-            border_color=("#F59E0B", "#D97706")
+            border_color=("#F59E0B", "#FBBF24")
         )
-        quality_card.pack(fill="x", pady=(0, 8))
+        quality_card.grid(row=0, column=0, padx=(0, UITheme.get_spacing('xs')), pady=(0, UITheme.get_spacing('xs')), sticky="ew")
         
+        # Qualitätsprüfung - Premium Design
         quality_header = ctk.CTkFrame(quality_card, fg_color="transparent")
-        quality_header.pack(fill="x", padx=12, pady=(8, 4))
+        quality_header.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(UITheme.get_spacing('sm'), UITheme.get_spacing('xs')))
         
         quality_icon = ctk.CTkLabel(
             quality_header,
             text="✅",
-            font=ctk.CTkFont(size=16),
-            text_color=("#059669", "#10B981")
+            text_color=UITheme.get_color('success')
         )
-        quality_icon.pack(side="left", padx=(0, 8))
+        self._apply_font_safe(quality_icon, 'heading_sm')
+        quality_icon.pack(side="left", padx=(0, UITheme.get_spacing('xs')))
         
         quality_title = ctk.CTkLabel(
             quality_header,
             text="Qualitätsprüfung",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("#1F2937", "#F9FAFB")
+            text_color=("#92400E", "#F59E0B")
         )
+        self._apply_font_safe(quality_title, 'body_bold')
         quality_title.pack(side="left")
         
         quality_desc = ctk.CTkLabel(
             quality_card,
-            text="📊 Automatische Dokument-Analyse & Fehlerprüfung",
-            font=ctk.CTkFont(size=10),
-            text_color=("#6B7280", "#9CA3AF")
+            text="📊 Automatische Dokument-Analyse",
+            text_color=("#A16207", "#D97706")
         )
-        quality_desc.pack(padx=12, pady=(0, 4))
+        self._apply_font_safe(quality_desc, 'caption')
+        quality_desc.pack(padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('xs')))
         
         quality_btn = ctk.CTkButton(
             quality_card,
-            text="▶️ Qualitätsprüfung starten",
-            height=32,
-            font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color=("#F59E0B", "#D97706"),
-            hover_color=("#D97706", "#B45309"),
-            corner_radius=10,
+            text="🚀 Prüfung starten",
+            height=36,
+            fg_color=("#F59E0B", "#FBBF24"),
+            hover_color=("#D97706", "#F59E0B"),
+            text_color="white",
             command=self._start_quality_check
         )
-        quality_btn.pack(fill="x", padx=12, pady=(0, 8))
+        self._apply_font_safe(quality_btn, 'button_small')
+        quality_btn.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('sm')))
         
-        # Übersetzung - Premium-Karte
+        # Übersetzung - Premium Design
         translation_card = ctk.CTkFrame(
             tools_grid,
-            fg_color=("#FEF3C7", "#1C1B00"),
+            fg_color=("#FEF3C7", "#2A2A2A"),  # Warmes Gelb/Gold
             corner_radius=12,
             border_width=2,
-            border_color=("#FBBF24", "#F59E0B")
+            border_color=("#FBBF24", "#FCD34D")
         )
-        translation_card.pack(fill="x", pady=(0, 8))
+        translation_card.grid(row=0, column=1, padx=(UITheme.get_spacing('xs'), 0), pady=(0, UITheme.get_spacing('xs')), sticky="ew")
         
         translation_header = ctk.CTkFrame(translation_card, fg_color="transparent")
-        translation_header.pack(fill="x", padx=12, pady=(8, 4))
+        translation_header.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(UITheme.get_spacing('sm'), UITheme.get_spacing('xs')))
         
         translation_icon = ctk.CTkLabel(
             translation_header,
             text="🌐",
-            font=ctk.CTkFont(size=16),
-            text_color=("#3B82F6", "#60A5FA")
+            text_color=UITheme.get_color('primary')
         )
-        translation_icon.pack(side="left", padx=(0, 8))
+        self._apply_font_safe(translation_icon, 'heading_sm')
+        translation_icon.pack(side="left", padx=(0, UITheme.get_spacing('xs')))
         
         translation_title = ctk.CTkLabel(
             translation_header,
-            text="Multi-Language Translation",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("#1F2937", "#F9FAFB")
+            text="Smart Translation",
+            text_color=("#92400E", "#F59E0B")
         )
+        self._apply_font_safe(translation_title, 'body_bold')
         translation_title.pack(side="left")
         
         translation_desc = ctk.CTkLabel(
             translation_card,
-            text="🗣️ KI-gestützte Übersetzung in 50+ Sprachen",
-            font=ctk.CTkFont(size=10),
-            text_color=("#6B7280", "#9CA3AF")
+            text="🗣️ KI-gestützte Übersetzung",
+            text_color=("#A16207", "#D97706")
         )
-        translation_desc.pack(padx=12, pady=(0, 4))
+        self._apply_font_safe(translation_desc, 'caption')
+        translation_desc.pack(padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('xs')))
         
         translation_btn = ctk.CTkButton(
             translation_card,
-            text="▶️ Übersetzung starten",
-            height=32,
-            font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color=("#FBBF24", "#F59E0B"),
-            hover_color=("#F59E0B", "#D97706"),
-            corner_radius=10,
+            text="🌟 Übersetzen",
+            height=36,
+            fg_color=("#FBBF24", "#FCD34D"),
+            hover_color=("#F59E0B", "#FBBF24"),
+            text_color="white",
             command=self._start_translation
         )
-        translation_btn.pack(fill="x", padx=12, pady=(0, 8))
+        self._apply_font_safe(translation_btn, 'button_small')
+        translation_btn.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('sm')))
         
-        # Export - Premium-Karte
+        # ROW 2: Export + Extras
         export_card = ctk.CTkFrame(
             tools_grid,
-            fg_color=("#FEF3C7", "#1C1B00"),
+            fg_color=("#FEF3C7", "#2A2A2A"),  # Warmes Gelb/Gold
             corner_radius=12,
             border_width=2,
-            border_color=("#FCD34D", "#FBBF24")
+            border_color=("#FCD34D", "#FDE68A")
         )
-        export_card.pack(fill="x", pady=(0, 8))
+        export_card.grid(row=1, column=0, padx=(0, UITheme.get_spacing('xs')), pady=(0, 0), sticky="ew")
         
         export_header = ctk.CTkFrame(export_card, fg_color="transparent")
-        export_header.pack(fill="x", padx=12, pady=(8, 4))
+        export_header.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(UITheme.get_spacing('sm'), UITheme.get_spacing('xs')))
         
         export_icon = ctk.CTkLabel(
             export_header,
             text="📊",
-            font=ctk.CTkFont(size=16),
-            text_color=("#7C3AED", "#8B5CF6")
+            text_color=UITheme.get_color('secondary')
         )
-        export_icon.pack(side="left", padx=(0, 8))
+        self._apply_font_safe(export_icon, 'heading_sm')
+        export_icon.pack(side="left", padx=(0, UITheme.get_spacing('xs')))
         
         export_title = ctk.CTkLabel(
             export_header,
-            text="Smart Export & Reports",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color=("#1F2937", "#F9FAFB")
+            text="Export & Reports",
+            text_color=("#92400E", "#F59E0B")
         )
+        self._apply_font_safe(export_title, 'body_bold')
         export_title.pack(side="left")
         
         export_desc = ctk.CTkLabel(
             export_card,
-            text="� Professionelle Berichte & Datenexport",
-            font=ctk.CTkFont(size=10),
-            text_color=("#6B7280", "#9CA3AF")
+            text="📈 Professionelle Berichte",
+            text_color=("#A16207", "#D97706")
         )
-        export_desc.pack(padx=12, pady=(0, 4))
+        self._apply_font_safe(export_desc, 'caption')
+        export_desc.pack(padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('xs')))
         
         export_btn = ctk.CTkButton(
             export_card,
-            text="▶️ Export starten",
-            height=32,
-            font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color=("#FCD34D", "#FBBF24"),
-            hover_color=("#FBBF24", "#F59E0B"),
-            corner_radius=10,
+            text="📤 Exportieren",
+            height=36,
+            fg_color=("#FCD34D", "#FDE68A"),
+            hover_color=("#FBBF24", "#FCD34D"),
+            text_color=("#92400E", "#F59E0B"),
             command=self._start_export
         )
-        export_btn.pack(fill="x", padx=12, pady=(0, 8))
+        self._apply_font_safe(export_btn, 'button_small')
+        export_btn.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('sm')))
         
-        # Schöner Status-Dashboard mit goldenem Design
-        status_frame = ctk.CTkFrame(
-            inner_container, 
-            fg_color=("#FEF3C7", "#1C1B00"),
+        # Workflow-Status & Tools
+        status_card = ctk.CTkFrame(
+            tools_grid,
+            fg_color=("#FEF3C7", "#2A2A2A"),  # Warmes Gelb/Gold
             corner_radius=12,
-            border_width=1,
-            border_color=("#F59E0B", "#D97706")
+            border_width=2,
+            border_color=("#FDE68A", "#FEF3C7")
         )
-        status_frame.pack(fill="x", padx=16, pady=(0, 16))
+        status_card.grid(row=1, column=1, padx=(UITheme.get_spacing('xs'), 0), pady=(0, 0), sticky="ew")
         
-        # Status Header mit Icon
-        status_header = ctk.CTkFrame(status_frame, fg_color="transparent")
-        status_header.pack(fill="x", padx=16, pady=(12, 8))
+        status_header = ctk.CTkFrame(status_card, fg_color="transparent")
+        status_header.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(UITheme.get_spacing('sm'), UITheme.get_spacing('xs')))
         
         status_icon = ctk.CTkLabel(
             status_header,
-            text="📈",
-            font=ctk.CTkFont(size=18),
-            text_color=("#F59E0B", "#FBBF24")
+            text="⚡",
+            text_color=UITheme.get_color('warning')
         )
-        status_icon.pack(side="left", padx=(0, 8))
+        self._apply_font_safe(status_icon, 'heading_sm')
+        status_icon.pack(side="left", padx=(0, UITheme.get_spacing('xs')))
         
         status_title = ctk.CTkLabel(
-            status_header, 
-            text="Live Workflow-Dashboard", 
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color=("#1F2937", "#F9FAFB")
+            status_header,
+            text="Quick Tools",
+            text_color=("#92400E", "#F59E0B")
         )
+        self._apply_font_safe(status_title, 'body_bold')
         status_title.pack(side="left")
         
-        # Status-Items mit schönerem Design
-        status_items = [
-            ("🔄", "In Bearbeitung", "3", "#F59E0B"),
-            ("✅", "Abgeschlossen", "12", "#059669"),
-            ("⏳", "Warteschlange", "2", "#EF4444"),
-            ("⚡", "Aktive Prozesse", "1", "#3B82F6")
-        ]
-        
-        status_grid = ctk.CTkFrame(status_frame, fg_color="transparent")
-        status_grid.pack(fill="x", padx=12, pady=(0, 12))
-        
-        for icon, status_text, count, color in status_items:
-            # Individuelle Status-Karte
-            status_item_card = ctk.CTkFrame(
-                status_grid, 
-                fg_color=("#FFFFFF", "#111827"),
-                corner_radius=8,
-                border_width=1,
-                border_color=("#E5E7EB", "#374151")
-            )
-            status_item_card.pack(fill="x", padx=4, pady=2)
-            
-            # Status-Item Content
-            status_content = ctk.CTkFrame(status_item_card, fg_color="transparent")
-            status_content.pack(fill="x", padx=10, pady=6)
-            
-            # Icon links
-            item_icon = ctk.CTkLabel(
-                status_content, 
-                text=icon, 
-                font=ctk.CTkFont(size=12),
-                text_color=color
-            )
-            item_icon.pack(side="left", padx=(0, 8))
-            
-            # Text mittig
-            item_label = ctk.CTkLabel(
-                status_content, 
-                text=status_text, 
-                font=ctk.CTkFont(size=11),
-                text_color=("#374151", "#D1D5DB"),
-                anchor="w"
-            )
-            item_label.pack(side="left", fill="x", expand=True)
-            
-            # Count rechts als Badge
-            count_badge = ctk.CTkFrame(
-                status_content, 
-                fg_color=color,
-                corner_radius=12,
-                width=24,
-                height=24
-            )
-            count_badge.pack(side="right")
-            count_badge.pack_propagate(False)
-            
-            count_label = ctk.CTkLabel(
-                count_badge, 
-                text=count, 
-                font=ctk.CTkFont(size=10, weight="bold"), 
-                text_color="white"
-            )
-            count_label.pack(expand=True)
-        
-        # Live-Update Indikator
-        live_indicator = ctk.CTkFrame(status_frame, fg_color="transparent")
-        live_indicator.pack(fill="x", padx=16, pady=(0, 8))
-        
-        live_dot = ctk.CTkLabel(
-            live_indicator,
-            text="🟢",
-            font=ctk.CTkFont(size=8)
+        status_desc = ctk.CTkLabel(
+            status_card,
+            text="🛠️ Erweiterte Funktionen",
+            text_color=("#A16207", "#D97706")
         )
-        live_dot.pack(side="left", padx=(0, 4))
+        self._apply_font_safe(status_desc, 'caption')
+        status_desc.pack(padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('xs')))
         
-        live_text = ctk.CTkLabel(
-            live_indicator,
-            text="Live-Updates aktiv • Letztes Update: jetzt",
-            font=ctk.CTkFont(size=9),
-            text_color=("#6B7280", "#9CA3AF")
+        tools_btn = ctk.CTkButton(
+            status_card,
+            text="🔧 Tools öffnen",
+            height=36,
+            fg_color=("#FDE68A", "#FEF3C7"),
+            hover_color=("#FCD34D", "#FDE68A"),
+            text_color=("#92400E", "#F59E0B"),
+            command=self._show_tools
         )
-        live_text.pack(side="left")
-    
-    # Helper-Methoden
-    def _darken_color(self, color):
-        """Dunkelt eine Farbe ab für Hover-Effekte."""
-        color_map = {
-            "#2563EB": "#1D4ED8",
-            "#059669": "#047857", 
-            "#F59E0B": "#D97706",
-            "#7C3AED": "#6D28D9",
-            "#EF4444": "#DC2626"
-        }
-        return color_map.get(color, color)
-    
+        self._apply_font_safe(tools_btn, 'button_small')
+        tools_btn.pack(fill="x", padx=UITheme.get_spacing('md'), pady=(0, UITheme.get_spacing('sm')))
+
     # Placeholder-Methoden für Navigation
     def _show_customers(self):
         print("Kunden-Ansicht wird geladen...")
+    
+    def _show_projects(self):
+        print("Projekte-Ansicht wird geladen...")
+    
+    def _show_tools(self):
+        print("🔧 Tools-Panel wird geöffnet...")
+        # Hier könnte ein separates Tools-Fenster geöffnet werden
+    
+    def _show_settings(self):
+        print("⚙️ Einstellungen werden geladen...")
+    
+    def _start_quality_check(self):
+        print("🚀 Qualitätsprüfung wird gestartet...")
+        # Hier würde die Qualitätsprüfung implementiert
+    
+    def _start_translation(self):
+        print("🌟 Übersetzung wird gestartet...")
+        # Hier würde die Übersetzung implementiert
+    
+    def _start_export(self):
+        print("📤 Export wird gestartet...")
+        # Hier würde der Export implementiert
     
     def _update_uploaded_files_display(self):
         """Aktualisiert die Anzeige der kundenspezifischen Dateien mit Lösch-Funktionalität und Vorschau."""
