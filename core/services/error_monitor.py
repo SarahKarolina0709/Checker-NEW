@@ -4,20 +4,22 @@ ErrorMonitor for the Modular CheckerApp Architecture
 Provides centralized error handling, logging, and user-facing
 error reporting to ensure application stability and robustness.
 """
+from typing import Optional, TYPE_CHECKING
 import logging
 import traceback
+
 from tkinter import messagebox
-from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core.app import CheckerApp
+    pass
+
 
 class ErrorMonitor:
     """
     Centralized error handler that logs exceptions and displays
     user-friendly error messages.
     """
-    
+
     def __init__(self, app: 'CheckerApp'):
         """Initialize the ErrorMonitor."""
         self.app = app
@@ -30,7 +32,7 @@ class ErrorMonitor:
         """
         error_message = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
         self.logger.critical(f"Unhandled exception caught:\n{error_message}")
-        
+
         self.show_critical_error(
             "Ein kritischer Fehler ist aufgetreten",
             "Die Anwendung hat einen unerwarteten Fehler festgestellt und muss möglicherweise neu gestartet werden.\n\n"
@@ -43,7 +45,7 @@ class ErrorMonitor:
         """
         error_message = f"Error in {context}: {exception}\n{traceback.format_exc()}"
         self.logger.error(error_message)
-        
+
         if hasattr(self.app, 'notification_center'):
             self.app.notification_center.show_error(
                 f"Fehler in '{context}'",
@@ -66,4 +68,3 @@ def setup_global_exception_handler(app: 'CheckerApp'):
     app.tk.call('wm', 'iconphoto', app._w, app.icon) # Make sure icon is set
     app.report_callback_exception = monitor.handle_exception
     logging.info("Global exception handler set up.")
-

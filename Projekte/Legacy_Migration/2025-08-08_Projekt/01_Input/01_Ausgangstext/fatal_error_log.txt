@@ -1,0 +1,189 @@
+FATAL ERROR during startup at 2025-06-25 14:59:06.182361: 'Toplevel' object has no attribute 'winfo_minwidth'
+Traceback (most recent call last):
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 537, in <module>
+    app = CheckerApp()
+          ^^^^^^^^^^^^
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 86, in __init__
+    self._show_splash_screen()
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 148, in _show_splash_screen
+    activate_lock_for_window(self.splash)
+  File "c:\Users\sarah\Desktop\Checker\lite_nuclear_ctk_patch.py", line 439, in activate_lock_for_window
+    _geometry_locks[window].lock_geometry()
+  File "c:\Users\sarah\Desktop\Checker\lite_nuclear_ctk_patch.py", line 461, in lock_geometry
+    current_min_w = self.widget.winfo_minwidth()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Toplevel' object has no attribute 'winfo_minwidth'. Did you mean: 'winfo_reqwidth'?
+
+FATAL ERROR during startup at 2025-06-25 14:59:24.755210: 'Toplevel' object has no attribute 'winfo_minwidth'
+Traceback (most recent call last):
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 537, in <module>
+    app = CheckerApp()
+          ^^^^^^^^^^^^
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 86, in __init__
+    self._show_splash_screen()
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 148, in _show_splash_screen
+    activate_lock_for_window(self.splash)
+  File "c:\Users\sarah\Desktop\Checker\lite_nuclear_ctk_patch.py", line 439, in activate_lock_for_window
+    _geometry_locks[window].lock_geometry()
+  File "c:\Users\sarah\Desktop\Checker\lite_nuclear_ctk_patch.py", line 461, in lock_geometry
+    current_min_w = self.widget.winfo_minwidth()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Toplevel' object has no attribute 'winfo_minwidth'. Did you mean: 'winfo_reqwidth'?
+
+FATAL ERROR during startup at 2025-06-25 15:02:49.499801: 'Toplevel' object has no attribute 'winfo_minwidth'
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\checker_app.py", line 537, in <module>
+    app = CheckerApp()
+          ^^^^^^^^^^^^
+  File "C:\Users\sarah\Desktop\Checker\checker_app.py", line 86, in __init__
+    self._show_splash_screen()
+  File "C:\Users\sarah\Desktop\Checker\checker_app.py", line 148, in _show_splash_screen
+    activate_lock_for_window(self.splash)
+  File "C:\Users\sarah\Desktop\Checker\lite_nuclear_ctk_patch.py", line 439, in activate_lock_for_window
+    _geometry_locks[window].lock_geometry()
+  File "C:\Users\sarah\Desktop\Checker\lite_nuclear_ctk_patch.py", line 461, in lock_geometry
+    current_min_w = self.widget.winfo_minwidth()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Toplevel' object has no attribute 'winfo_minwidth'. Did you mean: 'winfo_reqwidth'?
+
+FATAL ERROR during startup at 2025-06-25 15:03:48.041282: 'Toplevel' object has no attribute 'winfo_minwidth'
+Traceback (most recent call last):
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 537, in <module>
+    app = CheckerApp()
+          ^^^^^^^^^^^^
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 86, in __init__
+    self._show_splash_screen()
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 148, in _show_splash_screen
+    activate_lock_for_window(self.splash)
+  File "c:\Users\sarah\Desktop\Checker\lite_nuclear_ctk_patch.py", line 439, in activate_lock_for_window
+    _geometry_locks[window].lock_geometry()
+  File "c:\Users\sarah\Desktop\Checker\lite_nuclear_ctk_patch.py", line 461, in lock_geometry
+    current_min_w = self.widget.winfo_minwidth()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Toplevel' object has no attribute 'winfo_minwidth'. Did you mean: 'winfo_reqwidth'?
+
+FATAL ERROR during startup at 2025-06-25 15:04:21.598344: 'Toplevel' object has no attribute 'winfo_minwidth'
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\checker_app.py", line 537, in <module>
+    app = CheckerApp()
+          ^^^^^^^^^^^^
+  File "C:\Users\sarah\Desktop\Checker\checker_app.py", line 86, in __init__
+    self._show_splash_screen()
+  File "C:\Users\sarah\Desktop\Checker\checker_app.py", line 148, in _show_splash_screen
+    activate_lock_for_window(self.splash)
+  File "C:\Users\sarah\Desktop\Checker\lite_nuclear_ctk_patch.py", line 429, in activate_lock_for_window
+    _geometry_locks[window].lock_geometry()
+  File "C:\Users\sarah\Desktop\Checker\lite_nuclear_ctk_patch.py", line 451, in lock_geometry
+    current_min_w = self.widget.winfo_minwidth()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Toplevel' object has no attribute 'winfo_minwidth'. Did you mean: 'winfo_reqwidth'?
+
+FATAL ERROR during startup at 2025-06-25 15:07:51.848072: 'Toplevel' object has no attribute 'winfo_minwidth'
+Traceback (most recent call last):
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 537, in <module>
+    app = CheckerApp()
+          ^^^^^^^^^^^^
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 86, in __init__
+    self._show_splash_screen()
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 148, in _show_splash_screen
+    activate_lock_for_window(self.splash)
+  File "c:\Users\sarah\Desktop\Checker\lite_nuclear_ctk_patch.py", line 429, in activate_lock_for_window
+    _geometry_locks[window].lock_geometry()
+  File "c:\Users\sarah\Desktop\Checker\lite_nuclear_ctk_patch.py", line 451, in lock_geometry
+    current_min_w = self.widget.winfo_minwidth()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Toplevel' object has no attribute 'winfo_minwidth'. Did you mean: 'winfo_reqwidth'?
+
+FATAL ERROR during startup at 2025-06-25 16:22:23.320973: 'str' object has no attribute '_bind'
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\checker_app.py", line 553, in <module>
+    app = CheckerApp()
+          ^^^^^^^^^^^^
+  File "C:\Users\sarah\Desktop\Checker\checker_app.py", line 66, in __init__
+    self.root = TkinterDnD.Tk()
+                ^^^^^^^^^^^^^^^
+  File "C:\Users\sarah\AppData\Local\Programs\Python\Python312\Lib\site-packages\tkinterdnd2\TkinterDnD.py", line 290, in __init__
+    tkinter.Tk.__init__(self, *args, **kw)
+  File "C:\Users\sarah\Desktop\Checker\lite_nuclear_ctk_patch.py", line 949, in monitored_init
+    self.bind("<Configure>", on_configure, add=True)
+  File "C:\Users\sarah\Desktop\Checker\lite_nuclear_ctk_patch.py", line 886, in protected_bind
+    result = original_bind(sequence, func, add)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarah\Desktop\Checker\lite_nuclear_ctk_patch.py", line 720, in protected_tk_bind
+    return original_tk_bind(self, sequence, func, add)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\sarah\AppData\Local\Programs\Python\Python312\Lib\tkinter\__init__.py", line 1451, in bind
+    return self._bind(('bind', self._w), sequence, func, add)
+           ^^^^^^^^^^
+AttributeError: 'str' object has no attribute '_bind'. Did you mean: 'find'?
+
+FATAL ERROR during startup at 2025-06-28 13:05:05.202811: 'CheckerApp' object has no attribute '_load_png_icons'
+Traceback (most recent call last):
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 1331, in <module>
+    app = CheckerApp()
+          ^^^^^^^^^^^^
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 289, in __init__
+    self._load_png_icons()
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'CheckerApp' object has no attribute '_load_png_icons'
+
+FATAL ERROR during startup at 2025-06-28 21:28:35.400186: 'CheckerApp' object has no attribute '_load_png_icons_method'
+Traceback (most recent call last):
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 1446, in <module>
+    app = CheckerApp()
+          ^^^^^^^^^^^^
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 290, in __init__
+    self._load_png_icons_method()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'CheckerApp' object has no attribute '_load_png_icons_method'
+
+--- FATAL ERROR: 2025-06-30 13:11:27.909259 ---
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\checker_app.py", line 1067, in <module>
+    app = CheckerApp()
+          ^^^^^^^^^^^^
+  File "C:\Users\sarah\Desktop\Checker\checker_app.py", line 282, in __init__
+    self._lock_window_size()
+    ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'CheckerApp' object has no attribute '_lock_window_size'
+
+--- FATAL ERROR: 2025-06-30 13:12:02.364959 ---
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\checker_app.py", line 1067, in <module>
+    app = CheckerApp()
+          ^^^^^^^^^^^^
+  File "C:\Users\sarah\Desktop\Checker\checker_app.py", line 282, in __init__
+    self._lock_window_size()
+    ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'CheckerApp' object has no attribute '_lock_window_size'
+
+--- FATAL ERROR: 2025-07-01 13:14:18.393042 ---
+Traceback (most recent call last):
+  File "C:\Users\sarah\Desktop\Checker\checker_app.py", line 1302, in <module>
+    app = CheckerApp()
+          ^^^^^^^^^^^^
+  File "C:\Users\sarah\Desktop\Checker\checker_app.py", line 186, in __init__
+    self.setup_logging()
+    ^^^^^^^^^^^^^^^^^^
+AttributeError: 'CheckerApp' object has no attribute 'setup_logging'
+
+--- FATAL ERROR: 2025-07-01 13:14:53.519425 ---
+Traceback (most recent call last):
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 1302, in <module>
+    app = CheckerApp()
+          ^^^^^^^^^^^^
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 186, in __init__
+    self.setup_logging()
+    ^^^^^^^^^^^^^^^^^^
+AttributeError: 'CheckerApp' object has no attribute 'setup_logging'
+
+--- FATAL ERROR: 2025-07-01 13:52:00.786903 ---
+Traceback (most recent call last):
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 1429, in <module>
+    app = CheckerApp()
+          ^^^^^^^^^^^^
+  File "c:\Users\sarah\Desktop\Checker\checker_app.py", line 186, in __init__
+    self.setup_logging()
+    ^^^^^^^^^^^^^^^^^^
+AttributeError: 'CheckerApp' object has no attribute 'setup_logging'
+

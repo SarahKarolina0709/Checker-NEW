@@ -1,0 +1,368 @@
+/* =============================================================================
+   GLOBALS.CSS - Tailwind Typography System Integration
+   =============================================================================
+   
+   Basiert auf der Translation Quality GUI Typography-Hierarchie:
+   caption 12px/normal, body 14px/normal, body_bold 14px/bold, 
+   subheading 18px/bold, heading 22px/bold, title 26px/bold
+*/
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================================================
+   BASE LAYER - CSS Custom Properties Integration
+   ============================================================================= */
+
+@layer base {
+  :root {
+    /* Font Family */
+    --font-family-base: "Segoe UI", system-ui, -apple-system, sans-serif;
+    
+    /* Typography Tokens - Synced with Tailwind Config */
+    --ty-caption-size: 0.75rem;      /* 12px */
+    --ty-body-size: 0.875rem;        /* 14px */
+    --ty-subheading-size: 1.125rem;  /* 18px */
+    --ty-heading-size: 1.375rem;     /* 22px */
+    --ty-title-size: 1.625rem;       /* 26px */
+    
+    --ty-weight-normal: 400;
+    --ty-weight-bold: 700;
+    
+    --ty-line-height-body: 1.4;
+    --ty-line-height-heading: 1.2;
+    
+    /* Color Tokens */
+    --ty-primary: #1F4E79;
+    --ty-primary-hover: #1A3F65;
+    --ty-secondary: #6C757D;
+    --ty-text: #374151;
+    --ty-text-light: #6B7280;
+    --ty-surface: #FFFFFF;
+    --ty-surface-border: #E5E7EB;
+  }
+  
+  /* Base Typography Setup */
+  html {
+    font-family: var(--font-family-base);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  body {
+    @apply ty-body text-ty-text;
+    background-color: #F9FAFB;
+  }
+  
+  /* Responsive Typography Scaling */
+  @media (max-width: 640px) {
+    :root {
+      --ty-caption-size: 0.6875rem;    /* 11px */
+      --ty-body-size: 0.8125rem;       /* 13px */
+      --ty-subheading-size: 1.0625rem; /* 17px */
+      --ty-heading-size: 1.3125rem;    /* 21px */
+      --ty-title-size: 1.5625rem;      /* 25px */
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    :root {
+      --ty-caption-size: 0.8125rem;    /* 13px */
+      --ty-body-size: 0.9375rem;       /* 15px */
+      --ty-subheading-size: 1.1875rem; /* 19px */
+      --ty-heading-size: 1.4375rem;    /* 23px */
+      --ty-title-size: 1.6875rem;      /* 27px */
+    }
+  }
+}
+
+/* =============================================================================
+   COMPONENTS LAYER - Typography Components with @apply
+   ============================================================================= */
+
+@layer components {
+  /* Core Typography Components */
+  .ty-caption {
+    @apply text-ty-caption font-ty-normal leading-relaxed;
+    font-family: var(--font-family-base);
+  }
+  
+  .ty-body {
+    @apply text-ty-body font-ty-normal leading-relaxed;
+    font-family: var(--font-family-base);
+  }
+  
+  .ty-body-bold {
+    @apply text-ty-body font-ty-bold leading-relaxed;
+    font-family: var(--font-family-base);
+  }
+  
+  .ty-subheading {
+    @apply text-ty-subheading font-ty-bold leading-tight;
+    font-family: var(--font-family-base);
+  }
+  
+  .ty-heading {
+    @apply text-ty-heading font-ty-bold leading-tight;
+    font-family: var(--font-family-base);
+  }
+  
+  .ty-title {
+    @apply text-ty-title font-ty-bold leading-tight;
+    font-family: var(--font-family-base);
+  }
+  
+  /* Button Components */
+  .btn {
+    @apply ty-body-bold px-6 py-3 rounded-md border-none cursor-pointer transition-all duration-150 ease-in-out;
+  }
+  
+  .btn-primary {
+    @apply btn bg-ty-primary text-ty-surface hover:bg-ty-primary-hover;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-ty-secondary text-ty-surface hover:bg-ty-secondary-hover;
+  }
+  
+  .btn-warning {
+    @apply btn bg-orange-500 text-ty-surface hover:bg-orange-600;
+  }
+  
+  /* Card Components */
+  .card {
+    @apply card-base;
+  }
+  
+  .card-base {
+    @apply bg-ty-surface rounded-lg shadow-sm border border-ty-surface-border p-6;
+  }
+  
+  .card-header {
+    @apply ty-subheading text-ty-text mb-4 pb-2 border-b border-ty-surface-border;
+  }
+  
+  /* Form Components */
+  .form-label {
+    @apply ty-body text-ty-text block mb-1;
+  }
+  
+  .form-label-required {
+    @apply ty-body-bold text-ty-text block mb-1;
+  }
+  
+  .form-input {
+    @apply ty-body px-3 py-2 border border-ty-surface-border rounded bg-ty-surface;
+    @apply focus:outline-none focus:border-ty-primary focus:ring-2 focus:ring-ty-primary focus:ring-opacity-20;
+  }
+  
+  .form-textarea {
+    @apply form-input resize-vertical;
+  }
+  
+  .form-select {
+    @apply form-input cursor-pointer;
+  }
+  
+  /* Status Components */
+  .status-text {
+    @apply ty-caption text-ty-text-light;
+  }
+  
+  .meta-text {
+    @apply ty-caption text-ty-text-lighter;
+  }
+  
+  /* Page Layout Components */
+  .page-header {
+    @apply ty-title text-ty-text mb-6;
+  }
+  
+  .section-header {
+    @apply ty-heading text-ty-text mb-4;
+  }
+  
+  .subsection-header {
+    @apply ty-subheading text-ty-text mb-3;
+  }
+}
+
+/* =============================================================================
+   UTILITIES LAYER - Additional Typography Utilities
+   ============================================================================= */
+
+@layer utilities {
+  /* Typography Responsive Utilities */
+  .ty-responsive {
+    @apply ty-body;
+    
+    @media (max-width: 640px) {
+      font-size: var(--ty-body-size);
+    }
+    
+    @media (min-width: 1024px) {
+      font-size: var(--ty-body-size);
+    }
+  }
+  
+  /* Typography Color Utilities */
+  .ty-text-primary {
+    color: var(--ty-text);
+  }
+  
+  .ty-text-secondary {
+    color: var(--ty-text-light);
+  }
+  
+  .ty-text-muted {
+    color: var(--ty-text-lighter);
+  }
+  
+  /* Typography Alignment Utilities */
+  .ty-align-start {
+    text-align: left;
+  }
+  
+  .ty-align-center {
+    text-align: center;
+  }
+  
+  .ty-align-end {
+    text-align: right;
+  }
+  
+  /* Typography Spacing Utilities */
+  .ty-tight {
+    line-height: 1.1;
+  }
+  
+  .ty-snug {
+    line-height: 1.2;
+  }
+  
+  .ty-normal {
+    line-height: 1.4;
+  }
+  
+  .ty-relaxed {
+    line-height: 1.5;
+  }
+  
+  .ty-loose {
+    line-height: 1.6;
+  }
+}
+
+/* =============================================================================
+   COMPONENT SPECIFIC OVERRIDES
+   ============================================================================= */
+
+/* Button Focus States */
+.btn:focus {
+  @apply outline-none ring-2 ring-offset-2;
+}
+
+.btn-primary:focus {
+  @apply ring-ty-primary;
+}
+
+.btn-secondary:focus {
+  @apply ring-ty-secondary;
+}
+
+/* Form Input States */
+.form-input:invalid {
+  @apply border-red-500 ring-red-500 ring-opacity-20;
+}
+
+.form-input:disabled {
+  @apply bg-gray-100 text-gray-500 cursor-not-allowed;
+}
+
+/* Card Hover States */
+.card-interactive {
+  @apply card transition-shadow duration-200 hover:shadow-md cursor-pointer;
+}
+
+/* Typography Truncation */
+.ty-truncate {
+  @apply truncate;
+}
+
+.ty-ellipsis-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ty-ellipsis-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* =============================================================================
+   PRINT STYLES
+   ============================================================================= */
+
+@media print {
+  .ty-title {
+    font-size: 18pt;
+    line-height: 1.2;
+  }
+  
+  .ty-heading {
+    font-size: 16pt;
+    line-height: 1.2;
+  }
+  
+  .ty-subheading {
+    font-size: 14pt;
+    line-height: 1.2;
+  }
+  
+  .ty-body,
+  .ty-body-bold {
+    font-size: 12pt;
+    line-height: 1.4;
+  }
+  
+  .ty-caption {
+    font-size: 10pt;
+    line-height: 1.4;
+  }
+}
+
+/* =============================================================================
+   ACCESSIBILITY ENHANCEMENTS
+   ============================================================================= */
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  :root {
+    --ty-text: #000000;
+    --ty-text-light: #333333;
+    --ty-primary: #0066CC;
+    --ty-surface-border: #000000;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .card-interactive {
+    transition: none;
+  }
+}
+
+/* Font Size Preference Support */
+@media (prefers-reduced-data: reduce) {
+  .ty-title,
+  .ty-heading,
+  .ty-subheading {
+    font-weight: var(--ty-weight-normal);
+  }
+}

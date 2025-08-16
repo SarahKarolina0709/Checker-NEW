@@ -1,0 +1,1 @@
+python -c "import re; data=open('modern_translation_quality_gui.py','rb').read(); content=data.decode('utf-8',errors='replace'); content=re.sub(r'[^\\x00-\\x7F]+',' ',content); content=re.sub(r'  +',' ',content); open('modern_translation_quality_gui.py','w',encoding='ascii',errors='replace').write(content); print('ASCII cleanup done')"

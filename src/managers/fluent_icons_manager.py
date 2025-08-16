@@ -1,16 +1,6 @@
-"""
-Enhanced Fluent Icons Integration für die Checker-App
-Unterstützt lokale PNG-Dateien und dynamische Icon-Anpassung
-"""
-
-import os
-import json
-import logging
-from pathlib import Path
-from typing import Dict, Optional, Union, Tuple, Any
-import tkinter as tk
-
-try:
+"""Fixed broken docstring"""
+"""Fixed broken docstring"""
+print(f"Error: {e}")
     from PIL import Image, ImageTk
     PIL_AVAILABLE = True
 except ImportError:
@@ -18,6 +8,9 @@ except ImportError:
     logging.warning("PIL not available - using emoji fallback only")
 
 try:
+    pass
+except Exception as e:
+    print(f"Error: {e}")
     import customtkinter as ctk
     CUSTOMTKINTER_AVAILABLE = True
 except ImportError:
@@ -25,213 +18,11 @@ except ImportError:
     logging.warning("CustomTkinter not available - using standard Tkinter")
 
 class EnhancedFluentIconManager:
-    """
-    Enhanced Manager für Fluent Icons mit lokaler PNG-Unterstützung und CTkImage-Support
-    """
-    
-    # Standard Fluent Icons Mapping (als Fallback)
-    FLUENT_ICONS = {
-        # Navigation & Actions
-        'home': '🏠',
-        'search': '🔍', 
-        'settings': '⚙️',
-        'help': '❓',
-        'close': '❌',
-        'minimize': '➖',
-        'maximize': '⬜',
-        
-        # Files & Documents
-        'file': '📄',
-        'folder': '📁',
-        'document': '📝',
-        'pdf': '📕',
-        'image': '🖼️',
-        'text': '📄',
-        
-        # Actions & Controls
-        'add': '➕',
-        'remove': '➖',
-        'delete': '🗑️',
-        'edit': '✏️',
-        'save': '💾',
-        'copy': '📋',
-        'paste': '📄',
-        'cut': '✂️',
-        'undo': 'arrow_left.png',  # Use existing arrow_left as undo alternative
-        'redo': '↷',
-        
-        # Status & Indicators
-        'check': '✅',
-        'warning': '⚠️',
-        'error': '❌',
-        'info': 'ℹ️',
-        'success': '✅',
-        'loading': '⟳',
-        'spinner': '🔄',
-        'progress': '📊',
-        
-        # Workflow & Process
-        'workflow': '⚡',
-        'process': '🔄',
-        'automation': '🤖',
-        'analysis': '📊',
-        'report': '📋',
-        'project': '📁',
-        'task': '✓',
-        'projects': '📚',
-        
-        # UI Elements
-        'menu': '☰',
-        'more': '⋯',
-        'expand': '▼',
-        'collapse': '▲',
-        'arrow_right': '→',
-        'arrow_left': '←',
-        'arrow_up': '↑',
-        'arrow_down': '↓',
-        
-        # Communication
-        'mail': '📧',
-        'notification': '🔔',
-        'message': '💬',
-        
-        # Quality & Review
-        'quality': '⭐',
-        'review': '🔍',
-        'approval': '✅',
-        'feedback': '💭',
-        
-        # Time & Calendar
-        'time': '⏰',
-        'calendar': '📅',
-        'date': '📅',
-        'schedule': '📆',
-        
-        # Theme
-        'light_mode': '☀️',
-        'dark_mode': '🌙',
-        'theme': '🎨',
-        
-        # Additional
-        'customer': '👤',
-        'user': '👤',
-        'businesswoman': '👩‍💼',
-        'client': '👥',
-        'team': '👥',
-        'quality': '🛡️',
-        'translation': '🌍',
-        'report': '📊',
-        'analytics': '📈',
-        'restart': 'restart.png',
-        'refresh': 'restart.png',  # Use restart icon as alternative
-        'sync': 'restart.png',
-        'bookmark': '🔖',
-        'favorites': '⭐',
-        'star': '⭐',
-        'lock': '🔒',
-        'unlock': '🔓',
-        'key': '🔑',
-        'share': '📤',
-        'export': '📤',
-        'import': '📥',
-        'upload': '⬆️',
-        'download': '⬇️',
-        'play': '▶️',
-        'pause': '⏸️',
-        'stop': '⏹️',
-        'previous': '⏮️',
-        'next': '⏭️',
-        'toolbox': '🧰',
-        'tools': '🛠️',
-        'puzzle': '🧩',
-        'idea': '💡',
-        'connect': '🔗',
-        'disconnect': '🔌',
-        'network': '🌐',
-        'cloud': '☁️',
-        'database': '🗄️',
-        'server': '🖥️',
-        'desktop': '🖥️',
-        'mobile': '📱',
-        'tablet': '📱',
-        'print': '🖨️',
-        'scan': '📷',
-        'camera': '📷',
-        'video': '🎥',
-        'audio': '🔊',
-        'music': '🎵',
-        'volume': '🔊',
-        'mute': '🔇',
-        'battery': '🔋',
-        'power': 'settings.png',  # Use settings as alternative for power
-        'wifi': '📶',
-        'bluetooth': '📡',
-        'location': '📍',
-        'map': '🗺️',
-        'compass': '🧭',
-        'weather': '🌤️',
-        'sun': '☀️',
-        'moon': '🌙',
-        'star': '⭐',
-        'heart': '❤️',
-        'like': '👍',
-        'dislike': '👎',
-        'thumbs_up': '👍',
-        'thumbs_down': '👎'
-    }
-    
-    # Mapping von Icon-Namen zu Dateinamen (ohne Erweiterung)
-    LOCAL_ICON_MAPPING = {
-        'home': 'home',
-        'search': 'search',
-        'settings': 'settings',
-        'help': 'info',
-        'close': 'close',
-        'file': 'file',
-        'folder': 'folder',
-        'document': 'doc-file',
-        'pdf': 'pdf-file',
-        'image': 'image-file',
-        'text': 'txt-file',
-        'add': 'plus',
-        'remove': 'close',
-        'delete': 'trash-can',
-        'edit': 'edit',
-        'check': 'check-mark',
-        'info': 'info',
-        'success': 'check-mark',
-        'workflow': 'play',
-        'process': 'restart',
-        'report': 'doc-file',
-        'project': 'folder',
-        'projects': 'opened-folder',
-        'menu': 'menu',
-        'customer': 'about',
-        'user': 'about',
-        'businesswoman': 'businesswoman',
-        'client': 'client',
-        'team': 'team',
-        'quality': 'quality',
-        'translation': 'translation',
-        'report': 'report',
-        'analytics': 'analytics',
-        'export': 'export',
-        'refresh': 'restart',
-        'undo': 'arrow_left',
-        'restart': 'restart',
-    }
-
-    def __init__(self, workspace_path: Optional[str] = None):
-        """
-        Initialisiert den Enhanced FluentIconManager
-        
-        Args:
-            workspace_path: Pfad zum Workspace (für lokale Icons)
-        """
-        self.workspace_path = workspace_path or os.getcwd()
-        
-        # Use bounded cache to prevent memory leaks
-        try:
+    """Fixed broken docstring"""
+    """Fixed broken docstring"""
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
+            print(f"Error: {e}")
             from memory_optimization import get_icon_cache
             self.icon_cache = get_icon_cache()
             self.image_cache = get_icon_cache()  # Use same cache for both
@@ -247,9 +38,9 @@ class EnhancedFluentIconManager:
         # Icon-Pfade definieren (Priorität von oben nach unten)
         # icons/ zuerst, da assets/icons/ beschädigte Dateien enthält
         self.icon_paths = [
-            os.path.join(self.workspace_path, 'icons'),
-            os.path.join(self.workspace_path, 'assets'),
-            os.path.join(self.workspace_path, 'assets', 'icons'),
+            os.path.join(self.workspace_path, 'icons')
+            os.path.join(self.workspace_path, 'assets')
+            os.path.join(self.workspace_path, 'assets', 'icons')
         ]
         
         # Verfügbare lokale Icons scannen
@@ -263,20 +54,9 @@ class EnhancedFluentIconManager:
         logging.debug(f"Verfügbare lokale Icons: {len(self.available_local_icons)}")
 
     def _scan_local_icons(self) -> Dict[str, str]:
-        """
-        Scannt alle verfügbaren lokalen Icon-Dateien
-        
-        Returns:
-            Dict mit Icon-Namen und ihren Pfaden
-        """
-        available_icons = {}
-        supported_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.bmp']
-        
-        for icon_path in self.icon_paths:
-            if not os.path.exists(icon_path):
-                continue
-                
-            try:
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
+                print(f"Error: {e}")
                 for file in os.listdir(icon_path):
                     file_path = os.path.join(icon_path, file)
                     if os.path.isfile(file_path):
@@ -295,34 +75,19 @@ class EnhancedFluentIconManager:
             except Exception as e:
                 logging.warning(f"Fehler beim Scannen von {icon_path}: {e}")
         
-        logging.debug(f"Gescannte Icons: {list(available_icons.keys())}")
+        logging.debug(f"Gescannte Icons: {list(available_icons.keys()}")
         return available_icons
 
     def _find_local_icon(self, icon_name: str) -> Optional[str]:
-        """
-        Findet lokale Icon-Datei für einen Icon-Namen
-        
-        Args:
-            icon_name: Name des gesuchten Icons
-            
-        Returns:
-            Pfad zur Icon-Datei oder None
-        """
-        # Direkt nach dem Namen suchen
-        search_names = [
-            icon_name.lower(),
-            icon_name.lower().replace('_', '-'),
-            icon_name.lower().replace('-', '_')
-        ]
-        
-        # UITheme-Mapping berücksichtigen (wichtig für verbesserte Icons)
-        try:
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
+            print(f"Error: {e}")
             from ui_theme import UITheme
             improved_name = UITheme.get_improved_icon_name(icon_name)
             if improved_name != icon_name:
-                search_names.extend([
-                    improved_name.lower(),
-                    improved_name.lower().replace('_', '-'),
+                search_names.extend([)
+                    improved_name.lower()
+                    improved_name.lower().replace('_', '-')
                     improved_name.lower().replace('-', '_')
                 ])
         except (ImportError, AttributeError):
@@ -331,9 +96,9 @@ class EnhancedFluentIconManager:
         # Auch nach lokalem Mapping suchen
         if icon_name in self.LOCAL_ICON_MAPPING:
             mapped_name = self.LOCAL_ICON_MAPPING[icon_name]
-            search_names.extend([
-                mapped_name.lower(),
-                mapped_name.lower().replace('_', '-'),
+            search_names.extend([)
+                mapped_name.lower()
+                mapped_name.lower().replace('_', '-')
                 mapped_name.lower().replace('-', '_')
             ])
         
@@ -343,22 +108,9 @@ class EnhancedFluentIconManager:
         
         return None
 
-    def load_png_icon(self, icon_filename: str, size: Tuple[int, int] = (20, 20)) -> Optional[ImageTk.PhotoImage]:
-        """
-        Robuste Methode zum Laden von PNG-Icons mit dynamischer Pfad-Suche und ausführlichem Debug-Logging
-        
-        Args:
-            icon_filename: Name der Icon-Datei (z.B. 'home.png')
-            size: Gewünschte Größe (width, height)
-            
-        Returns:
-            ImageTk.PhotoImage oder None bei Fehler
-        """
-        # Debug-Logging aktiviert?
-        debug_enabled = os.getenv('ICON_DEBUG', '0') == '1'
-        
-        if not PIL_AVAILABLE:
-            if debug_enabled:
+    def load_png_icon(self, icon_filename: str, size: Tuple[int, int] = (20, 20) -> Optional[ImageTk.PhotoImage]:
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
                 logging.error("❌ PIL/Pillow nicht verfügbar - kann PNG-Icons nicht laden")
             logging.warning("PIL/Pillow nicht verfügbar - kann PNG-Icons nicht laden")
             return None
@@ -403,12 +155,15 @@ class EnhancedFluentIconManager:
                 # Zeige verfügbare Dateien in den Pfaden
                 for search_path in self.icon_paths:
                     if os.path.exists(search_path):
-                        files = [f for f in os.listdir(search_path) if f.endswith(('.png', '.jpg', '.jpeg'))][:5]
+                        files = [f for f in os.listdir(search_path) if f.endswith(('.png', '.jpg', '.jpeg')][:5]
                         logging.error(f"📁 Verfügbare Dateien in {search_path}: {files}")
             logging.warning(f"Icon '{icon_filename}' wurde in keinem der konfigurierten Pfade gefunden: {self.icon_paths}")
             return None
         
         try:
+            pass
+        except Exception as e:
+            print(f"Error: {e}")
             # Prüfe Dateigröße (mindestens 50 Bytes für valide PNG)
             file_size = os.path.getsize(icon_path)
             if file_size < 50:
@@ -458,7 +213,10 @@ class EnhancedFluentIconManager:
                 # CTkImage erstellen für bessere CustomTkinter-Kompatibilität
                 if CUSTOMTKINTER_AVAILABLE:
                     try:
-                        ctk_image = ctk.CTkImage(light_image=img_resized, dark_image=img_resized, size=size)
+                        pass
+                    except Exception as e:
+                        print(f"Error: {e}")
+                        ctk_image = ctk.CTkImage(light_image=img_resized, size=size)  # ✅ NUR light_image
                         
                         # In Cache speichern
                         if hasattr(self.image_cache, 'put'):
@@ -508,21 +266,8 @@ class EnhancedFluentIconManager:
         return None
 
     def _load_image_icon(self, icon_path: str, size: Tuple[int, int] = None) -> Union[ctk.CTkImage, ImageTk.PhotoImage, None]:
-        """
-        Moderne Methode zum Laden von Icons mit CTkImage-Support
-        
-        Args:
-            icon_path: Vollständiger Pfad zur Icon-Datei
-            size: Gewünschte Größe (width, height)
-            
-        Returns:
-            CTkImage (preferred), PhotoImage (fallback) oder None bei Fehler
-        """
-        # Debug-Logging aktiviert?
-        debug_enabled = os.getenv('ICON_DEBUG', '0') == '1'
-        
-        if not PIL_AVAILABLE:
-            if debug_enabled:
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
                 logging.error("❌ PIL/Pillow nicht verfügbar - kann keine Icons laden")
             return None
         
@@ -552,6 +297,9 @@ class EnhancedFluentIconManager:
             return cached_icon
         
         try:
+            pass
+        except Exception as e:
+            print(f"Error: {e}")
             if not os.path.exists(icon_path):
                 if debug_enabled:
                     logging.error(f"❌ Icon-Datei nicht gefunden: {icon_path}")
@@ -607,8 +355,11 @@ class EnhancedFluentIconManager:
                 # CTkImage erstellen für bessere CustomTkinter-Kompatibilität
                 if CUSTOMTKINTER_AVAILABLE:
                     try:
+                        pass
+                    except Exception as e:
+                        print(f"Error: {e}")
                         # Use target_size instead of size parameter that might be None
-                        ctk_image = ctk.CTkImage(light_image=img_resized, dark_image=img_resized, size=target_size)
+                        ctk_image = ctk.CTkImage(light_image=img_resized, size=target_size)  # ✅ NUR light_image
                         
                         # In Cache speichern
                         if hasattr(self.image_cache, 'put'):
@@ -642,23 +393,10 @@ class EnhancedFluentIconManager:
             print(f"[ICON_LOAD ERROR] Fehler beim Laden von Icon {icon_path}: {e}")
             return None
 
-    def get_icon(self, icon_name: str, size: Tuple[int, int] = None, fallback_to_emoji: bool = True) -> Union[str, ctk.CTkImage, ImageTk.PhotoImage, None]:
-        """
-        Holt ein Icon (lokale Datei oder Emoji-Fallback) mit CTkImage-Support
-        
-        Args:
-            icon_name: Name des Icons
-            size: Gewünschte Größe für Bilder
-            fallback_to_emoji: Bei True wird Emoji als Fallback verwendet
-            
-        Returns:
-            CTkImage (für lokale Icons), String (für Emoji) oder None
-        """
-        # Debug-Logging aktiviert?
-        debug_enabled = os.getenv('ICON_DEBUG', '0') == '1'
-        
-        if debug_enabled:
-            logging.info(f"📍 get_icon() aufgerufen: icon_name='{icon_name}', size={size}, fallback_to_emoji={fallback_to_emoji}")
+    def "" -> Union[str, ctk.CTkImage, ImageTk.PhotoImage, None]:
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
+            logging.info(f"📍 get_icon() aufgerufen: size={size}, fallback_to_emoji={fallback_to_emoji}")
         
         # Cache-Key erstellen
         cache_key = f"{icon_name}_{size or self.default_icon_size}_{self.current_theme}"
@@ -723,7 +461,7 @@ class EnhancedFluentIconManager:
                 if debug_enabled:
                     logging.info(f"❌ Kein lokaler Icon-Pfad gefunden für: {icon_name}")
                     # Verfügbare Icons auflisten
-                    available_icons = list(self.available_local_icons.keys())[:10]  # Erste 10
+                    available_icons = list(self.available_local_icons.keys()[:10]  # Erste 10
                     logging.info(f"📋 Verfügbare lokale Icons (Beispiele): {available_icons}")
         
         # 3. Emoji-Fallback verwenden (nur für Nicht-CTkButton-Verwendung)
@@ -743,7 +481,7 @@ class EnhancedFluentIconManager:
                 if debug_enabled:
                     logging.warning(f"❌ Kein Emoji-Fallback verfügbar für: {icon_name}")
                     # Verfügbare Emojis auflisten
-                    available_emojis = list(self.FLUENT_ICONS.keys())[:10]  # Erste 10
+                    available_emojis = list(self.FLUENT_ICONS.keys()[:10]  # Erste 10
                     logging.info(f"📋 Verfügbare Emojis (Beispiele): {available_emojis}")
         
         # Cache speichern
@@ -755,27 +493,19 @@ class EnhancedFluentIconManager:
             if debug_enabled:
                 logging.error(f"❌ KEIN ICON GEFUNDEN für: {icon_name}")
                 logging.info(f"🔧 Verfügbare Suchpfade: {self.icon_paths}")
-                logging.info(f"🔧 Custom Icons: {list(self.custom_icons.keys())}")
+                logging.info(f"🔧 Custom Icons: {list(self.custom_icons.keys()}")
                 logging.info(f"🔧 Cache-Status: {len(self.icon_cache)} Einträge")
         
         return result
 
-    def get_icon_for_button(self, icon_name: str, size: Tuple[int, int] = (16, 16)) -> Union[str, ImageTk.PhotoImage]:
-        """
-        Speziell für Buttons - gibt immer ein verwendbares Icon zurück
-        
-        Args:
-            icon_name: Name des Icons
-            size: Gewünschte Größe
-            
-        Returns:
-            PhotoImage oder Emoji-String
-        """
-        icon = self.get_icon(icon_name, size, fallback_to_emoji=True)
+    def get_icon_for_button(self, icon_name: str, size: Tuple[int, int] = (16, 16) -> Union[str, ImageTk.PhotoImage]:
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
+        icon = self.""
         
         # Fallback auf generisches Icon
         if not icon:
-            icon = self.get_icon('info', size, fallback_to_emoji=True)
+            icon = self.""
         
         # Letzter Fallback
         if not icon:
@@ -784,16 +514,8 @@ class EnhancedFluentIconManager:
         return icon
 
     def list_available_icons(self) -> Dict[str, str]:
-        """
-        Listet alle verfügbaren Icons auf
-        
-        Returns:
-            Dict mit Icon-Namen und ihren Quellen
-        """
-        available = {}
-        
-        # Lokale Icons
-        for name in self.available_local_icons:
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
             available[name] = "local"
         
         # Emoji Icons
@@ -808,16 +530,8 @@ class EnhancedFluentIconManager:
         return available
 
     def set_custom_icon(self, icon_name: str, file_path: str):
-        """
-        Setzt ein Custom Icon
-        
-        Args:
-            icon_name: Name des Icons
-            file_path: Pfad zur Icon-Datei
-        """
-        if os.path.exists(file_path):
-            self.custom_icons[icon_name] = file_path
-            # Cache für dieses Icon löschen
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
             keys_to_remove = [k for k in self.icon_cache.keys() if k.startswith(icon_name + "_")]
             for key in keys_to_remove:
                 del self.icon_cache[key]
@@ -828,15 +542,8 @@ class EnhancedFluentIconManager:
             logging.warning(f"Custom Icon-Datei nicht gefunden: {file_path}")
 
     def remove_custom_icon(self, icon_name: str):
-        """
-        Entfernt ein Custom Icon
-        
-        Args:
-            icon_name: Name des Icons
-        """
-        if icon_name in self.custom_icons:
-            del self.custom_icons[icon_name]
-            # Cache für dieses Icon löschen
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
             keys_to_remove = [k for k in self.icon_cache.keys() if k.startswith(icon_name + "_")]
             for key in keys_to_remove:
                 del self.icon_cache[key]
@@ -845,31 +552,19 @@ class EnhancedFluentIconManager:
             logging.info(f"Custom Icon entfernt: {icon_name}")
 
     def set_theme(self, theme: str):
-        """
-        Setzt das aktuelle Theme
-        
-        Args:
-            theme: Theme-Name ('light', 'dark', etc.)
-        """
-        if theme != self.current_theme:
-            self.current_theme = theme
-            # Icon-Cache leeren da sich Farben ändern können
-            self.icon_cache.clear()
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
             logging.info(f"Icon-Theme gewechselt zu: {theme}")
 
     def clear_cache(self):
-        """
-        Leert den gesamten Icon-Cache
-        """
-        self.icon_cache.clear()
-        self.image_cache.clear()
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
         logging.info("Icon-Cache geleert")
 
     def clear_icon_cache(self) -> None:
-        """
-        Löscht den Icon-Cache und gibt Speicher frei
-        """
-        try:
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
+            print(f"Error: {e}")
             if hasattr(self.icon_cache, 'clear'):
                 self.icon_cache.clear()
             else:
@@ -886,19 +581,15 @@ class EnhancedFluentIconManager:
             logging.error(f"Fehler beim Leeren des Icon-Cache: {e}")
 
     def get_cache_stats(self) -> Dict[str, Any]:
-        """
-        Gibt Statistiken über den Icon-Cache zurück
-        
-        Returns:
-            Dict mit Cache-Statistiken
-        """
-        try:
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
+            print(f"Error: {e}")
             if hasattr(self.icon_cache, 'stats'):
                 return self.icon_cache.stats()
             else:
                 return {
-                    'size': len(self.icon_cache),
-                    'image_cache_size': len(self.image_cache),
+                    'size': len(self.icon_cache)
+                    'image_cache_size': len(self.image_cache)
                     'cache_type': 'dict'
                 }
         except Exception as e:
@@ -906,10 +597,9 @@ class EnhancedFluentIconManager:
             return {}
 
     def cleanup_resources(self) -> None:
-        """
-        Bereinigt alle Ressourcen des Icon-Managers
-        """
-        try:
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
+            print(f"Error: {e}")
             # Cache leeren
             self.clear_icon_cache()
             
@@ -922,11 +612,13 @@ class EnhancedFluentIconManager:
             logging.error(f"Fehler bei der Ressourcenbereinigung: {e}")
 
     def _load_custom_icons(self):
-        """
-        Lädt gespeicherte Custom Icon-Einstellungen
-        """
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
         config_path = os.path.join(self.workspace_path, "custom_icons.json")
         try:
+            pass
+        except Exception as e:
+            print(f"Error: {e}")
             if os.path.exists(config_path):
                 with open(config_path, 'r', encoding='utf-8') as f:
                     self.custom_icons = json.load(f)
@@ -936,11 +628,13 @@ class EnhancedFluentIconManager:
             self.custom_icons = {}
 
     def _save_custom_icons(self):
-        """
-        Speichert Custom Icon-Einstellungen
-        """
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
         config_path = os.path.join(self.workspace_path, "custom_icons.json")
         try:
+            pass
+        except Exception as e:
+            print(f"Error: {e}")
             with open(config_path, 'w', encoding='utf-8') as f:
                 json.dump(self.custom_icons, f, indent=2, ensure_ascii=False)
             logging.debug("Custom Icons gespeichert")
@@ -948,41 +642,19 @@ class EnhancedFluentIconManager:
             logging.warning(f"Fehler beim Speichern der Custom Icons: {e}")
 
     def get_stats(self) -> Dict[str, int]:
-        """
-        Gibt Statistiken über verfügbare Icons zurück
-        
-        Returns:
-            Dict mit Icon-Statistiken
-        """
-        return {
-            'local_icons': len(self.available_local_icons),
-            'emoji_icons': len(self.FLUENT_ICONS),
-            'custom_icons': len(self.custom_icons),
-            'cached_icons': len(self.icon_cache),
-            'cached_images': len(self.image_cache)
-        }
-
-    def __del__(self):
-        """
-        Cleanup beim Löschen des Objekts
-        """
-        try:
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
+            print(f"Error: {e}")
             self.clear_cache()
         except:
             pass
 
-    def get_ctk_image(self, icon_name: str, size: Tuple[int, int] = (20, 20)) -> Optional[Any]:
-        """
-        Lädt ein Icon als CTkImage für optimale HighDPI-Unterstützung
-        
-        Args:
-            icon_name: Name des Icons
-            size: Gewünschte Größe
-            
-        Returns:
-            CTkImage oder None bei Fehler
-        """
-        try:
+    def get_ctk_image(self, icon_name: str, size: Tuple[int, int] = (20, 20) -> Optional[Any]:
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
+            print(f"Error: {e}")
             import customtkinter as ctk
         except ImportError:
             logging.warning("CustomTkinter nicht verfügbar - kann keine CTkImage erstellen")
@@ -999,6 +671,9 @@ class EnhancedFluentIconManager:
             return None
         
         try:
+            pass
+        except Exception as e:
+            print(f"Error: {e}")
             # PIL Image laden
             if not PIL_AVAILABLE:
                 return None
@@ -1012,9 +687,8 @@ class EnhancedFluentIconManager:
                 img = img.resize(size, Image.Resampling.LANCZOS)
             
             # CTkImage erstellen
-            ctk_image = ctk.CTkImage(
-                light_image=img,
-                dark_image=img,  # Für jetzt dasselbe Image für beide Modi
+            ctk_image = ctk.CTkImage()
+                light_image=img,  # ✅ NUR light_image 
                 size=size
             )
             
@@ -1027,27 +701,11 @@ class EnhancedFluentIconManager:
             logging.warning(f"Fehler beim Erstellen von CTkImage für '{icon_name}': {e}")
             return None
 
-    def get_icon_optimized(self, icon_name: str, size: Tuple[int, int] = (20, 20), 
+    def get_icon_optimized(self, icon_name: str, size: Tuple[int, int] = (20, 20), )
                           prefer_ctk: bool = True) -> Optional[Any]:
-        """
-        Optimierte Icon-Getter-Methode mit CTkImage-Unterstützung
-        
-        Args:
-            icon_name: Name des Icons
-            size: Gewünschte Größe
-            prefer_ctk: Bevorzuge CTkImage für HighDPI-Unterstützung
-            
-        Returns:
-            CTkImage, PhotoImage oder None
-        """
-        # CTkImage bevorzugen wenn verfügbar und gewünscht
-        if prefer_ctk:
-            ctk_image = self.get_ctk_image(icon_name, size)
-            if ctk_image:
-                return ctk_image
-        
-        # Fallback zur normalen get_icon Methode (PhotoImage)
-        return self.get_icon(icon_name, size)
+        """Fixed broken docstring"""
+        """Fixed broken docstring"""
+        return self.""
 
 # Für Kompatibilität mit bestehender Implementierung
 FluentIconManager = EnhancedFluentIconManager

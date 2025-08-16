@@ -1,33 +1,6 @@
-"""
-Enhanced Form Components
-========================
-Enhanced form components with improved field organization, validation, and styling.
-"""
-
-import customtkinter as ctk
-import tkinter as tk
-from typing import Dict, List, Optional, Callable, Any
-from dataclasses import dataclass
-from enhanced_typography import (
-    ui_helper,
-    create_heading,
-    create_body_text,
-    create_input_field,
-    create_textarea,
-    create_select_field,
-    create_checkbox,
-    create_radio_button,
-    create_label_input_pair,
-    create_search_field,
-    create_primary_button,
-    create_secondary_button
-)
-
-@dataclass
-class FormField:
-    """Configuration for a form field."""
-    name: str
-    label: str
+"""Fixed broken docstring"""
+"""Fixed broken docstring"""
+"""Configuration for a form field."""Fixed broken docstring"""
     field_type: str = "entry"
     placeholder: str = ""
     required: bool = False
@@ -38,12 +11,9 @@ class FormField:
     help_text: str = ""
 
 class EnhancedForm(ctk.CTkFrame):
-    """Enhanced form component with organized fields and validation."""
-    
+    """Enhanced form component with organized fields and validation."""Fixed broken docstring"""
     def __init__(self, parent, title: str = "", **kwargs):
-        """Initialize the enhanced form."""
-        
-        # Default styling
+        """Initialize the enhanced form."""Fixed broken docstring"""
         kwargs.setdefault('fg_color', "#FFFFFF")
         kwargs.setdefault('corner_radius', 12)
         kwargs.setdefault('border_width', 1)
@@ -61,9 +31,7 @@ class EnhancedForm(ctk.CTkFrame):
         self._setup_ui()
     
     def _setup_ui(self):
-        """Set up the form UI."""
-        
-        # Main container
+        """Set up the form UI."""Fixed broken docstring"""
         self.main_container = ctk.CTkFrame(self, fg_color="transparent")
         self.main_container.pack(fill="both", expand=True, padx=ui_helper.spacing.SECTION_PADDING, pady=ui_helper.spacing.SECTION_PADDING)
         
@@ -89,11 +57,7 @@ class EnhancedForm(ctk.CTkFrame):
         self.cancel_button.pack(side="right")
     
     def add_field(self, field: FormField):
-        """Add a field to the form."""
-        
-        self.fields[field.name] = field
-        
-        # Create field container
+        """Add a field to the form."""Fixed broken docstring"""
         field_container = ctk.CTkFrame(self.form_content, fg_color="transparent")
         field_container.pack(fill="x", pady=(0, ui_helper.spacing.M))
         
@@ -107,39 +71,39 @@ class EnhancedForm(ctk.CTkFrame):
         
         # Create input widget based on field type
         if field.field_type == "entry":
-            widget = create_input_field(
-                field_container,
-                placeholder=field.placeholder,
+            widget = create_input_field()
+                field_container
+                placeholder=field.placeholder
                 width=field.width
             )
         elif field.field_type == "textarea":
-            widget = create_textarea(
-                field_container,
-                placeholder=field.placeholder,
+            widget = create_textarea()
+                field_container
+                placeholder=field.placeholder
                 width=field.width
             )
         elif field.field_type == "select":
-            widget = create_select_field(
-                field_container,
-                values=field.options or [],
+            widget = create_select_field()
+                field_container
+                values=field.options or []
                 width=field.width
             )
         elif field.field_type == "checkbox":
-            widget = create_checkbox(
-                field_container,
-                text=field.label,
+            widget = create_checkbox()
+                field_container
+                text=field.label
                 width=field.width
             )
         elif field.field_type == "search":
-            widget = create_search_field(
-                field_container,
-                placeholder=field.placeholder,
+            widget = create_search_field()
+                field_container
+                placeholder=field.placeholder
                 width=field.width
             )
         else:
-            widget = create_input_field(
-                field_container,
-                placeholder=field.placeholder,
+            widget = create_input_field()
+                field_container
+                placeholder=field.placeholder
                 width=field.width
             )
         
@@ -154,10 +118,10 @@ class EnhancedForm(ctk.CTkFrame):
         
         # Add help text
         if field.help_text:
-            help_label = create_body_text(
-                field_container,
-                field.help_text,
-                size="S",
+            help_label = create_body_text()
+                field_container
+                field.help_text
+                size="S"
                 text_color="#6B7280"
             )
             help_label.pack(anchor="w", pady=(ui_helper.spacing.XS, 0))
@@ -166,9 +130,7 @@ class EnhancedForm(ctk.CTkFrame):
         self.widgets[field.name] = widget
     
     def add_field_row(self, fields: List[FormField]):
-        """Add multiple fields in a horizontal row."""
-        
-        # Create row container
+        """Add multiple fields in a horizontal row."""Fixed broken docstring"""
         row_container = ctk.CTkFrame(self.form_content, fg_color="transparent")
         row_container.pack(fill="x", pady=(0, ui_helper.spacing.M))
         
@@ -194,23 +156,23 @@ class EnhancedForm(ctk.CTkFrame):
             
             # Create input widget
             if field.field_type == "entry":
-                widget = create_input_field(
-                    field_container,
+                widget = create_input_field()
+                    field_container
                     placeholder=field.placeholder
                 )
             elif field.field_type == "select":
-                widget = create_select_field(
-                    field_container,
+                widget = create_select_field()
+                    field_container
                     values=field.options or []
                 )
             elif field.field_type == "checkbox":
-                widget = create_checkbox(
-                    field_container,
+                widget = create_checkbox()
+                    field_container
                     text=""
                 )
             else:
-                widget = create_input_field(
-                    field_container,
+                widget = create_input_field()
+                    field_container
                     placeholder=field.placeholder
                 )
             
@@ -225,10 +187,10 @@ class EnhancedForm(ctk.CTkFrame):
             
             # Add help text
             if field.help_text:
-                help_label = create_body_text(
-                    field_container,
-                    field.help_text,
-                    size="S",
+                help_label = create_body_text()
+                    field_container
+                    field.help_text
+                    size="S"
                     text_color="#6B7280"
                 )
                 help_label.pack(anchor="w", pady=(ui_helper.spacing.XS, 0))
@@ -237,9 +199,7 @@ class EnhancedForm(ctk.CTkFrame):
             self.widgets[field.name] = widget
     
     def add_section(self, title: str):
-        """Add a section divider with title."""
-        
-        # Section container
+        """Add a section divider with title."""Fixed broken docstring"""
         section_container = ctk.CTkFrame(self.form_content, fg_color="transparent")
         section_container.pack(fill="x", pady=(ui_helper.spacing.L, ui_helper.spacing.M))
         
@@ -252,12 +212,8 @@ class EnhancedForm(ctk.CTkFrame):
         divider.pack(fill="x")
     
     def get_values(self) -> Dict[str, Any]:
-        """Get all form values."""
-        
-        values = {}
-        
-        for field_name, widget in self.widgets.items():
-            try:
+        """Get all form values."""Fixed broken docstring"""
+                print(f"Error: {e}")
                 if hasattr(widget, 'get'):
                     value = widget.get()
                 elif hasattr(widget, 'get_value'):
@@ -274,13 +230,8 @@ class EnhancedForm(ctk.CTkFrame):
         return values
     
     def set_values(self, values: Dict[str, Any]):
-        """Set form values."""
-        
-        for field_name, value in values.items():
-            if field_name in self.widgets:
-                widget = self.widgets[field_name]
-                
-                try:
+        """Set form values."""Fixed broken docstring"""
+                    print(f"Error: {e}")
                     if hasattr(widget, 'set'):
                         widget.set(value)
                     elif hasattr(widget, 'delete') and hasattr(widget, 'insert'):
@@ -291,17 +242,8 @@ class EnhancedForm(ctk.CTkFrame):
                     print(f"Error setting value for field {field_name}: {e}")
     
     def validate(self) -> bool:
-        """Validate the form."""
-        
-        self.validation_errors.clear()
-        
-        for field_name, field in self.fields.items():
-            if field_name not in self.widgets:
-                continue
-            
-            widget = self.widgets[field_name]
-            
-            try:
+        """Validate the form."""Fixed broken docstring"""
+                print(f"Error: {e}")
                 # Get current value
                 if hasattr(widget, 'get'):
                     value = widget.get()
@@ -325,15 +267,7 @@ class EnhancedForm(ctk.CTkFrame):
         return len(self.validation_errors) == 0
     
     def show_validation_errors(self):
-        """Show validation errors."""
-        
-        if not self.validation_errors:
-            return
-        
-        error_messages = []
-        for field_name, error_message in self.validation_errors.items():
-            field = self.fields.get(field_name)
-            field_label = field.label if field else field_name
+        """Show validation errors."""Fixed broken docstring"""
             error_messages.append(f"• {field_label}: {error_message}")
         
         error_text = "\n".join(error_messages)
@@ -342,76 +276,50 @@ class EnhancedForm(ctk.CTkFrame):
         tk.messagebox.showerror("Validierungsfehler", f"Bitte korrigieren Sie folgende Fehler:\n\n{error_text}")
     
     def set_submit_callback(self, callback: Callable):
-        """Set the submit callback."""
-        self.on_submit_callback = callback
-    
-    def _on_submit(self):
-        """Handle form submission."""
-        
-        if not self.validate():
-            self.show_validation_errors()
-            return
-        
-        if self.on_submit_callback:
-            values = self.get_values()
-            self.on_submit_callback(values)
-    
-    def _on_cancel(self):
-        """Handle form cancellation."""
-        
-        # Clear form or hide
-        if hasattr(self.master, 'destroy'):
-            self.master.destroy()
-        else:
-            self.pack_forget()
-
-class CustomerForm(EnhancedForm):
-    """Enhanced customer form with organized fields."""
-    
-    def __init__(self, parent, **kwargs):
-        """Initialize the customer form."""
-        
+        """Set the submit callback."""Fixed broken docstring"""
+        """Handle form submission."""Fixed broken docstring"""
+        """Handle form cancellation."""Fixed broken docstring"""
+    """Enhanced customer form with organized fields."""Fixed broken docstring"""
+        """Initialize the customer form."""Fixed broken docstring"""
         super().__init__(parent, title="Kundendaten", **kwargs)
         
         # Add customer fields
         self._add_customer_fields()
     
     def _add_customer_fields(self):
-        """Add customer-specific fields."""
-        
-        # Basic information section
+        """Add customer-specific fields."""Fixed broken docstring"""
         self.add_section("Grundlegende Informationen")
         
         # Company and contact row
-        self.add_field_row([
-            FormField(
-                name="company_name",
-                label="Firmenname",
-                field_type="entry",
-                placeholder="z.B. Mustermann GmbH",
+        self.add_field_row([)
+            FormField()
+                name="company_name"
+                label="Firmenname"
+                field_type="entry"
+                placeholder="z.B. Mustermann GmbH"
                 required=True
-            ),
-            FormField(
-                name="contact_person",
-                label="Ansprechpartner",
-                field_type="entry",
+            )
+            FormField()
+                name="contact_person"
+                label="Ansprechpartner"
+                field_type="entry"
                 placeholder="Max Mustermann"
             )
         ])
         
         # Email and phone row
-        self.add_field_row([
-            FormField(
-                name="email",
-                label="E-Mail",
-                field_type="entry",
-                placeholder="max@mustermann.de",
+        self.add_field_row([)
+            FormField()
+                name="email"
+                label="E-Mail"
+                field_type="entry"
+                placeholder="max@mustermann.de"
                 validation=self._validate_email
-            ),
-            FormField(
-                name="phone",
-                label="Telefon",
-                field_type="entry",
+            )
+            FormField()
+                name="phone"
+                label="Telefon"
+                field_type="entry"
                 placeholder="+49 123 456789"
             )
         ])
@@ -420,135 +328,124 @@ class CustomerForm(EnhancedForm):
         self.add_section("Adresse")
         
         # Street and number
-        self.add_field(FormField(
-            name="street",
-            label="Straße und Hausnummer",
-            field_type="entry",
+        self.add_field(FormField())
+            name="street"
+            label="Straße und Hausnummer"
+            field_type="entry"
             placeholder="Musterstraße 123"
-        ))
+        )
         
         # City and postal code row
-        self.add_field_row([
-            FormField(
-                name="postal_code",
-                label="PLZ",
-                field_type="entry",
+        self.add_field_row([)
+            FormField()
+                name="postal_code"
+                label="PLZ"
+                field_type="entry"
                 placeholder="12345"
-            ),
-            FormField(
-                name="city",
-                label="Stadt",
-                field_type="entry",
+            )
+            FormField()
+                name="city"
+                label="Stadt"
+                field_type="entry"
                 placeholder="Musterstadt"
             )
         ])
         
         # Country
-        self.add_field(FormField(
-            name="country",
-            label="Land",
-            field_type="select",
-            options=["Deutschland", "Österreich", "Schweiz", "Andere"],
+        self.add_field(FormField())
+            name="country"
+            label="Land"
+            field_type="select"
+            options=["Deutschland", "Österreich", "Schweiz", "Andere"]
             default_value="Deutschland"
-        ))
+        )
         
         # Additional information section
         self.add_section("Zusätzliche Informationen")
         
         # Industry and priority row
-        self.add_field_row([
-            FormField(
-                name="industry",
-                label="Branche",
-                field_type="select",
+        self.add_field_row([)
+            FormField()
+                name="industry"
+                label="Branche"
+                field_type="select"
                 options=["IT", "Automotive", "Pharma", "Finance", "Andere"]
-            ),
-            FormField(
-                name="priority",
-                label="Priorität",
-                field_type="select",
-                options=["Niedrig", "Normal", "Hoch", "Kritisch"],
+            )
+            FormField()
+                name="priority"
+                label="Priorität"
+                field_type="select"
+                options=["Niedrig", "Normal", "Hoch", "Kritisch"]
                 default_value="Normal"
             )
         ])
         
         # Notes
-        self.add_field(FormField(
-            name="notes",
-            label="Notizen",
-            field_type="textarea",
-            placeholder="Weitere Informationen...",
+        self.add_field(FormField())
+            name="notes"
+            label="Notizen"
+            field_type="textarea"
+            placeholder="Weitere Informationen..."
             help_text="Optionale Zusatzinformationen zum Kunden"
-        ))
+        )
         
         # VIP customer checkbox
-        self.add_field(FormField(
-            name="vip_customer",
-            label="VIP-Kunde",
+        self.add_field(FormField())
+            name="vip_customer"
+            label="VIP-Kunde"
             field_type="checkbox"
-        ))
+        )
     
     def _validate_email(self, email: str) -> bool:
-        """Validate email address."""
-        
-        import re
-        
-        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        
-        if not re.match(email_pattern, email):
+        """Validate email address."""Fixed broken docstring"""
             return "Ungültige E-Mail-Adresse"
         
         return True
 
 class ProjectForm(EnhancedForm):
-    """Enhanced project form with organized fields."""
-    
-    def __init__(self, parent, **kwargs):
-        """Initialize the project form."""
-        
+    """Enhanced project form with organized fields."""Fixed broken docstring"""
+        """Initialize the project form."""Fixed broken docstring"""
         super().__init__(parent, title="Projektdaten", **kwargs)
         
         # Add project fields
         self._add_project_fields()
     
     def _add_project_fields(self):
-        """Add project-specific fields."""
-        
-        # Basic information section
+        """Add project-specific fields."""Fixed broken docstring"""
         self.add_section("Projektinformationen")
         
         # Project name and type row
-        self.add_field_row([
-            FormField(
-                name="project_name",
-                label="Projektname",
-                field_type="entry",
-                placeholder="Projekt-2025-001",
+        self.add_field_row([)
+            FormField()
+                name="project_name"
+                label="Projektname"
+                field_type="entry"
+                placeholder="Projekt-2025-001"
                 required=True
-            ),
-            FormField(
-                name="project_type",
-                label="Projekttyp",
-                field_type="select",
-                options=["Übersetzung", "Lektorat", "Korrektur", "Lokalisierung"],
+            )
+            FormField()
+                name="project_type"
+                label="Projekttyp"
+                field_type="select"
+                options=["Übersetzung", "Lektorat", "Korrektur", "Lokalisierung"]
                 default_value="Übersetzung"
             )
         ])
         
         # Languages
-        self.add_field_row([
-            FormField(
-                name="source_language",
-                label="Ausgangssprache",
-                field_type="select",
-                options=["Deutsch", "Englisch", "Französisch", "Spanisch", "Andere"],
+        self.add_field_row([)
+            FormField()
+                name="source_language"
+                label="Ausgangssprache"
+                field_type="select"
+                options=["Deutsch", "Englisch", "Französisch", "Spanisch", "Andere"]
                 default_value="Deutsch"
-            ),
-            FormField(
-                name="target_language",
-                label="Zielsprache",
-                field_type="select",
-                options=["Deutsch", "Englisch", "Französisch", "Spanisch", "Andere"],
+            )
+            FormField()
+                name="target_language"
+                label="Zielsprache"
+                field_type="select"
+                options=["Deutsch", "Englisch", "Französisch", "Spanisch", "Andere"]
                 default_value="Englisch"
             )
         ])
@@ -557,43 +454,43 @@ class ProjectForm(EnhancedForm):
         self.add_section("Zeitplan")
         
         # Dates row
-        self.add_field_row([
-            FormField(
-                name="start_date",
-                label="Startdatum",
-                field_type="entry",
+        self.add_field_row([)
+            FormField()
+                name="start_date"
+                label="Startdatum"
+                field_type="entry"
                 placeholder="DD.MM.YYYY"
-            ),
-            FormField(
-                name="deadline",
-                label="Deadline",
-                field_type="entry",
+            )
+            FormField()
+                name="deadline"
+                label="Deadline"
+                field_type="entry"
                 placeholder="DD.MM.YYYY"
             )
         ])
         
         # Budget and priority row
-        self.add_field_row([
-            FormField(
-                name="budget",
-                label="Budget (EUR)",
-                field_type="entry",
+        self.add_field_row([)
+            FormField()
+                name="budget"
+                label="Budget (EUR)"
+                field_type="entry"
                 placeholder="0.00"
-            ),
-            FormField(
-                name="priority",
-                label="Priorität",
-                field_type="select",
-                options=["Niedrig", "Normal", "Hoch", "Kritisch"],
+            )
+            FormField()
+                name="priority"
+                label="Priorität"
+                field_type="select"
+                options=["Niedrig", "Normal", "Hoch", "Kritisch"]
                 default_value="Normal"
             )
         ])
         
         # Description
-        self.add_field(FormField(
-            name="description",
-            label="Projektbeschreibung",
-            field_type="textarea",
-            placeholder="Beschreibung des Projekts...",
+        self.add_field(FormField())
+            name="description"
+            label="Projektbeschreibung"
+            field_type="textarea"
+            placeholder="Beschreibung des Projekts..."
             help_text="Detaillierte Beschreibung des Projekts und besondere Anforderungen"
-        ))
+        )

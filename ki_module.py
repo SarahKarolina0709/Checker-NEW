@@ -1,12 +1,12 @@
-import ollama
-from ollama._types import ResponseError, RequestError
-import language_tool_python
-import os
-import requests
 from threading import Thread
-from queue import Queue
+import os
 
-# Globale Variable für den Timeout-Zähler
+from ollama._types import ResponseError, RequestError
+from queue import Queue
+import language_tool_python
+import ollama
+import requests
+
 ollama_timeout_counter = 0
 
 # ----- PROMPT DICTIONARIES -----
@@ -82,7 +82,7 @@ Aufgabenstellung: Vergleiche Ausgangstext und Übersetzung. Konzentriere dich au
             "v2": "Vergleiche Ausgangstext und Übersetzung und identifiziere GROBE UNTERSCHIEDE. Gib alle Unterschiede in folgender Markdown-Tabelle aus:\\n| Kategorie | Original | Übersetzung | Bemerkung |\\n|-----------|----------|-------------|-----------|\\nKategorien: Bedeutungsunterschiede, Terminologie, Auslassungen, Zahlen, Namen, Maßeinheiten, Datumsformate. Ignoriere kleinere stilistische Unterschiede und leichte Grammatikfehler. Am Ende bewerte die Übersetzungsqualität bzgl. grober Fehler in 1-2 Sätzen.",
             "v3": "Vergleiche Ausgangstext und Übersetzung STRENG FOKUSSIERT auf KRITISCHE UNTERSCHIEDE. Ignoriere Stil, Grammatik (außer sinnentstellend), Wortwahl (außer klar falsch). Gib NUR Unterschiede in folgender Markdown-Tabelle aus:\\n| Kategorie | Original | Übersetzung | Bemerkung |\\n|-----------|----------|-------------|-----------|\\nKategorien NUR: Zahlen, Namen, Maßeinheiten, Datumsformate, krasse Bedeutungsänderung. Am Ende bewerte kurz, ob KRITISCHE Fehler vorliegen."
         },
-        "Technik": { 
+        "Technik": {
             "v1": """[Technik] Vergleiche den technischen Ausgangstext mit der Übersetzung. Gib alle gefundenen signifikanten Unterschiede als JSON-Array von Objekten zurück. Jedes Objekt soll einen Fehler repräsentieren und die folgenden Schlüssel haben:
 - "error_text": Der genaue Textausschnitt aus der ÜBERSETZUNG, der den Fehler enthält.
 - "context": Der vollständige Absatz aus der ÜBERSETZUNG, in dem der Fehler auftritt.
@@ -218,10 +218,10 @@ Aufgabenstellung: Finde Begriffe, die im Ausgangstext einheitlich sind, aber in 
 - "context": Der vollständige Absatz aus der ÜBERSETZUNG, in dem die Inkonsistenz auftritt.
 - "explanation": Eine Erklärung der Inkonsistenz, die den Originalbegriff und die verschiedenen verwendeten Varianten in der Übersetzung aufzeigt.
 Wenn keine Inkonsistenzen gefunden werden, gib ein leeres JSON-Array `[]` zurück. Gib NUR das JSON-Array aus.""",
-            "v2": "[Technik] Prüfe die Konsistenz technischer Fachbegriffe, Produktnamen und spezifischer technischer Bezeichnungen zwischen Original und Übersetzung. Liste GROBE Abweichungen. (v2)", 
-            "v3": "[Technik] Prüfe die Konsistenz technischer Fachbegriffe, Produktnamen und spezifischer technischer Bezeichnungen zwischen Original und Übersetzung. Liste KRITISCHE Abweichungen. (v3)", 
-            "v4": "[Technik] Prüfe die Konsistenz technischer Fachbegriffe, Produktnamen und spezifischer technischer Bezeichnungen zwischen Original und Übersetzung. Liste KRITISCHE Abweichungen. (v4)", 
-            "v5": "[Technik] Prüfe die Konsistenz technischer Fachbegriffe, Produktnamen und spezifischer technischer Bezeichnungen zwischen Original und Übersetzung. Liste ABSOLUT KRITISCHE Abweichungen. (v5)" 
+            "v2": "[Technik] Prüfe die Konsistenz technischer Fachbegriffe, Produktnamen und spezifischer technischer Bezeichnungen zwischen Original und Übersetzung. Liste GROBE Abweichungen. (v2)",
+            "v3": "[Technik] Prüfe die Konsistenz technischer Fachbegriffe, Produktnamen und spezifischer technischer Bezeichnungen zwischen Original und Übersetzung. Liste KRITISCHE Abweichungen. (v3)",
+            "v4": "[Technik] Prüfe die Konsistenz technischer Fachbegriffe, Produktnamen und spezifischer technischer Bezeichnungen zwischen Original und Übersetzung. Liste KRITISCHE Abweichungen. (v4)",
+            "v5": "[Technik] Prüfe die Konsistenz technischer Fachbegriffe, Produktnamen und spezifischer technischer Bezeichnungen zwischen Original und Übersetzung. Liste ABSOLUT KRITISCHE Abweichungen. (v5)"
         }
     },
     "en-US": {
@@ -390,7 +390,7 @@ If no stylistic weaknesses are found, return an empty JSON array `[]`. Output ON
     }
 }
 
-PROMPTS_KORREKTUR = { 
+PROMPTS_KORREKTUR = {
     "de-DE": {
         "Allgemein": {
             "v1": """Finde Fehler in der Übersetzung und schlage Korrekturen vor. Gib deine Ergebnisse als JSON-Array von Objekten zurück. Jedes Objekt soll einen Fehler mit Korrekturvorschlag repräsentieren und die folgenden Schlüssel haben:
@@ -411,7 +411,7 @@ If no errors are found, return an empty JSON array `[]`. Output ONLY the JSON ar
     }
 }
 
-PROMPTS_REFERENZ_VERGLEICH = { 
+PROMPTS_REFERENZ_VERGLEICH = {
     "de-DE": {
         "Allgemein": {
             "v1": "Vergleiche die Übersetzung mit einer vorhandenen Referenzübersetzung. Liste alle Unterschiede auf, insbesondere bei Fachbegriffen, Stil und Inhalt. Gib konkrete Beispiele für Abweichungen."
@@ -533,7 +533,7 @@ def _get_prompt(prompt_dict_name, language_code, fachgebiet, pruefstufe, source_
             if not lang_prompts:
                 final_lang_key_used = FALLBACK_LANG # Try fallback language
                 lang_prompts = prompt_dict.get(FALLBACK_LANG)
-    
+
     if not lang_prompts: # If still no prompts found after all fallbacks for language
         error_msg = f"Error: No prompts found for target language \'{language_code}\'"
         if pair_key_attempted:
@@ -543,10 +543,10 @@ def _get_prompt(prompt_dict_name, language_code, fachgebiet, pruefstufe, source_
 
     # At this point, lang_prompts is set, and final_lang_key_used reflects what key was used to get it.
     fach_prompts = lang_prompts.get(fachgebiet, lang_prompts.get(DEFAULT_FACHGEBIET))
-    if not fach_prompts: 
+    if not fach_prompts:
         return (f"Error: No prompts for Fachgebiet \'{fachgebiet}\' or default Fachgebiet \'{DEFAULT_FACHGEBIET}\' "
                 f"within the language/pair configuration found under key \'{final_lang_key_used}\'.")
-        
+
     prompt = fach_prompts.get(pruefstufe)
     if prompt is None:
         # Fallback for pruefstufe: try descending levels from current to v1
@@ -557,9 +557,9 @@ def _get_prompt(prompt_dict_name, language_code, fachgebiet, pruefstufe, source_
                 fallback_pruefstufe = f"v{level}"
                 prompt = fach_prompts.get(fallback_pruefstufe)
                 if prompt is not None:
-                    break 
-        
-        if prompt is None: 
+                    break
+
+        if prompt is None:
             if pruefstufe != "v1": # Avoid trying v1 again if it was the initial request or already tried
                 prompt = fach_prompts.get("v1")
                 # if prompt is not None:
@@ -570,7 +570,7 @@ def _get_prompt(prompt_dict_name, language_code, fachgebiet, pruefstufe, source_
             return (f"Hinweis: Kein spezifischer Prompt für Prüfstufe \'{pruefstufe}\' (und kein Fallback-Prompt auf niedrigere Stufen oder \\\'v1\\\' vorhanden) "
                     f"im Fachgebiet \'{fachgebiet}\' für Sprachkonfiguration \'{final_lang_key_used}\'. "
                     f"Prüfung möglicherweise nicht vorgesehen.")
-            
+
     return prompt
 
 # ----- Helper Function to call Ollama -----
@@ -600,7 +600,7 @@ def _call_ollama(prompt, model="mistral", timeout=300):
             options={'temperature': 0.0}
         )
         print("[DEBUG][KI] Antwort von Ollama erhalten.")
-        
+
         ollama_timeout_counter = 0  # Reset counter on success
         return response['message']['content']
     except requests.exceptions.ReadTimeout:
@@ -620,14 +620,14 @@ def _call_ollama(prompt, model="mistral", timeout=300):
         return error_message
     except Exception as e: # General fallback for unexpected errors
         error_message = f"Allgemeiner Fehler bei der Kommunikation mit Ollama ({type(e).__name__}): {str(e)}"
-        
+
         # Track timeouts for fallback behavior
         if "timeout" in str(e).lower() or "timed out" in str(e).lower():
             ollama_timeout_counter += 1
             print(f"[DEBUG][KI] ⚠️ Timeout #{ollama_timeout_counter} erkannt")
             if ollama_timeout_counter >= 3:
                 print(f"[DEBUG][KI] 🚫 Timeout-Limit erreicht, weitere KI-Anfragen werden übersprungen")
-        
+
         print(f"[DEBUG][KI] Exception: {error_message}")
         return error_message
 
@@ -642,7 +642,7 @@ def ki_qualitaetspruefung(text, language_code="de-DE", fachgebiet="Allgemein", p
         return prompt_template # Return the error/note directly
 
     full_prompt = f"{prompt_template}\n\nÜbersetzung (Sprache: {language_code}):\n{text}"
-    
+
     return _call_ollama(full_prompt)
 
 
@@ -655,7 +655,7 @@ def ki_qualitaetspruefung_vergleich(source_text, target_text, language_code="de-
         return prompt_template
 
     full_prompt = f"{prompt_template}\n\nAusgangstext:\n{source_text}\n\nÜbersetzung:\n{target_text}"
-    
+
     return _call_ollama(full_prompt)
 
 
@@ -669,9 +669,9 @@ def ki_terminologiepruefung(source_text, target_text, key_terms=None, language_c
 
     key_terms_str = "\n".join(key_terms) if key_terms else "Keine spezifischen Begriffe vorgegeben."
     prompt_with_terms = prompt_template.format(key_terms=key_terms_str)
-    
+
     full_prompt = f"{prompt_with_terms}\n\nAusgangstext:\n{source_text}\n\nZieltext:\n{target_text}"
-    
+
     return _call_ollama(full_prompt)
 
 
@@ -684,7 +684,7 @@ def ki_konsistenzpruefung(source_text, target_text, language_code="de-DE", fachg
         return prompt_template
 
     full_prompt = f"{prompt_template}\n\nAusgangstext:\n{source_text}\n\nÜbersetzung:\n{target_text}"
-    
+
     return _call_ollama(full_prompt)
 
 
@@ -697,7 +697,7 @@ def ki_zusammenfassung(source_text, target_text, language_code="de-DE", fachgebi
         return prompt_template
 
     full_prompt = f"{prompt_template}\n\nAusgangstext:\n{source_text}\n\nÜbersetzung:\n{target_text}"
-    
+
     return _call_ollama(full_prompt)
 
 
@@ -711,9 +711,9 @@ def ki_glossa_check(source_text, target_text, glossar_terms, language_code="de-D
 
     glossar_str = "\n".join(glossar_terms)
     prompt_with_glossar = prompt_template.format(glossar_terms=glossar_str)
-    
+
     full_prompt = f"{prompt_with_glossar}\n\nAusgangstext:\n{source_text}\n\nÜbersetzung:\n{target_text}"
-    
+
     return _call_ollama(full_prompt)
 
 
@@ -726,7 +726,7 @@ def ki_tonfall_pruefung(source_text, target_text, language_code="de-DE", fachgeb
         return prompt_template
 
     full_prompt = f"{prompt_template}\n\nAusgangstext:\n{source_text}\n\nÜbersetzung:\n{target_text}"
-    
+
     return _call_ollama(full_prompt)
 
 
@@ -739,7 +739,7 @@ def ki_kulturelle_pruefung(source_text, target_text, language_code="de-DE", fach
         return prompt_template
 
     full_prompt = f"{prompt_template}\n\nAusgangstext:\n{source_text}\n\nÜbersetzung:\n{target_text}"
-    
+
     return _call_ollama(full_prompt)
 
 
@@ -752,7 +752,7 @@ def ki_stilistik_pruefung(text, language_code="de-DE", fachgebiet="Allgemein", p
         return prompt_template
 
     full_prompt = f"{prompt_template}\n\nText zur Prüfung:\n{text}"
-    
+
     return _call_ollama(full_prompt)
 
 
@@ -766,7 +766,7 @@ def ki_korrekturvorschlaege(text, language_code="de-DE", fachgebiet="Allgemein",
         return prompt_template
 
     full_prompt = f"{prompt_template}\n\nText zur Korrektur:\n{text}"
-    
+
     return _call_ollama(full_prompt)
 
 
@@ -779,7 +779,7 @@ def ki_referenz_vergleich(text, reference_text, language_code="de-DE", fachgebie
         return prompt_template
 
     full_prompt = f"{prompt_template}\n\nÜbersetzung:\n{text}\n\nReferenztext:\n{reference_text}"
-    
+
     return _call_ollama(full_prompt)
 
 
@@ -792,7 +792,7 @@ def ki_abschnitts_check(source_text, target_text, language_code="de-DE", fachgeb
         return prompt_template
 
     full_prompt = f"{prompt_template}\n\nAusgangstext:\n{source_text}\n\nÜbersetzung:\n{target_text}"
-    
+
     return _call_ollama(full_prompt)
 
 
@@ -806,7 +806,7 @@ def klassifiziere_fehler(fehler_liste, language_code="de-DE", fachgebiet="Allgem
 
     fehler_str = "\n".join(fehler_liste)
     full_prompt = f"{prompt_template}\n\nFehlerliste:\n{fehler_str}"
-    
+
     return _call_ollama(full_prompt)
 
 class KIModule:

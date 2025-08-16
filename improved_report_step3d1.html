@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Barrierefreier Übersetzungsqualitätsbericht für Global Communications GmbH">
+    <meta name="keywords" content="Übersetzung, Qualität, Bericht, Accessibility">
+    <title>Qualitätsbericht - Global Communications GmbH - Barrierefreie Version</title>
+    
+    <style>
+        /* ACCESSIBILITY-ERSTE CSS-VARIABLEN */
+        :root {
+            --primary-color: #2563EB;
+            --primary-dark: #1E40AF;
+            --success-color: #10B981;
+            --warning-color: #F59E0B;
+            --error-color: #EF4444;
+            --surface: #FFFFFF;
+            --surface-secondary: #F8FAFC;
+            --text-primary: #1F2937;
+            --text-secondary: #6B7280;
+            --border-color: #E5E7EB;
+            --focus-color: #2563EB;
+            --border-radius: 8px;
+            --shadow-focus: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            --transition: all 0.2s ease-in-out;
+            
+            /* High contrast mode support */
+            --high-contrast-border: #000000;
+            --high-contrast-text: #000000;
+            --high-contrast-bg: #FFFFFF;
+        }
+        
+        /* ACCESSIBILITY BASE STYLES */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        html {
+            scroll-behavior: smooth;
+            font-size: 16px; /* Never use smaller than 16px for accessibility */
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6; /* WCAG recommends at least 1.5 */
+            color: var(--text-primary);
+            background: var(--surface-secondary);
+            min-height: 100vh;
+        }
+        
+        /* SKIP LINKS - WCAG 2.1 Requirement */
+        .skip-links {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            background: var(--primary-color);
+        }
+        
+        .skip-link {
+            background: var(--primary-color);
+            color: white;
+            padding: 8px 12px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+        
+        .skip-link:focus {
+            position: relative;
+            top: 40px;
+            outline: 3px solid white;
+            outline-offset: 2px;
+        }
+        
+        .skip-link:hover {
+            background: var(--primary-dark);
+        }
+        
+        /* SCREEN READER ONLY CONTENT */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        
+        .sr-only-focusable:focus {
+            position: static;
+            width: auto;
+            height: auto;
+            padding: 0.5rem;
+            margin: 0;
+            overflow: visible;
+            clip: auto;
+            white-space: normal;
+            background: var(--warning-color);
+            color: white;
+            border-radius: 4px;
+        }
+        
+        /* CONTAINER */
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            background: var(--surface);
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        /* HEADER */
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: clamp(1.5rem, 4vw, 2.5rem); /* Responsive typography */
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header .subtitle {
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            opacity: 0.9;
+        }
+        
+        /* MAIN CONTENT */
+        .content {
+            padding: 2rem;
+        }
+        
+        /* LANDMARKS - Important for screen readers */
+        main {
+            outline: none; /* Remove default focus outline on main */
+        }
+        
+        main:focus {
+            outline: 2px solid var(--focus-color);
+            outline-offset: 2px;
+        }
+        
+        /* PROJECT INFO SECTION */
+        .project-info {
+            background: #EBF5FF;
+            border: 2px solid #BFDBFE;
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .project-info h2 {
+            color: var(--primary-dark);
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        
+        .project-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .project-item {
+            background: white;
+            padding: 1rem;
+            border-radius: 6px;
+            border: 1px solid #BFDBFE;
+        }
+        
+        .project-label {
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .project-value {
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+        
+        /* TOOLBAR WITH ACCESSIBILITY */
+        .toolbar {
+            background: var(--surface-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .toolbar-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+        }
+        
+        .search-container {
+            position: relative;
+            margin-bottom: 1rem;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 0.75rem 1rem 0.75rem 2.5rem;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 1rem; /* Minimum 16px for iOS */
+            transition: var(--transition);
+            background: white;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--focus-color);
+            box-shadow: var(--shadow-focus);
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            pointer-events: none;
+            font-size: 1.2rem;
+        }
+        
+        /* FILTER BUTTONS WITH ACCESSIBILITY */
+        .filter-section {
+            margin-bottom: 1rem;
+        }
+        
+        .filter-section h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+        
+        .filter-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        
+        .filter-btn {
+            padding: 0.6rem 1rem;
+            border: 2px solid var(--border-color);
+            background: white;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-height: 44px; /* WCAG touch target size */
+        }
+        
+        .filter-btn:hover {
+            background: var(--surface-secondary);
+            border-color: var(--primary-color);
+        }
+        
+        .filter-btn:focus {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+            border-color: var(--focus-color);
+        }
+        
+        .filter-btn[aria-pressed="true"] {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .filter-btn[aria-pressed="true"]:hover {
+            background: var(--primary-dark);
+        }
+        
+        /* RESULTS COUNTER */
+        .results-counter {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            padding: 0.5rem;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+        
+        /* ISSUE CARDS WITH ACCESSIBILITY */
+        .issues-container {
+            margin-top: 2rem;
+        }
+        
+        .issue-card {
+            background: white;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            transition: var(--transition);
+            position: relative;
+        }
+        
+        .issue-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border-color: var(--primary-color);
+        }
+        
+        .issue-card:focus-within {
+            box-shadow: var(--shadow-focus);
+            border-color: var(--focus-color);
+        }
+        
+        /* Keyboard focus for issue cards */
+        .issue-card[tabindex]:focus {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+            border-color: var(--focus-color);
+        }
+        
+        .issue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .issue-category {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--primary-dark);
+        }
+        
+        .issue-priority {
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 2px solid transparent;
+        }
+        
+        .priority-high {
+            background: #FEE2E2;
+            color: #DC2626;
+            border-color: #DC2626;
+        }
+        
+        .priority-medium {
+            background: #FEF3C7;
+            color: #D97706;
+            border-color: #D97706;
+        }
+        
+        .priority-low {
+            background: #D1FAE5;
+            color: #059669;
+            border-color: #059669;
+        }
+        
+        .issue-description {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .issue-location {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            font-style: italic;
+        }
+        
+        /* TEXT COMPARISON */
+        .text-comparison {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .text-block {
+            border-radius: 6px;
+            padding: 1rem;
+            border: 2px solid;
+        }
+        
+        .text-block h4 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .text-content {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        
+        .text-original {
+            background: #FEF2F2;
+            border-color: #DC2626;
+        }
+        
+        .text-original h4 {
+            color: #DC2626;
+        }
+        
+        .text-current {
+            background: #FFFBEB;
+            border-color: #D97706;
+        }
+        
+        .text-current h4 {
+            color: #D97706;
+        }
+        
+        .text-suggestion {
+            background: #F0FDF4;
+            border-color: #059669;
+        }
+        
+        .text-suggestion h4 {
+            color: #059669;
+        }
+        
+        /* RECOMMENDATION BOX */
+        .recommendation {
+            background: #EFF6FF;
+            border: 2px solid #DBEAFE;
+            border-radius: 6px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .recommendation h4 {
+            color: var(--primary-dark);
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .recommendation p {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+        
+        /* INTERACTIVE ELEMENTS */
+        .issue-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .action-btn {
+            padding: 0.6rem 1rem;
+            border: 2px solid var(--border-color);
+            background: white;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-height: 44px; /* WCAG touch target */
+            min-width: 44px;
+        }
+        
+        .action-btn:hover {
+            background: var(--surface-secondary);
+        }
+        
+        .action-btn:focus {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+            border-color: var(--focus-color);
+        }
+        
+        .action-btn[aria-pressed="true"] {
+            background: var(--success-color);
+            color: white;
+            border-color: var(--success-color);
+        }
+        
+        /* HIGH CONTRAST MODE SUPPORT */
+        @media (prefers-contrast: high) {
+            :root {
+                --border-color: var(--high-contrast-border);
+                --text-secondary: var(--high-contrast-text);
+            }
+            
+            .issue-card,
+            .filter-btn,
+            .search-input,
+            .action-btn {
+                border: 3px solid var(--high-contrast-border);
+            }
+            
+            .text-block {
+                border: 3px solid;
+            }
+        }
+        
+        /* REDUCED MOTION SUPPORT */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+        
+        /* RESPONSIVE ACCESSIBILITY */
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 6px;
+            }
+            
+            .header {
+                padding: 1.5rem 1rem;
+            }
+            
+            .content {
+                padding: 1rem;
+            }
+            
+            .project-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .text-comparison {
+                grid-template-columns: 1fr;
+            }
+            
+            .issue-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .filter-group {
+                flex-direction: column;
+            }
+            
+            .filter-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        
+        /* PRINT ACCESSIBILITY */
+        @media print {
+            body {
+                background: white;
+                font-size: 12pt;
+                line-height: 1.4;
+                color: black;
+            }
+            
+            .skip-links,
+            .toolbar,
+            .action-btn {
+                display: none;
+            }
+            
+            .container {
+                box-shadow: none;
+                border: 1px solid black;
+            }
+            
+            .header {
+                background: black !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .issue-card {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                margin-bottom: 1cm;
+                border: 2px solid black;
+            }
+            
+            .text-block {
+                border: 2px solid black;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- SKIP LINKS FOR ACCESSIBILITY -->
+    <div class="skip-links">
+        <a href="#main-content" class="skip-link">Zum Hauptinhalt springen</a>
+        <a href="#search" class="skip-link">Zur Suche springen</a>
+        <a href="#filters" class="skip-link">Zu den Filtern springen</a>
+        <a href="#issues" class="skip-link">Zu den Issues springen</a>
+    </div>
+    
+    <div class="container">
+        <!-- HEADER WITH PROPER HEADING HIERARCHY -->
+        <header class="header" role="banner">
+            <h1>📋 Übersetzungsqualitätsbericht</h1>
+            <p class="subtitle">Barrierefreie Analyse mit konkreten Verbesserungsvorschlägen</p>
+        </header>
+        
+        <!-- MAIN CONTENT WITH PROPER LANDMARKS -->
+        <main id="main-content" class="content" role="main" tabindex="-1">
+            <!-- ANNOUNCEMENT REGION FOR SCREEN READERS -->
+            <div aria-live="polite" aria-atomic="true" class="sr-only" id="announcements"></div>
+            
+            <!-- PROJECT INFORMATION -->
+            <section class="project-info" aria-labelledby="project-info-heading">
+                <h2 id="project-info-heading">📊 Projektinformationen</h2>
+                <div class="project-grid">
+                    <div class="project-item">
+                        <div class="project-label">Kunde</div>
+                        <div class="project-value">Global Communications GmbH</div>
+                    </div>
+                    <div class="project-item">
+                        <div class="project-label">Projekt</div>
+                        <div class="project-value">Produktkatalog Internationalisierung - Accessibility Optimiert</div>
+                    </div>
+                    <div class="project-item">
+                        <div class="project-label">Sprachrichtung</div>
+                        <div class="project-value">Deutsch → Englisch</div>
+                    </div>
+                    <div class="project-item">
+                        <div class="project-label">Datum</div>
+                        <div class="project-value">18.07.2025</div>
+                    </div>
+                    <div class="project-item">
+                        <div class="project-label">Übersetzer</div>
+                        <div class="project-value">Maria Schmidt, zertifizierte Übersetzerin</div>
+                    </div>
+                    <div class="project-item">
+                        <div class="project-label">Erstellt am</div>
+                        <div class="project-value">18.07.2025 um 15:31:49</div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- TOOLBAR WITH ACCESSIBILITY -->
+            <section class="toolbar" role="search" aria-labelledby="toolbar-heading">
+                <h2 id="toolbar-heading" class="toolbar-title">🔍 Suche und Filter</h2>
+                
+                <!-- SEARCH -->
+                <div class="search-container">
+                    <label for="search" class="sr-only">Durchsuchen Sie Issues, Beschreibungen und Empfehlungen</label>
+                    <span class="search-icon" aria-hidden="true">🔍</span>
+                    <input 
+                        type="text" 
+                        class="search-input" 
+                        id="search"
+                        placeholder="Durchsuchen Sie Issues, Beschreibungen, Empfehlungen..."
+                        aria-describedby="search-help"
+                    >
+                    <div id="search-help" class="sr-only">
+                        Geben Sie Suchbegriffe ein, um Issues zu filtern. Die Suche erfolgt in Echtzeit.
+                    </div>
+                </div>
+                
+                <!-- FILTERS -->
+                <div id="filters">
+                    <div class="filter-section">
+                        <h3>Priorität filtern</h3>
+                        <div class="filter-group" role="group" aria-labelledby="priority-filter-heading">
+                            <span id="priority-filter-heading" class="sr-only">Prioritäts-Filter</span>
+                            <button class="filter-btn" data-filter="all" aria-pressed="true" aria-describedby="all-help">
+                                📋 Alle (<span id="count-all">2</span>)
+                            </button>
+                            <div id="all-help" class="sr-only">Zeigt alle Issues unabhängig von der Priorität</div>
+                            
+                            <button class="filter-btn" data-filter="high" aria-pressed="false" aria-describedby="high-help">
+                                🔴 Kritisch (<span id="count-high">1</span>)
+                            </button>
+                            <div id="high-help" class="sr-only">Zeigt nur Issues mit hoher Priorität</div>
+                            
+                            <button class="filter-btn" data-filter="medium" aria-pressed="false" aria-describedby="medium-help">
+                                🟡 Wichtig (<span id="count-medium">1</span>)
+                            </button>
+                            <div id="medium-help" class="sr-only">Zeigt nur Issues mit mittlerer Priorität</div>
+                            
+                            <button class="filter-btn" data-filter="low" aria-pressed="false" aria-describedby="low-help">
+                                🟢 Hinweise (<span id="count-low">0</span>)
+                            </button>
+                            <div id="low-help" class="sr-only">Zeigt nur Issues mit niedriger Priorität</div>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-section">
+                        <h3>Status filtern</h3>
+                        <div class="filter-group" role="group" aria-labelledby="status-filter-heading">
+                            <span id="status-filter-heading" class="sr-only">Status-Filter</span>
+                            <button class="filter-btn" data-filter="marked" aria-pressed="false">
+                                ⭐ Markiert (<span id="count-marked">0</span>)
+                            </button>
+                            <button class="filter-btn" data-filter="completed" aria-pressed="false">
+                                ✅ Erledigt (<span id="count-completed">0</span>)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- RESULTS COUNTER -->
+                <div class="results-counter" role="status" aria-live="polite">
+                    <span id="results-count">2</span> Issues gefunden
+                </div>
+            </section>
+            
+            <!-- ISSUES CONTAINER -->
+            <section class="issues-container" aria-labelledby="issues-heading" id="issues">
+                <h2 id="issues-heading">🔍 Gefundene Qualitätsprobleme</h2>
+                
+
+                <article class="issue-card" 
+                         data-id="access_issue_1" 
+                         data-priority="high" 
+                         data-category="🎯 Genauigkeit" 
+                         tabindex="0" 
+                         role="article"
+                         aria-labelledby="issue-access_issue_1-title"
+                         aria-describedby="issue-access_issue_1-desc">
+                    
+                    <header class="issue-header">
+                        <div class="issue-category" id="issue-access_issue_1-title">
+                            🎯 Genauigkeit - Fachbegriff 'Nachhaltigkeit' wird inkonsistent übersetzt
+                        </div>
+                        <span class="issue-priority priority-high" 
+                              role="img" 
+                              aria-label="Priorität high">
+                            HIGH
+                        </span>
+                    </header>
+                    
+                    <div class="issue-description" id="issue-access_issue_1-desc">
+                        Fachbegriff 'Nachhaltigkeit' wird inkonsistent übersetzt
+                    </div>
+                    
+                    <div class="issue-location">
+                        <span class="sr-only">Fundstelle: </span>
+                        📍 Seite 3, Absatz 2
+                    </div>
+                    
+                    <div class="text-comparison" role="group" aria-label="Textvergleich für Issue access_issue_1">
+                        <div class="text-block text-original">
+                            <h4 id="original-access_issue_1">Original (Deutsch)</h4>
+                            <div class="text-content" aria-labelledby="original-access_issue_1">Unsere Nachhaltigkeit steht im Vordergrund</div>
+                        </div>
+                        
+                        <div class="text-block text-current">
+                            <h4 id="current-access_issue_1">Aktuelle Übersetzung</h4>
+                            <div class="text-content" aria-labelledby="current-access_issue_1">Our sustainability is in the foreground</div>
+                        </div>
+                        
+                        <div class="text-block text-suggestion">
+                            <h4 id="suggestion-access_issue_1">Verbesserungsvorschlag</h4>
+                            <div class="text-content" aria-labelledby="suggestion-access_issue_1">Our sustainability commitment takes center stage</div>
+                        </div>
+                    </div>
+                    
+                    <div class="recommendation" role="complementary" aria-labelledby="rec-access_issue_1">
+                        <h4 id="rec-access_issue_1">💡 Handlungsempfehlung</h4>
+                        <p>Verwenden Sie 'sustainability commitment' für Marketing-Kontext.</p>
+                    </div>
+                    
+                    <div class="issue-actions" role="group" aria-label="Aktionen für Issue access_issue_1">
+                        <button class="action-btn mark-btn" 
+                                data-action="mark" 
+                                data-issue-id="access_issue_1"
+                                aria-pressed="false"
+                                aria-describedby="mark-help-access_issue_1">
+                            <span aria-hidden="true">⭐</span> Markieren
+                        </button>
+                        <div id="mark-help-access_issue_1" class="sr-only">
+                            Markiert dieses Issue für spätere Bearbeitung
+                        </div>
+                        
+                        <button class="action-btn complete-btn" 
+                                data-action="complete" 
+                                data-issue-id="access_issue_1"
+                                aria-pressed="false"
+                                aria-describedby="complete-help-access_issue_1">
+                            <span aria-hidden="true">✅</span> Erledigt
+                        </button>
+                        <div id="complete-help-access_issue_1" class="sr-only">
+                            Markiert dieses Issue als erledigt
+                        </div>
+                        
+                        <button class="action-btn note-btn" 
+                                data-action="note" 
+                                data-issue-id="access_issue_1"
+                                aria-expanded="false"
+                                aria-controls="notes-access_issue_1"
+                                aria-describedby="note-help-access_issue_1">
+                            <span aria-hidden="true">📝</span> Notiz
+                        </button>
+                        <div id="note-help-access_issue_1" class="sr-only">
+                            Öffnet Notizenbereich für dieses Issue
+                        </div>
+                    </div>
+                    
+                    <div class="notes-section" 
+                         id="notes-access_issue_1" 
+                         style="display: none;"
+                         aria-hidden="true">
+                        <label for="note-input-access_issue_1" class="sr-only">
+                            Notiz für Issue access_issue_1 eingeben
+                        </label>
+                        <textarea class="note-input" 
+                                  id="note-input-access_issue_1"
+                                  placeholder="Ihre Notiz zu diesem Issue..."
+                                  aria-describedby="note-instructions-access_issue_1"></textarea>
+                        <div id="note-instructions-access_issue_1" class="sr-only">
+                            Geben Sie hier Ihre Notizen zu diesem Issue ein. Notizen werden automatisch gespeichert.
+                        </div>
+                        <div class="notes-list" role="log" aria-label="Gespeicherte Notizen"></div>
+                    </div>
+                </article>
+
+                <article class="issue-card" 
+                         data-id="access_issue_2" 
+                         data-priority="medium" 
+                         data-category="🌊 Sprachfluss" 
+                         tabindex="0" 
+                         role="article"
+                         aria-labelledby="issue-access_issue_2-title"
+                         aria-describedby="issue-access_issue_2-desc">
+                    
+                    <header class="issue-header">
+                        <div class="issue-category" id="issue-access_issue_2-title">
+                            🌊 Sprachfluss - Satzstruktur zu kompliziert für Zielgruppe
+                        </div>
+                        <span class="issue-priority priority-medium" 
+                              role="img" 
+                              aria-label="Priorität medium">
+                            MEDIUM
+                        </span>
+                    </header>
+                    
+                    <div class="issue-description" id="issue-access_issue_2-desc">
+                        Satzstruktur zu kompliziert für Zielgruppe
+                    </div>
+                    
+                    <div class="issue-location">
+                        <span class="sr-only">Fundstelle: </span>
+                        📍 Seite 1, Einleitung
+                    </div>
+                    
+                    <div class="text-comparison" role="group" aria-label="Textvergleich für Issue access_issue_2">
+                        <div class="text-block text-original">
+                            <h4 id="original-access_issue_2">Original (Deutsch)</h4>
+                            <div class="text-content" aria-labelledby="original-access_issue_2">Wir sind ein innovatives Unternehmen, das sich darauf spezialisiert hat</div>
+                        </div>
+                        
+                        <div class="text-block text-current">
+                            <h4 id="current-access_issue_2">Aktuelle Übersetzung</h4>
+                            <div class="text-content" aria-labelledby="current-access_issue_2">We are an innovative company that has specialized in</div>
+                        </div>
+                        
+                        <div class="text-block text-suggestion">
+                            <h4 id="suggestion-access_issue_2">Verbesserungsvorschlag</h4>
+                            <div class="text-content" aria-labelledby="suggestion-access_issue_2">We specialize in innovative solutions that transform</div>
+                        </div>
+                    </div>
+                    
+                    <div class="recommendation" role="complementary" aria-labelledby="rec-access_issue_2">
+                        <h4 id="rec-access_issue_2">💡 Handlungsempfehlung</h4>
+                        <p>Direktere, aktivere Formulierung für bessere Lesbarkeit.</p>
+                    </div>
+                    
+                    <div class="issue-actions" role="group" aria-label="Aktionen für Issue access_issue_2">
+                        <button class="action-btn mark-btn" 
+                                data-action="mark" 
+                                data-issue-id="access_issue_2"
+                                aria-pressed="false"
+                                aria-describedby="mark-help-access_issue_2">
+                            <span aria-hidden="true">⭐</span> Markieren
+                        </button>
+                        <div id="mark-help-access_issue_2" class="sr-only">
+                            Markiert dieses Issue für spätere Bearbeitung
+                        </div>
+                        
+                        <button class="action-btn complete-btn" 
+                                data-action="complete" 
+                                data-issue-id="access_issue_2"
+                                aria-pressed="false"
+                                aria-describedby="complete-help-access_issue_2">
+                            <span aria-hidden="true">✅</span> Erledigt
+                        </button>
+                        <div id="complete-help-access_issue_2" class="sr-only">
+                            Markiert dieses Issue als erledigt
+                        </div>
+                        
+                        <button class="action-btn note-btn" 
+                                data-action="note" 
+                                data-issue-id="access_issue_2"
+                                aria-expanded="false"
+                                aria-controls="notes-access_issue_2"
+                                aria-describedby="note-help-access_issue_2">
+                            <span aria-hidden="true">📝</span> Notiz
+                        </button>
+                        <div id="note-help-access_issue_2" class="sr-only">
+                            Öffnet Notizenbereich für dieses Issue
+                        </div>
+                    </div>
+                    
+                    <div class="notes-section" 
+                         id="notes-access_issue_2" 
+                         style="display: none;"
+                         aria-hidden="true">
+                        <label for="note-input-access_issue_2" class="sr-only">
+                            Notiz für Issue access_issue_2 eingeben
+                        </label>
+                        <textarea class="note-input" 
+                                  id="note-input-access_issue_2"
+                                  placeholder="Ihre Notiz zu diesem Issue..."
+                                  aria-describedby="note-instructions-access_issue_2"></textarea>
+                        <div id="note-instructions-access_issue_2" class="sr-only">
+                            Geben Sie hier Ihre Notizen zu diesem Issue ein. Notizen werden automatisch gespeichert.
+                        </div>
+                        <div class="notes-list" role="log" aria-label="Gespeicherte Notizen"></div>
+                    </div>
+                </article>
+
+            </section>
+        </main>
+        
+        <!-- FOOTER -->
+        <footer class="footer" role="contentinfo">
+            <p>Automatisch generiert von Professional Translation Quality Framework</p>
+            <p>© 2025 - Barrierefreie Übersetzungsqualitätskontrolle</p>
+            <p><strong>Accessibility Features:</strong> WCAG 2.1 AA konform, Keyboard Navigation, Screen Reader Support</p>
+        </footer>
+    </div>
+    
+    <!-- ACCESSIBILITY-OPTIMIERTES JAVASCRIPT -->
+    <script>
+        // GLOBALE ACCESSIBILITY VARIABLEN
+        let issueStates = {};
+        let announcements = document.getElementById('announcements');
+        let resultsCount = document.getElementById('results-count');
+        
+        // INITIALIZATION
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeAccessibility();
+            initializeFilters();
+            initializeKeyboardNavigation();
+            loadSavedStates();
+            updateCounts();
+            
+            // Announce page load for screen readers
+            announceToScreenReader('Qualitätsbericht geladen. 2 Issues gefunden.');
+        });
+        
+        // ACCESSIBILITY INITIALIZATION
+        function initializeAccessibility() {
+            // Focus management for skip links
+            document.querySelectorAll('.skip-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        target.focus();
+                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+            });
+            
+            // Ensure issue cards are focusable and have proper focus management
+            document.querySelectorAll('.issue-card').forEach((card, index) => {
+                card.addEventListener('keydown', function(e) {
+                    // Enter or Space to activate
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        const firstButton = this.querySelector('.action-btn');
+                        if (firstButton) firstButton.focus();
+                    }
+                    
+                    // Arrow key navigation between cards
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        const nextCard = this.nextElementSibling;
+                        if (nextCard && nextCard.classList.contains('issue-card')) {
+                            nextCard.focus();
+                        }
+                    }
+                    
+                    if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        const prevCard = this.previousElementSibling;
+                        if (prevCard && prevCard.classList.contains('issue-card')) {
+                            prevCard.focus();
+                        }
+                    }
+                });
+            });
+        }
+        
+        // KEYBOARD NAVIGATION
+        function initializeKeyboardNavigation() {
+            // Filter button keyboard handling
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        this.click();
+                    }
+                });
+                
+                btn.addEventListener('click', function() {
+                    const filter = this.dataset.filter;
+                    const group = this.closest('.filter-group');
+                    
+                    // Update aria-pressed states
+                    group.querySelectorAll('.filter-btn').forEach(b => {
+                        b.setAttribute('aria-pressed', 'false');
+                    });
+                    this.setAttribute('aria-pressed', 'true');
+                    
+                    // Apply filter
+                    applyFilter(filter);
+                    
+                    // Announce filter change
+                    const filterName = this.textContent.trim();
+                    announceToScreenReader(`Filter angewendet: ${filterName}`);
+                });
+            });
+            
+            // Search input handling
+            const searchInput = document.getElementById('search');
+            searchInput.addEventListener('input', debounce(function(e) {
+                const query = e.target.value.toLowerCase();
+                filterBySearch(query);
+                
+                // Announce search results
+                const visibleCount = document.querySelectorAll('.issue-card[style*="block"], .issue-card:not([style*="none"])').length;
+                announceToScreenReader(`${visibleCount} Issues für Suche "${query}" gefunden`);
+            }, 500));
+            
+            // Action button handling
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.action-btn')) {
+                    const btn = e.target.closest('.action-btn');
+                    const action = btn.dataset.action;
+                    const issueId = btn.dataset.issueId;
+                    
+                    switch(action) {
+                        case 'mark':
+                            toggleMark(issueId, btn);
+                            break;
+                        case 'complete':
+                            toggleComplete(issueId, btn);
+                            break;
+                        case 'note':
+                            toggleNoteSection(issueId, btn);
+                            break;
+                    }
+                }
+            });
+            
+            // Global keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                // Alt + F for search
+                if (e.altKey && e.key === 'f') {
+                    e.preventDefault();
+                    document.getElementById('search').focus();
+                    announceToScreenReader('Suchfeld fokussiert');
+                }
+                
+                // Alt + 1-4 for priority filters
+                if (e.altKey && ['1', '2', '3', '4'].includes(e.key)) {
+                    e.preventDefault();
+                    const filters = ['all', 'high', 'medium', 'low'];
+                    const filterBtn = document.querySelector(`[data-filter="${filters[parseInt(e.key) - 1]}"]`);
+                    if (filterBtn) {
+                        filterBtn.click();
+                        filterBtn.focus();
+                    }
+                }
+                
+                // Escape to clear search
+                if (e.key === 'Escape') {
+                    const searchInput = document.getElementById('search');
+                    if (document.activeElement === searchInput && searchInput.value) {
+                        searchInput.value = '';
+                        filterBySearch('');
+                        announceToScreenReader('Suche geleert');
+                    }
+                }
+            });
+        }
+        
+        // ACTION FUNCTIONS WITH ACCESSIBILITY
+        function toggleMark(issueId, btn) {
+            if (!issueStates[issueId]) issueStates[issueId] = {};
+            
+            issueStates[issueId].marked = !issueStates[issueId].marked;
+            const isMarked = issueStates[issueId].marked;
+            
+            btn.setAttribute('aria-pressed', isMarked);
+            btn.innerHTML = `<span aria-hidden="true">⭐</span> ${isMarked ? 'Markiert' : 'Markieren'}`;
+            
+            // Visual feedback
+            if (isMarked) {
+                btn.style.background = 'var(--warning-color)';
+                btn.style.color = 'white';
+            } else {
+                btn.style.background = 'white';
+                btn.style.color = 'inherit';
+            }
+            
+            updateCounts();
+            saveStates();
+            announceToScreenReader(`Issue ${isMarked ? 'markiert' : 'Markierung entfernt'}`);
+        }
+        
+        function toggleComplete(issueId, btn) {
+            if (!issueStates[issueId]) issueStates[issueId] = {};
+            
+            issueStates[issueId].completed = !issueStates[issueId].completed;
+            const isCompleted = issueStates[issueId].completed;
+            
+            btn.setAttribute('aria-pressed', isCompleted);
+            btn.innerHTML = `<span aria-hidden="true">✅</span> ${isCompleted ? 'Erledigt' : 'Als erledigt markieren'}`;
+            
+            // Visual feedback
+            const card = btn.closest('.issue-card');
+            if (isCompleted) {
+                btn.style.background = 'var(--success-color)';
+                btn.style.color = 'white';
+                card.style.opacity = '0.7';
+            } else {
+                btn.style.background = 'white';
+                btn.style.color = 'inherit';
+                card.style.opacity = '1';
+            }
+            
+            updateCounts();
+            saveStates();
+            announceToScreenReader(`Issue ${isCompleted ? 'als erledigt markiert' : 'nicht mehr erledigt'}`);
+        }
+        
+        function toggleNoteSection(issueId, btn) {
+            const noteSection = document.getElementById(`notes-${issueId}`);
+            const isVisible = noteSection.style.display !== 'none';
+            
+            if (isVisible) {
+                noteSection.style.display = 'none';
+                noteSection.setAttribute('aria-hidden', 'true');
+                btn.setAttribute('aria-expanded', 'false');
+                announceToScreenReader('Notizenbereich geschlossen');
+            } else {
+                noteSection.style.display = 'block';
+                noteSection.setAttribute('aria-hidden', 'false');
+                btn.setAttribute('aria-expanded', 'true');
+                
+                // Focus the textarea
+                const textarea = noteSection.querySelector('.note-input');
+                setTimeout(() => textarea.focus(), 100);
+                announceToScreenReader('Notizenbereich geöffnet');
+            }
+        }
+        
+        // FILTERING WITH ACCESSIBILITY
+        function applyFilter(filter) {
+            const issues = document.querySelectorAll('.issue-card');
+            let visibleCount = 0;
+            
+            issues.forEach(issue => {
+                const priority = issue.dataset.priority;
+                const issueId = issue.dataset.id;
+                let shouldShow = true;
+                
+                if (filter !== 'all') {
+                    if (filter === 'marked') {
+                        shouldShow = issueStates[issueId]?.marked;
+                    } else if (filter === 'completed') {
+                        shouldShow = issueStates[issueId]?.completed;
+                    } else {
+                        shouldShow = priority === filter;
+                    }
+                }
+                
+                if (shouldShow) {
+                    issue.style.display = 'block';
+                    issue.removeAttribute('aria-hidden');
+                    visibleCount++;
+                } else {
+                    issue.style.display = 'none';
+                    issue.setAttribute('aria-hidden', 'true');
+                }
+            });
+            
+            resultsCount.textContent = visibleCount;
+        }
+        
+        function filterBySearch(query) {
+            const issues = document.querySelectorAll('.issue-card');
+            let visibleCount = 0;
+            
+            issues.forEach(issue => {
+                const text = issue.textContent.toLowerCase();
+                const shouldShow = !query || text.includes(query);
+                
+                if (shouldShow) {
+                    issue.style.display = 'block';
+                    issue.removeAttribute('aria-hidden');
+                    visibleCount++;
+                } else {
+                    issue.style.display = 'none';
+                    issue.setAttribute('aria-hidden', 'true');
+                }
+            });
+            
+            resultsCount.textContent = visibleCount;
+        }
+        
+        // UTILITY FUNCTIONS
+        function announceToScreenReader(message) {
+            announcements.textContent = message;
+            
+            // Clear after announcing
+            setTimeout(() => {
+                announcements.textContent = '';
+            }, 1000);
+        }
+        
+        function updateCounts() {
+            const issues = document.querySelectorAll('.issue-card');
+            let counts = {
+                all: issues.length,
+                high: 0,
+                medium: 0,
+                low: 0,
+                marked: 0,
+                completed: 0
+            };
+            
+            issues.forEach(issue => {
+                const priority = issue.dataset.priority;
+                const issueId = issue.dataset.id;
+                
+                counts[priority]++;
+                if (issueStates[issueId]?.marked) counts.marked++;
+                if (issueStates[issueId]?.completed) counts.completed++;
+            });
+            
+            Object.keys(counts).forEach(key => {
+                const element = document.getElementById(`count-${key}`);
+                if (element) element.textContent = counts[key];
+            });
+        }
+        
+        function saveStates() {
+            localStorage.setItem('accessibilityQualityStates', JSON.stringify(issueStates));
+        }
+        
+        function loadSavedStates() {
+            const saved = localStorage.getItem('accessibilityQualityStates');
+            if (saved) {
+                issueStates = JSON.parse(saved);
+                
+                // Apply saved states
+                Object.keys(issueStates).forEach(issueId => {
+                    const state = issueStates[issueId];
+                    
+                    if (state.marked) {
+                        const markBtn = document.querySelector(`[data-issue-id="${issueId}"][data-action="mark"]`);
+                        if (markBtn) toggleMark(issueId, markBtn);
+                    }
+                    
+                    if (state.completed) {
+                        const completeBtn = document.querySelector(`[data-issue-id="${issueId}"][data-action="complete"]`);
+                        if (completeBtn) toggleComplete(issueId, completeBtn);
+                    }
+                });
+            }
+        }
+        
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+    </script>
+</body>
+</html>

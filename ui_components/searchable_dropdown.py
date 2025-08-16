@@ -1,7 +1,8 @@
 
 import customtkinter as ctk
-from ui_theme import UITheme
 import tkinter as tk
+
+from ui_theme import UITheme
 
 class SearchableDropdown(ctk.CTkFrame):
     """
@@ -53,7 +54,7 @@ class SearchableDropdown(ctk.CTkFrame):
     def _update_dropdown_position(self):
         if not self.dropdown_toplevel or not self.dropdown_toplevel.winfo_exists():
             return
-        
+
         entry_x = self.entry.winfo_rootx()
         entry_y = self.entry.winfo_rooty()
         entry_height = self.entry.winfo_height()
@@ -65,7 +66,7 @@ class SearchableDropdown(ctk.CTkFrame):
     def _show_dropdown(self):
         if not self.dropdown_toplevel or not self.dropdown_toplevel.winfo_exists():
             self._create_dropdown_toplevel()
-        
+
         self._update_dropdown_position()
         self.dropdown_toplevel.deiconify()
         self.dropdown_toplevel.lift()
@@ -102,7 +103,7 @@ class SearchableDropdown(ctk.CTkFrame):
     def _update_dropdown_options(self, options):
         if not self.dropdown_toplevel or not self.scrollable_frame.winfo_exists():
             return
-            
+
         for widget in self.scrollable_frame.winfo_children():
             widget.destroy()
 
@@ -134,4 +135,3 @@ class SearchableDropdown(ctk.CTkFrame):
     def set_options(self, options):
         self.options = sorted(options)
         self._update_dropdown_options(self.options)
-

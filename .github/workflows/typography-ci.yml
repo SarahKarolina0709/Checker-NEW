@@ -1,0 +1,337 @@
+name: Typography System CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  typography-lint:
+    name: Typography System Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: |
+        npm install stylelint stylelint-config-standard stylelint-config-rational-order
+        npm install stylelint-declaration-block-no-ignored-properties stylelint-order
+        npm install stylelint-scale-unlimited
+        
+    - name: Validate CSS Typography System
+      run: |
+        echo "🎯 Validating CSS Typography System..."
+        npx stylelint "**/*.css" --config .stylelintrc.json --formatter verbose
+        
+    - name: Check for forbidden typography patterns
+      run: |
+        echo "🔍 Checking for forbidden typography patterns..."
+        
+        # Check for hardcoded font-size values
+        if grep -r "font-size:\s*[0-9]" --include="*.css" --include="*.scss" .; then
+          echo "❌ FAIL: Found hardcoded font-size values. Use typography system instead."
+          exit 1
+        fi
+        
+        # Check for hardcoded font-weight values  
+        if grep -r "font-weight:\s*[0-9]" --include="*.css" --include="*.scss" .; then
+          echo "❌ FAIL: Found hardcoded font-weight values. Use typography system instead."
+          exit 1
+        fi
+        
+        # Check for unknown typography classes
+        if grep -r "\.ty-[a-zA-Z_-]*" --include="*.css" --include="*.html" --include="*.jsx" --include="*.tsx" . | grep -v -E "\.(ty-caption|ty-body|ty-body-bold|ty-subheading|ty-heading|ty-title)\b"; then
+          echo "❌ FAIL: Found unknown typography classes. Only .ty-caption, .ty-body, .ty-body-bold, .ty-subheading, .ty-heading, .ty-title are allowed."
+          exit 1
+        fi
+        
+        echo "✅ PASS: No forbidden typography patterns found."
+        
+    - name: Validate typography consistency in Python files
+      run: |
+        echo "🐍 Checking Python typography consistency..."
+        
+        # Check for old typography names in get_typography() calls
+        FORBIDDEN_TYPOGRAPHY=(
+          "button_lg" "button_md" "button_sm" 
+          "heading_lg" "heading_md" "heading_sm"
+          "body_sm" "body_lg" "body_md"
+          "label_bold" "label_sm" "label_lg"
+          "caption_sm" "caption_lg"
+          "title_lg" "title_md" "display" "display_lg"
+          "menu" "status" "small" "small_normal"
+        )
+        
+        FAILED=false
+        for typography in "${FORBIDDEN_TYPOGRAPHY[@]}"; do
+          if grep -r "get_typography('$typography')" --include="*.py" .; then
+            echo "❌ FAIL: Found deprecated typography '$typography' in Python files."
+            FAILED=true
+          fi
+          if grep -r "get_typography(\"$typography\")" --include="*.py" .; then
+            echo "❌ FAIL: Found deprecated typography '$typography' in Python files."  
+            FAILED=true
+          fi
+        done
+        
+        if [ "$FAILED" = true ]; then
+          echo "❌ Use typography codemod to fix deprecated typography usage:"
+          echo "   node typography-codemod.js . --dry-run"
+          exit 1
+        fi
+        
+        echo "✅ PASS: All Python typography usage is current."
+        
+    - name: Validate JavaScript/TypeScript typography
+      run: |
+        echo "📜 Checking JavaScript/TypeScript typography consistency..."
+        
+        # Check for inline font-size in JS/TS files
+        if grep -r "fontSize:\s*['\"][0-9]" --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" .; then
+          echo "❌ FAIL: Found hardcoded fontSize in JS/TS files. Use typography system instead."
+          exit 1
+        fi
+        
+        # Check for style objects with font properties
+        if grep -r "fontWeight:\s*['\"][0-9]" --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" .; then
+          echo "❌ FAIL: Found hardcoded fontWeight in JS/TS files. Use typography system instead."
+          exit 1
+        fi
+        
+        echo "✅ PASS: All JavaScript/TypeScript typography usage is compliant."
+
+  typography-analysis:
+    name: Typography Usage Analysis
+    runs-on: ubuntu-latest
+    needs: typography-lint
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Run typography analysis
+      run: |
+        echo "📊 Analyzing typography usage across project..."
+        
+        # Count typography usage
+        echo "Typography classes found:"
+        grep -r "\.ty-\|get_typography\|fontSize" --include="*.py" --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" --include="*.css" --include="*.html" . | wc -l
+        
+        # Show typography distribution
+        echo ""
+        echo "Typography distribution:"
+        grep -rho "\.ty-[a-zA-Z-]*\|get_typography('[^']*')" --include="*.py" --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" --include="*.css" --include="*.html" . | sort | uniq -c | sort -nr
+        
+    - name: Generate typography report
+      run: |
+        echo "📋 Generating typography compliance report..."
+        
+        TOTAL_FILES=$(find . -name "*.py" -o -name "*.js" -o -name "*.jsx" -o -name "*.ts" -o -name "*.tsx" -o -name "*.css" -o -name "*.html" | wc -l)
+        TYPOGRAPHY_FILES=$(grep -rl "\.ty-\|get_typography\|fontSize" --include="*.py" --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" --include="*.css" --include="*.html" . | wc -l)
+        
+        echo ""
+        echo "🎯 Typography System Compliance Report"
+        echo "======================================"
+        echo "Total files: $TOTAL_FILES"
+        echo "Files using typography: $TYPOGRAPHY_FILES"
+        echo "Coverage: $((TYPOGRAPHY_FILES * 100 / TOTAL_FILES))%"
+        echo "Timestamp: $(date)"
+        echo ""
+        
+        # Check if all expected typography classes are present
+        EXPECTED_CLASSES=("ty-caption" "ty-body" "ty-body-bold" "ty-subheading" "ty-heading" "ty-title")
+        echo "Expected typography classes status:"
+        for class in "${EXPECTED_CLASSES[@]}"; do
+          if grep -r "\.$class\b" --include="*.css" --include="*.html" --include="*.jsx" --include="*.tsx" . >/dev/null; then
+            echo "  ✅ $class: Found"
+          else
+            echo "  ⚠️  $class: Not found in usage"
+          fi
+        done
+
+    - name: Enforce PowerShell legacy typography analysis
+      shell: pwsh
+      run: |
+        Write-Host "🧪 Running PowerShell typography-analysis.ps1 (legacy enforcement)" -ForegroundColor Cyan
+        if (-not (Test-Path ./typography-analysis.ps1)) {
+          Write-Host "⚠️  typography-analysis.ps1 not found – skipping PowerShell enforcement" -ForegroundColor Yellow
+          exit 0
+        }
+        ./typography-analysis.ps1 -Directory .
+      # Script exits with code 2 if legacy tokens are present; this will fail the job automatically
+
+  security-check:
+    name: Security & Performance Check
+    runs-on: ubuntu-latest
+    needs: typography-lint
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check for performance anti-patterns
+      run: |
+        echo "⚡ Checking for typography performance anti-patterns..."
+        
+        # Check for excessive font loading
+        if grep -r "@import.*fonts\.googleapis" --include="*.css" . | wc -l | xargs test 3 -lt; then
+          echo "⚠️  WARNING: Multiple Google Fonts imports detected. Consider font loading optimization."
+        fi
+        
+        # Check for inline styles
+        if grep -r "style=" --include="*.html" --include="*.jsx" --include="*.tsx" . | grep -E "(font-size|font-weight|font-family)" | wc -l | xargs test 5 -lt; then
+          echo "⚠️  WARNING: Multiple inline font styles detected. Use typography classes instead."
+        fi
+        
+        # Check for unused CSS
+        CSS_CLASSES=$(grep -rho "\.ty-[a-zA-Z-]*" --include="*.css" . | sort | uniq)
+        USAGE_COUNT=0
+        for class in $CSS_CLASSES; do
+          class_name=$(echo $class | sed 's/^\.//')
+          if grep -r "$class_name" --include="*.html" --include="*.jsx" --include="*.tsx" --include="*.py" . >/dev/null; then
+            USAGE_COUNT=$((USAGE_COUNT + 1))
+          fi
+        done
+        
+        echo "✅ Typography performance check completed."
+        echo "CSS typography classes with usage: $USAGE_COUNT"
+
+  documentation-check:
+    name: Documentation Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Validate typography documentation
+      run: |
+        echo "📚 Validating typography system documentation..."
+        
+        # Check for required documentation files
+        REQUIRED_DOCS=(
+          "design-tokens.css"
+          "typography-demo.html"
+          "tailwind.config.js"
+          ".stylelintrc.json"
+        )
+        
+        MISSING_DOCS=false
+        for doc in "${REQUIRED_DOCS[@]}"; do
+          if [ ! -f "$doc" ]; then
+            echo "❌ Missing required documentation: $doc"
+            MISSING_DOCS=true
+          else
+            echo "✅ Found: $doc"
+          fi
+        done
+        
+        if [ "$MISSING_DOCS" = true ]; then
+          echo "❌ FAIL: Missing required typography system documentation."
+          exit 1
+        fi
+        
+        # Validate that documentation mentions all typography classes
+        REQUIRED_CLASSES=("ty-caption" "ty-body" "ty-body-bold" "ty-subheading" "ty-heading" "ty-title")
+        for class in "${REQUIRED_CLASSES[@]}"; do
+          if ! grep -r "$class" design-tokens.css typography-demo.html >/dev/null; then
+            echo "⚠️  WARNING: Typography class $class not documented in demo files."
+          fi
+        done
+        
+        echo "✅ PASS: Typography documentation validation completed."
+
+  # Optional: Auto-fix and create PR
+  auto-fix:
+    name: Auto-fix Typography Issues
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [typography-lint, typography-analysis]
+    # Only run if there are failures (this would be configured based on needs results)
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Run typography codemod
+      run: |
+        echo "🔧 Attempting to auto-fix typography issues..."
+        
+        # Only run if codemod exists
+        if [ -f "typography-codemod.js" ]; then
+          node typography-codemod.js . --verbose
+          
+          # Check if changes were made
+          if git diff --quiet; then
+            echo "✅ No changes needed or made."
+          else
+            echo "📝 Typography fixes applied."
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            git add .
+            git commit -m "🎨 Auto-fix typography system compliance
+
+- Applied typography codemod
+- Standardized typography usage
+- Ensured design system compliance
+
+Generated by Typography CI/CD Pipeline"
+            
+            # Push changes back to PR branch
+            git push
+          fi
+        else
+          echo "⚠️  Typography codemod not available for auto-fix."
+        fi
+
+  deploy-docs:
+    name: Deploy Typography Documentation
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: [typography-lint, typography-analysis, documentation-check]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Deploy typography demo to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: .
+        publish_branch: gh-pages
+        destination_dir: typography-system
+        keep_files: true
+        
+    - name: Comment on PR with demo link
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '🎨 Typography System Demo deployed! View at: https://' + context.repo.owner + '.github.io/' + context.repo.repo + '/typography-system/typography-demo.html'
+          })

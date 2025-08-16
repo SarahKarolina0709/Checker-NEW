@@ -1,0 +1,33 @@
+{
+  "timestamp": "2025-07-23 12:35:58",
+  "total_lines": 7322,
+  "compliance_score": 75,
+  "violations": [
+    {
+      "type": "direct_ctkfont_calls",
+      "count": 27,
+      "severity": "HIGH",
+      "description": "27 direkte CTkFont-Aufrufe gefunden"
+    },
+    {
+      "type": "hardcoded_sizes",
+      "count": 34,
+      "severity": "MEDIUM",
+      "description": "34 hartcodierte Schriftgrößen gefunden"
+    }
+  ],
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "action": "Konvertiere 27 direkte CTkFont-Aufrufe zu get_typography()",
+      "benefit": "Zentrale Font-Verwaltung und bessere Performance"
+    }
+  ],
+  "statistics": {
+    "typography_calls": 117,
+    "typography_types": 14,
+    "typography_ratio": 81.25,
+    "reuse_factor": 8.357142857142858
+  },
+  "status": "✅ GUT"
+}

@@ -16,7 +16,7 @@ from .format_manager import FormatExportManager
 
 __all__ = [
     'ExportSystemManager',
-    'PDFExportSystem', 
+    'PDFExportSystem',
     'FormatExportManager',
     'create_modern_export_system',
     'exportiere_bericht_pdf',

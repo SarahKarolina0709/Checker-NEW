@@ -4,21 +4,21 @@ NotificationCenter for the Modular CheckerApp Architecture
 Centralizes user notifications and feedback, providing a consistent
 user experience for alerts, confirmations, and information messages.
 """
-import logging
-import tkinter as tk
-from tkinter import messagebox
 from typing import Optional, TYPE_CHECKING
-import customtkinter as ctk
+import logging
+
+from tkinter import messagebox
 
 if TYPE_CHECKING:
-    from core.app import CheckerApp
+    pass
+
 
 class NotificationCenter:
     """
     Manages all user-facing notifications, including pop-up messages
     and status bar updates.
     """
-    
+
     def __init__(self, app: 'CheckerApp'):
         """Initialize the NotificationCenter."""
         self.app = app
@@ -50,4 +50,3 @@ class NotificationCenter:
             self.app.ui_manager.update_status(message, level)
         else:
             self.logger.warning("UI Manager not available to update status.")
-

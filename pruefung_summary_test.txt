@@ -1,9 +1,0 @@
-Prüfungsergebnis:
-Die Analyse für 1 Datei(en) und 2 Prüfungsoptionen wurde abgeschlossen.
-
-Zusammenfassung:
-- 1 Datei(en) wurden analysiert.
-- 2 Prüfungsoptionen wurden angewendet.
-
-Datei: test.txt
-- Datei erfolgreich analysiert

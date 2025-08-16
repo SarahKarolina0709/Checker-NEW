@@ -6,7 +6,7 @@ Refactored from monolithic checker_app.py into maintainable modules.
 
 Structure:
 - core/      : Application core and configuration
-- ui/        : User interface components  
+- ui/        : User interface components
 - customer/  : Customer management
 - workflows/ : Business workflow logic
 - upload/    : File upload and processing

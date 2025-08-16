@@ -1,72 +1,18 @@
 {
-  "customer_001": {
-    "name": "Müller GmbH",
-    "code": "MUE",
-    "company": "Müller GmbH & Co. KG",
-    "contact": "Hans Müller",
-    "email": "mueller@firma.de",
-    "notes": "Hauptkunde für technische Übersetzungen",
-    "created": "2025-07-13T00:00:00",
-    "projects": []
-  },
-  "customer_002": {
-    "name": "TechCorp AG",
-    "code": "TCO",
-    "company": "TechCorp AG",
-    "contact": "Sarah Schmidt",
-    "email": "schmidt@techcorp.com",
-    "notes": "Spezialisiert auf IT-Dokumentation",
-    "created": "2025-07-13T00:00:00",
-    "projects": []
-  },
-  "customer_003": {
-    "name": "International Services",
-    "code": "INT",
-    "company": "International Services Ltd.",
-    "contact": "John Smith",
-    "email": "john@intlservices.com",
-    "notes": "Englisch-Deutsche Übersetzungen",
-    "created": "2025-07-13T00:00:00",
-    "projects": []
-  },
-  "customer_20250714_105845": {
-    "name": "Sarah",
-    "code": "SAR",
-    "company": "Sarah",
-    "contact": "",
-    "email": "",
-    "notes": "",
-    "created": "2025-07-14T10:58:45.907713",
-    "projects": []
-  },
-  "customer_20250714_110538": {
-    "name": "Demo Firma",
-    "code": "DEMO",
-    "company": "Demo Firma AG & Co. KG",
-    "contact": "Max Mustermann",
-    "email": "max@demofirma.de",
-    "notes": "",
-    "created": "2025-07-14T11:05:38.128734",
-    "projects": []
-  },
-  "customer_20250714_110638": {
-    "name": "Demo Firma",
-    "code": "DEMO",
-    "company": "Demo Firma AG & Co. KG",
-    "contact": "Max Mustermann",
-    "email": "max@demofirma.de",
-    "notes": "",
-    "created": "2025-07-14T11:06:38.472028",
-    "projects": []
-  },
-  "customer_20250714_110656": {
-    "name": "Demo Firma",
-    "code": "DEMO",
-    "company": "Demo Firma AG & Co. KG",
-    "contact": "Max Mustermann",
-    "email": "max@demofirma.de",
-    "notes": "",
-    "created": "2025-07-14T11:06:56.020552",
-    "projects": []
-  }
+    "customers": [
+        {
+            "name": "neu",
+            "created": "2025-08-15T19:03:22.717909",
+            "projects": 0,
+            "last_activity": "2025-08-15T19:03:22.717909"
+        },
+        {
+            "name": "weiter",
+            "created": "2025-08-15T19:14:18.305252",
+            "projects": 0,
+            "last_activity": "2025-08-15T19:14:18.305252"
+        }
+    ],
+    "favorites": [],
+    "last_updated": "2025-08-15T23:24:36.680334"
 }

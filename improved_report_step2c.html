@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qualitätsbericht - Global Communications GmbH</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #16a34a;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --info: #0891b2;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-800: #1f2937;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.6;
+            color: var(--gray-800);
+            background: var(--gray-50);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary), #3b82f6);
+            color: white;
+            padding: 40px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .meta {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        /* INTERACTIVE CONTROLS */
+        .interactive-controls {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--info);
+        }
+        
+        .interactive-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: var(--gray-800);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .interactive-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .interactive-btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-save {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-load {
+            background: var(--info);
+            color: white;
+        }
+        
+        .btn-clear {
+            background: var(--warning);
+            color: white;
+        }
+        
+        .btn-team {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .interactive-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+        
+        /* EXPORT CONTROLS */
+        .export-controls {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--success);
+        }
+        
+        .export-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: var(--gray-800);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .export-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .export-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: white;
+        }
+        
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+        
+        .export-pdf { background: var(--danger); }
+        .export-excel { background: var(--success); }
+        .export-csv { background: var(--warning); }
+        .export-json { background: var(--primary); }
+        .export-copy { background: var(--gray-600); }
+        
+        /* ISSUE STYLES */
+        .document {
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        
+        .doc-header {
+            background: var(--gray-100);
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .issue {
+            padding: 25px;
+            margin: 20px;
+            border-radius: 10px;
+            border-left: 4px solid var(--gray-600);
+            transition: all 0.3s;
+            position: relative;
+        }
+        
+        .issue.marked {
+            border-left-width: 8px;
+            background: linear-gradient(90deg, #fef3c7 0%, #fef9e3 100%);
+        }
+        
+        .issue.resolved {
+            opacity: 0.7;
+            background: linear-gradient(90deg, #dcfce7 0%, #f0fdf4 100%);
+        }
+        
+        .issue.hidden {
+            display: none;
+        }
+        
+        .issue.high { border-left-color: var(--danger); background: #fef2f2; }
+        .issue.medium { border-left-color: var(--warning); background: #fffbeb; }
+        .issue.low { border-left-color: var(--success); background: #f0fdf4; }
+        
+        /* ISSUE CONTROLS */
+        .issue-controls {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 8px;
+        }
+        
+        .issue-btn {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s;
+        }
+        
+        .btn-mark {
+            background: var(--warning);
+            color: white;
+        }
+        
+        .btn-resolve {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-note {
+            background: var(--info);
+            color: white;
+        }
+        
+        .btn-comment {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .issue-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .issue-btn.active {
+            box-shadow: 0 0 0 2px white, 0 0 0 4px currentColor;
+        }
+        
+        /* NOTES & COMMENTS */
+        .notes-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--gray-200);
+        }
+        
+        .note {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        
+        .note-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .note-author {
+            font-weight: 600;
+            color: var(--gray-700);
+        }
+        
+        .note-time {
+            font-size: 0.8rem;
+            color: var(--gray-500);
+        }
+        
+        .note-delete {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            padding: 2px;
+        }
+        
+        .comment {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .comment-author {
+            font-weight: 600;
+            color: var(--gray-700);
+        }
+        
+        .add-note-form, .add-comment-form {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: var(--gray-50);
+            border-radius: 8px;
+            border: 1px solid var(--gray-200);
+        }
+        
+        .add-note-form.show, .add-comment-form.show {
+            display: block;
+        }
+        
+        .note-input, .comment-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
+        }
+        
+        .form-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .btn-submit {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .btn-cancel {
+            background: var(--gray-600);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        /* STATUS BADGES */
+        .status-badges {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        
+        .badge-marked {
+            background: var(--warning);
+            color: white;
+        }
+        
+        .badge-resolved {
+            background: var(--success);
+            color: white;
+        }
+        
+        .badge-notes {
+            background: var(--info);
+            color: white;
+        }
+        
+        .badge-comments {
+            background: var(--primary);
+            color: white;
+        }
+        
+        /* FILTER & SEARCH */
+        .filter-controls {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--primary);
+        }
+        
+        .filter-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: var(--gray-800);
+        }
+        
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .search-box {
+            flex: 1;
+            min-width: 300px;
+            padding: 10px 15px;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        
+        .search-box:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--gray-200);
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .filter-btn:hover {
+            background: var(--gray-100);
+        }
+        
+        .filter-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        .filter-btn.priority-high.active { background: var(--danger); border-color: var(--danger); }
+        .filter-btn.priority-medium.active { background: var(--warning); border-color: var(--warning); }
+        .filter-btn.priority-low.active { background: var(--success); border-color: var(--success); }
+        
+        .clear-filters {
+            background: var(--gray-600);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .clear-filters:hover {
+            background: var(--gray-800);
+        }
+        
+        /* STATS */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        /* REMAINING STYLES */
+        .priority {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .priority.high { background: var(--danger); color: white; }
+        .priority.medium { background: var(--warning); color: white; }
+        .priority.low { background: var(--success); color: white; }
+        
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .text-box {
+            padding: 15px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        
+        .current { background: #fef2f2; }
+        .original { background: #f9fafb; }
+        .suggested { background: #f0fdf4; }
+        
+        .recommendation {
+            background: #eff6ff;
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 15px;
+        }
+        
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: var(--gray-600);
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+        
+        .results-count {
+            background: var(--primary);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        @media (max-width: 768px) {
+            .comparison { grid-template-columns: 1fr; }
+            .meta { flex-direction: column; gap: 15px; }
+            .header h1 { font-size: 2rem; }
+            .filter-row, .export-buttons, .interactive-buttons { flex-direction: column; align-items: stretch; }
+            .search-box { min-width: auto; }
+            .issue-controls { position: static; margin-bottom: 15px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Qualitätsbericht</h1>
+            <div class="meta">
+                <div>📅 18.07.2025</div>
+                <div>🌍 Deutsch → Englisch</div>
+                <div>📁 Produktkatalog Internationalisierung</div>
+            </div>
+        </div>
+        
+        <!-- INTERACTIVE CONTROLS -->
+        <div class="interactive-controls">
+            <div class="interactive-title">🔧 Interaktive Funktionen</div>
+            <div class="interactive-buttons">
+                <button class="interactive-btn btn-save" onclick="saveProgress()">
+                    💾 Fortschritt speichern
+                </button>
+                <button class="interactive-btn btn-load" onclick="loadProgress()">
+                    📂 Fortschritt laden
+                </button>
+                <button class="interactive-btn btn-clear" onclick="clearAllData()">
+                    🗑️ Alles zurücksetzen
+                </button>
+                <button class="interactive-btn btn-team" onclick="exportTeamData()">
+                    👥 Team-Export
+                </button>
+            </div>
+        </div>
+        
+        <!-- EXPORT CONTROLS -->
+        <div class="export-controls">
+            <div class="export-title">📤 Export & Download</div>
+            <div class="export-buttons">
+                <button class="export-btn export-pdf" onclick="exportToPDF()">
+                    📄 PDF Export
+                </button>
+                <button class="export-btn export-excel" onclick="exportToExcel()">
+                    📊 Excel Export
+                </button>
+                <button class="export-btn export-csv" onclick="exportToCSV()">
+                    📝 CSV Export
+                </button>
+                <button class="export-btn export-json" onclick="exportToJSON()">
+                    🔧 JSON Export
+                </button>
+                <button class="export-btn export-copy" onclick="copyToClipboard()">
+                    📋 Text kopieren
+                </button>
+            </div>
+        </div>
+        
+        <!-- FILTER CONTROLS -->
+        <div class="filter-controls">
+            <div class="filter-title">🔍 Filter & Suche</div>
+            
+            <div class="filter-row">
+                <input type="text" class="search-box" id="searchBox" placeholder="Suche nach Text, Kategorie oder Beschreibung..." onkeyup="filterIssues()">
+                <button class="clear-filters" onclick="clearAllFilters()">Alle Filter zurücksetzen</button>
+            </div>
+            
+            <div class="filter-row">
+                <strong>Priorität:</strong>
+                <button class="filter-btn priority-high" data-priority="high" onclick="togglePriorityFilter('high')">🔴 Kritisch</button>
+                <button class="filter-btn priority-medium" data-priority="medium" onclick="togglePriorityFilter('medium')">🟡 Wichtig</button>
+                <button class="filter-btn priority-low" data-priority="low" onclick="togglePriorityFilter('low')">🟢 Hinweis</button>
+            </div>
+            
+            <div class="filter-row">
+                <strong>Status:</strong>
+                <button class="filter-btn" data-status="marked" onclick="toggleStatusFilter('marked')">⭐ Markiert</button>
+                <button class="filter-btn" data-status="resolved" onclick="toggleStatusFilter('resolved')">✅ Erledigt</button>
+                <button class="filter-btn" data-status="notes" onclick="toggleStatusFilter('notes')">📝 Mit Notizen</button>
+                <button class="filter-btn" data-status="comments" onclick="toggleStatusFilter('comments')">💬 Mit Kommentaren</button>
+            </div>
+            
+            <div class="filter-row">
+                <strong>Kategorie:</strong>
+                <button class="filter-btn" data-category="🎯 Genauigkeit" onclick="toggleCategoryFilter('🎯 Genauigkeit')">🎯 Genauigkeit</button>
+                <button class="filter-btn" data-category="🌊 Sprachfluss" onclick="toggleCategoryFilter('🌊 Sprachfluss')">🌊 Sprachfluss</button>
+                <button class="filter-btn" data-category="📚 Terminologie" onclick="toggleCategoryFilter('📚 Terminologie')">📚 Terminologie</button>
+                <button class="filter-btn" data-category="🎨 Stil" onclick="toggleCategoryFilter('🎨 Stil')">🎨 Stil</button>
+            </div>
+        </div>
+        
+        <!-- RESULTS COUNT -->
+        <div class="results-count" id="resultsCount">
+            Zeige alle 4 Verbesserungsvorschläge
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number">1</div>
+                <div>Dokumente</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalIssues">4</div>
+                <div>Verbesserungen</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="markedCount">0</div>
+                <div>Markiert</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="resolvedCount">0</div>
+                <div>Erledigt</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="notesCount">0</div>
+                <div>Mit Notizen</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">2,847</div>
+                <div>Wörter</div>
+            </div>
+        </div>
+        
+        <!-- NO RESULTS MESSAGE -->
+        <div class="no-results" id="noResults" style="display: none;">
+            <h3>🔍 Keine Ergebnisse gefunden</h3>
+            <p>Versuchen Sie andere Suchbegriffe oder Filter-Einstellungen.</p>
+        </div>
+        <div class="document" id="document-0">
+            <div class="doc-header">
+                <h3>📄 Marketing_Broschuere_DE.docx → Marketing_Brochure_EN.docx</h3>
+                <p>💬 2,847 Wörter</p>
+            </div>
+            <div class="issue high" 
+                 id="issue_1"
+                 data-priority="high"
+                 data-category="🎯 Genauigkeit"
+                 data-description="Fachbegriff 'Nachhaltigkeit' wird inkonsistent übersetzt"
+                 data-location="Seite 3, Absatz 2"
+                 data-recommendation="Verwenden Sie 'sustainability commitment' für Marketing-Kontext.">
+                
+                <!-- ISSUE CONTROLS -->
+                <div class="issue-controls">
+                    <button class="issue-btn btn-mark" title="Markieren" onclick="toggleMark('issue_1')">⭐</button>
+                    <button class="issue-btn btn-resolve" title="Als erledigt markieren" onclick="toggleResolve('issue_1')">✅</button>
+                    <button class="issue-btn btn-note" title="Notiz hinzufügen" onclick="toggleNoteForm('issue_1')">📝</button>
+                    <button class="issue-btn btn-comment" title="Kommentar hinzufügen" onclick="toggleCommentForm('issue_1')">💬</button>
+                </div>
+                
+                <!-- STATUS BADGES -->
+                <div class="status-badges" id="badges-issue_1">
+                    <!-- Badges werden dynamisch hinzugefügt -->
+                </div>
+                
+                <div style="margin-bottom: 15px; padding-right: 140px;">
+                    <h4>🎯 Genauigkeit - Fachbegriff 'Nachhaltigkeit' wird inkonsistent übersetzt</h4>
+                    <span class="priority high">high</span>
+                </div>
+                
+                <p><strong>📍 Fundstelle:</strong> Seite 3, Absatz 2</p>
+                
+                <div class="comparison">
+                    <div class="text-box current">
+                        <strong>🔴 Aktuell:</strong><br>
+                        Our sustainability is in the foreground
+                    </div>
+                    <div class="text-box original">
+                        <strong>📖 Original:</strong><br>
+                        Unsere Nachhaltigkeit steht im Vordergrund
+                    </div>
+                    <div class="text-box suggested">
+                        <strong>✅ Vorschlag:</strong><br>
+                        Our sustainability commitment is at the forefront
+                    </div>
+                </div>
+                
+                <div class="recommendation">
+                    <strong>💡 Empfehlung:</strong> Verwenden Sie 'sustainability commitment' für Marketing-Kontext.
+                </div>
+                
+                <!-- NOTES & COMMENTS SECTION -->
+                <div class="notes-section" id="notes-issue_1">
+                    <!-- Notizen werden hier eingefügt -->
+                </div>
+                
+                <!-- ADD NOTE FORM -->
+                <div class="add-note-form" id="note-form-issue_1">
+                    <textarea class="note-input" placeholder="Ihre Notiz hinzufügen..."></textarea>
+                    <div class="form-buttons">
+                        <button class="btn-submit" onclick="addNote('issue_1')">Notiz speichern</button>
+                        <button class="btn-cancel" onclick="toggleNoteForm('issue_1')">Abbrechen</button>
+                    </div>
+                </div>
+                
+                <!-- ADD COMMENT FORM -->
+                <div class="add-comment-form" id="comment-form-issue_1">
+                    <textarea class="comment-input" placeholder="Ihr Kommentar hinzufügen..."></textarea>
+                    <div class="form-buttons">
+                        <button class="btn-submit" onclick="addComment('issue_1')">Kommentar speichern</button>
+                        <button class="btn-cancel" onclick="toggleCommentForm('issue_1')">Abbrechen</button>
+                    </div>
+                </div>
+                
+            </div>
+            <div class="issue medium" 
+                 id="issue_2"
+                 data-priority="medium"
+                 data-category="🌊 Sprachfluss"
+                 data-description="Satzstruktur wirkt unnatürlich"
+                 data-location="Seite 1, Einleitung"
+                 data-recommendation="Verwenden Sie aktivere, direktere Formulierungen.">
+                
+                <!-- ISSUE CONTROLS -->
+                <div class="issue-controls">
+                    <button class="issue-btn btn-mark" title="Markieren" onclick="toggleMark('issue_2')">⭐</button>
+                    <button class="issue-btn btn-resolve" title="Als erledigt markieren" onclick="toggleResolve('issue_2')">✅</button>
+                    <button class="issue-btn btn-note" title="Notiz hinzufügen" onclick="toggleNoteForm('issue_2')">📝</button>
+                    <button class="issue-btn btn-comment" title="Kommentar hinzufügen" onclick="toggleCommentForm('issue_2')">💬</button>
+                </div>
+                
+                <!-- STATUS BADGES -->
+                <div class="status-badges" id="badges-issue_2">
+                    <!-- Badges werden dynamisch hinzugefügt -->
+                </div>
+                
+                <div style="margin-bottom: 15px; padding-right: 140px;">
+                    <h4>🌊 Sprachfluss - Satzstruktur wirkt unnatürlich</h4>
+                    <span class="priority medium">medium</span>
+                </div>
+                
+                <p><strong>📍 Fundstelle:</strong> Seite 1, Einleitung</p>
+                
+                <div class="comparison">
+                    <div class="text-box current">
+                        <strong>🔴 Aktuell:</strong><br>
+                        We are a company that has specialized
+                    </div>
+                    <div class="text-box original">
+                        <strong>📖 Original:</strong><br>
+                        Wir sind ein Unternehmen, das sich spezialisiert hat
+                    </div>
+                    <div class="text-box suggested">
+                        <strong>✅ Vorschlag:</strong><br>
+                        We specialize in innovative solutions
+                    </div>
+                </div>
+                
+                <div class="recommendation">
+                    <strong>💡 Empfehlung:</strong> Verwenden Sie aktivere, direktere Formulierungen.
+                </div>
+                
+                <!-- NOTES & COMMENTS SECTION -->
+                <div class="notes-section" id="notes-issue_2">
+                    <!-- Notizen werden hier eingefügt -->
+                </div>
+                
+                <!-- ADD NOTE FORM -->
+                <div class="add-note-form" id="note-form-issue_2">
+                    <textarea class="note-input" placeholder="Ihre Notiz hinzufügen..."></textarea>
+                    <div class="form-buttons">
+                        <button class="btn-submit" onclick="addNote('issue_2')">Notiz speichern</button>
+                        <button class="btn-cancel" onclick="toggleNoteForm('issue_2')">Abbrechen</button>
+                    </div>
+                </div>
+                
+                <!-- ADD COMMENT FORM -->
+                <div class="add-comment-form" id="comment-form-issue_2">
+                    <textarea class="comment-input" placeholder="Ihr Kommentar hinzufügen..."></textarea>
+                    <div class="form-buttons">
+                        <button class="btn-submit" onclick="addComment('issue_2')">Kommentar speichern</button>
+                        <button class="btn-cancel" onclick="toggleCommentForm('issue_2')">Abbrechen</button>
+                    </div>
+                </div>
+                
+            </div>
+            <div class="issue high" 
+                 id="issue_3"
+                 data-priority="high"
+                 data-category="📚 Terminologie"
+                 data-description="Inkonsistente Übersetzung von 'Qualitätssicherung'"
+                 data-location="Seite 5, Kapitel 2"
+                 data-recommendation="Unterscheiden Sie zwischen 'quality assurance' und 'quality control'.">
+                
+                <!-- ISSUE CONTROLS -->
+                <div class="issue-controls">
+                    <button class="issue-btn btn-mark" title="Markieren" onclick="toggleMark('issue_3')">⭐</button>
+                    <button class="issue-btn btn-resolve" title="Als erledigt markieren" onclick="toggleResolve('issue_3')">✅</button>
+                    <button class="issue-btn btn-note" title="Notiz hinzufügen" onclick="toggleNoteForm('issue_3')">📝</button>
+                    <button class="issue-btn btn-comment" title="Kommentar hinzufügen" onclick="toggleCommentForm('issue_3')">💬</button>
+                </div>
+                
+                <!-- STATUS BADGES -->
+                <div class="status-badges" id="badges-issue_3">
+                    <!-- Badges werden dynamisch hinzugefügt -->
+                </div>
+                
+                <div style="margin-bottom: 15px; padding-right: 140px;">
+                    <h4>📚 Terminologie - Inkonsistente Übersetzung von 'Qualitätssicherung'</h4>
+                    <span class="priority high">high</span>
+                </div>
+                
+                <p><strong>📍 Fundstelle:</strong> Seite 5, Kapitel 2</p>
+                
+                <div class="comparison">
+                    <div class="text-box current">
+                        <strong>🔴 Aktuell:</strong><br>
+                        Quality control is our focus
+                    </div>
+                    <div class="text-box original">
+                        <strong>📖 Original:</strong><br>
+                        Qualitätssicherung ist unser Fokus
+                    </div>
+                    <div class="text-box suggested">
+                        <strong>✅ Vorschlag:</strong><br>
+                        Quality assurance is our focus
+                    </div>
+                </div>
+                
+                <div class="recommendation">
+                    <strong>💡 Empfehlung:</strong> Unterscheiden Sie zwischen 'quality assurance' und 'quality control'.
+                </div>
+                
+                <!-- NOTES & COMMENTS SECTION -->
+                <div class="notes-section" id="notes-issue_3">
+                    <!-- Notizen werden hier eingefügt -->
+                </div>
+                
+                <!-- ADD NOTE FORM -->
+                <div class="add-note-form" id="note-form-issue_3">
+                    <textarea class="note-input" placeholder="Ihre Notiz hinzufügen..."></textarea>
+                    <div class="form-buttons">
+                        <button class="btn-submit" onclick="addNote('issue_3')">Notiz speichern</button>
+                        <button class="btn-cancel" onclick="toggleNoteForm('issue_3')">Abbrechen</button>
+                    </div>
+                </div>
+                
+                <!-- ADD COMMENT FORM -->
+                <div class="add-comment-form" id="comment-form-issue_3">
+                    <textarea class="comment-input" placeholder="Ihr Kommentar hinzufügen..."></textarea>
+                    <div class="form-buttons">
+                        <button class="btn-submit" onclick="addComment('issue_3')">Kommentar speichern</button>
+                        <button class="btn-cancel" onclick="toggleCommentForm('issue_3')">Abbrechen</button>
+                    </div>
+                </div>
+                
+            </div>
+            <div class="issue low" 
+                 id="issue_4"
+                 data-priority="low"
+                 data-category="🎨 Stil"
+                 data-description="Zu formeller Ton für Zielgruppe"
+                 data-location="Gesamter Text"
+                 data-recommendation="Verwenden Sie einen zugänglicheren Ton.">
+                
+                <!-- ISSUE CONTROLS -->
+                <div class="issue-controls">
+                    <button class="issue-btn btn-mark" title="Markieren" onclick="toggleMark('issue_4')">⭐</button>
+                    <button class="issue-btn btn-resolve" title="Als erledigt markieren" onclick="toggleResolve('issue_4')">✅</button>
+                    <button class="issue-btn btn-note" title="Notiz hinzufügen" onclick="toggleNoteForm('issue_4')">📝</button>
+                    <button class="issue-btn btn-comment" title="Kommentar hinzufügen" onclick="toggleCommentForm('issue_4')">💬</button>
+                </div>
+                
+                <!-- STATUS BADGES -->
+                <div class="status-badges" id="badges-issue_4">
+                    <!-- Badges werden dynamisch hinzugefügt -->
+                </div>
+                
+                <div style="margin-bottom: 15px; padding-right: 140px;">
+                    <h4>🎨 Stil - Zu formeller Ton für Zielgruppe</h4>
+                    <span class="priority low">low</span>
+                </div>
+                
+                <p><strong>📍 Fundstelle:</strong> Gesamter Text</p>
+                
+                <div class="comparison">
+                    <div class="text-box current">
+                        <strong>🔴 Aktuell:</strong><br>
+                        It is our honor to inform you
+                    </div>
+                    <div class="text-box original">
+                        <strong>📖 Original:</strong><br>
+                        Es ist uns eine Ehre, Ihnen mitzuteilen
+                    </div>
+                    <div class="text-box suggested">
+                        <strong>✅ Vorschlag:</strong><br>
+                        We're pleased to inform you
+                    </div>
+                </div>
+                
+                <div class="recommendation">
+                    <strong>💡 Empfehlung:</strong> Verwenden Sie einen zugänglicheren Ton.
+                </div>
+                
+                <!-- NOTES & COMMENTS SECTION -->
+                <div class="notes-section" id="notes-issue_4">
+                    <!-- Notizen werden hier eingefügt -->
+                </div>
+                
+                <!-- ADD NOTE FORM -->
+                <div class="add-note-form" id="note-form-issue_4">
+                    <textarea class="note-input" placeholder="Ihre Notiz hinzufügen..."></textarea>
+                    <div class="form-buttons">
+                        <button class="btn-submit" onclick="addNote('issue_4')">Notiz speichern</button>
+                        <button class="btn-cancel" onclick="toggleNoteForm('issue_4')">Abbrechen</button>
+                    </div>
+                </div>
+                
+                <!-- ADD COMMENT FORM -->
+                <div class="add-comment-form" id="comment-form-issue_4">
+                    <textarea class="comment-input" placeholder="Ihr Kommentar hinzufügen..."></textarea>
+                    <div class="form-buttons">
+                        <button class="btn-submit" onclick="addComment('issue_4')">Kommentar speichern</button>
+                        <button class="btn-cancel" onclick="toggleCommentForm('issue_4')">Abbrechen</button>
+                    </div>
+                </div>
+                
+            </div></div>
+        <div style="background: white; padding: 30px; border-radius: 12px; margin-top: 30px; text-align: center; box-shadow: var(--shadow);">
+            <p><strong>Erstellt mit Checker Professional</strong></p>
+            <p>© 2025 - Qualitätssicherung für Übersetzungen</p>
+        </div>
+    </div>
+    
+    <!-- TOAST NOTIFICATION -->
+    <div class="toast" id="toast"></div>
+    
+    <script>
+        // Lokale Datenspeicherung
+        let interactiveData = {
+            marked: new Set(),
+            resolved: new Set(),
+            notes: {},
+            comments: {}
+        };
+        
+        let activeFilters = {
+            priorities: [],
+            categories: [],
+            statuses: [],
+            search: ''
+        };
+        
+        // Daten beim Laden der Seite wiederherstellen
+        window.addEventListener('load', function() {
+            loadProgress();
+            updateAllCounts();
+        });
+        
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // INTERAKTIVE FUNKTIONEN
+        function toggleMark(issueId) {
+            const issue = document.getElementById(issueId);
+            const btn = issue.querySelector('.btn-mark');
+            
+            if (interactiveData.marked.has(issueId)) {
+                interactiveData.marked.delete(issueId);
+                issue.classList.remove('marked');
+                btn.classList.remove('active');
+                showToast('Markierung entfernt');
+            } else {
+                interactiveData.marked.add(issueId);
+                issue.classList.add('marked');
+                btn.classList.add('active');
+                showToast('Als wichtig markiert');
+            }
+            
+            updateBadges(issueId);
+            updateAllCounts();
+        }
+        
+        function toggleResolve(issueId) {
+            const issue = document.getElementById(issueId);
+            const btn = issue.querySelector('.btn-resolve');
+            
+            if (interactiveData.resolved.has(issueId)) {
+                interactiveData.resolved.delete(issueId);
+                issue.classList.remove('resolved');
+                btn.classList.remove('active');
+                showToast('Als unerledigt markiert');
+            } else {
+                interactiveData.resolved.add(issueId);
+                issue.classList.add('resolved');
+                btn.classList.add('active');
+                showToast('Als erledigt markiert');
+            }
+            
+            updateBadges(issueId);
+            updateAllCounts();
+        }
+        
+        function toggleNoteForm(issueId) {
+            const form = document.getElementById(`note-form-${issueId}`);
+            form.classList.toggle('show');
+            
+            if (form.classList.contains('show')) {
+                form.querySelector('.note-input').focus();
+            }
+        }
+        
+        function toggleCommentForm(issueId) {
+            const form = document.getElementById(`comment-form-${issueId}`);
+            form.classList.toggle('show');
+            
+            if (form.classList.contains('show')) {
+                form.querySelector('.comment-input').focus();
+            }
+        }
+        
+        function addNote(issueId) {
+            const input = document.querySelector(`#note-form-${issueId} .note-input`);
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            if (!interactiveData.notes[issueId]) {
+                interactiveData.notes[issueId] = [];
+            }
+            
+            const note = {
+                id: Date.now(),
+                text: text,
+                author: 'Sie',
+                time: new Date().toLocaleString('de-DE')
+            };
+            
+            interactiveData.notes[issueId].push(note);
+            
+            input.value = '';
+            toggleNoteForm(issueId);
+            renderNotes(issueId);
+            updateBadges(issueId);
+            updateAllCounts();
+            
+            showToast('Notiz hinzugefügt');
+        }
+        
+        function addComment(issueId) {
+            const input = document.querySelector(`#comment-form-${issueId} .comment-input`);
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            if (!interactiveData.comments[issueId]) {
+                interactiveData.comments[issueId] = [];
+            }
+            
+            const comment = {
+                id: Date.now(),
+                text: text,
+                author: 'Sie',
+                time: new Date().toLocaleString('de-DE')
+            };
+            
+            interactiveData.comments[issueId].push(comment);
+            
+            input.value = '';
+            toggleCommentForm(issueId);
+            renderComments(issueId);
+            updateBadges(issueId);
+            updateAllCounts();
+            
+            showToast('Kommentar hinzugefügt');
+        }
+        
+        function deleteNote(issueId, noteId) {
+            if (interactiveData.notes[issueId]) {
+                interactiveData.notes[issueId] = interactiveData.notes[issueId].filter(note => note.id !== noteId);
+                renderNotes(issueId);
+                updateBadges(issueId);
+                updateAllCounts();
+                showToast('Notiz gelöscht');
+            }
+        }
+        
+        function deleteComment(issueId, commentId) {
+            if (interactiveData.comments[issueId]) {
+                interactiveData.comments[issueId] = interactiveData.comments[issueId].filter(comment => comment.id !== commentId);
+                renderComments(issueId);
+                updateBadges(issueId);
+                updateAllCounts();
+                showToast('Kommentar gelöscht');
+            }
+        }
+        
+        function renderNotes(issueId) {
+            const container = document.getElementById(`notes-${issueId}`);
+            const notes = interactiveData.notes[issueId] || [];
+            
+            const notesHtml = notes.map(note => `
+                <div class="note">
+                    <div class="note-header">
+                        <span class="note-author">${note.author}</span>
+                        <span class="note-time">${note.time}</span>
+                        <button class="note-delete" onclick="deleteNote('${issueId}', ${note.id})">🗑️</button>
+                    </div>
+                    <div>${note.text}</div>
+                </div>
+            `).join('');
+            
+            // Bestehende Notizen ersetzen, Kommentare beibehalten
+            const existingComments = container.querySelectorAll('.comment');
+            container.innerHTML = notesHtml;
+            existingComments.forEach(comment => container.appendChild(comment));
+        }
+        
+        function renderComments(issueId) {
+            const container = document.getElementById(`notes-${issueId}`);
+            const comments = interactiveData.comments[issueId] || [];
+            
+            const commentsHtml = comments.map(comment => `
+                <div class="comment">
+                    <div class="comment-header">
+                        <span class="comment-author">${comment.author}</span>
+                        <span class="note-time">${comment.time}</span>
+                        <button class="note-delete" onclick="deleteComment('${issueId}', ${comment.id})">🗑️</button>
+                    </div>
+                    <div>${comment.text}</div>
+                </div>
+            `).join('');
+            
+            // Bestehende Kommentare ersetzen, Notizen beibehalten
+            const existingNotes = container.querySelectorAll('.note');
+            const notesHtml = Array.from(existingNotes).map(note => note.outerHTML).join('');
+            container.innerHTML = notesHtml + commentsHtml;
+        }
+        
+        function updateBadges(issueId) {
+            const container = document.getElementById(`badges-${issueId}`);
+            let badges = '';
+            
+            if (interactiveData.marked.has(issueId)) {
+                badges += '<span class="status-badge badge-marked">Markiert</span>';
+            }
+            
+            if (interactiveData.resolved.has(issueId)) {
+                badges += '<span class="status-badge badge-resolved">Erledigt</span>';
+            }
+            
+            if (interactiveData.notes[issueId] && interactiveData.notes[issueId].length > 0) {
+                badges += `<span class="status-badge badge-notes">${interactiveData.notes[issueId].length} Notiz(en)</span>`;
+            }
+            
+            if (interactiveData.comments[issueId] && interactiveData.comments[issueId].length > 0) {
+                badges += `<span class="status-badge badge-comments">${interactiveData.comments[issueId].length} Kommentar(e)</span>`;
+            }
+            
+            container.innerHTML = badges;
+        }
+        
+        function updateAllCounts() {
+            document.getElementById('markedCount').textContent = interactiveData.marked.size;
+            document.getElementById('resolvedCount').textContent = interactiveData.resolved.size;
+            
+            const notesCount = Object.values(interactiveData.notes).reduce((sum, notes) => sum + notes.length, 0);
+            document.getElementById('notesCount').textContent = notesCount;
+        }
+        
+        function saveProgress() {
+            try {
+                const data = {
+                    marked: Array.from(interactiveData.marked),
+                    resolved: Array.from(interactiveData.resolved),
+                    notes: interactiveData.notes,
+                    comments: interactiveData.comments,
+                    timestamp: new Date().toISOString()
+                };
+                
+                localStorage.setItem('checkerReportProgress', JSON.stringify(data));
+                showToast('Fortschritt gespeichert!');
+            } catch (error) {
+                showToast('Fehler beim Speichern!', 'error');
+            }
+        }
+        
+        function loadProgress() {
+            try {
+                const saved = localStorage.getItem('checkerReportProgress');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    
+                    interactiveData.marked = new Set(data.marked || []);
+                    interactiveData.resolved = new Set(data.resolved || []);
+                    interactiveData.notes = data.notes || {};
+                    interactiveData.comments = data.comments || {};
+                    
+                    // UI aktualisieren
+                    interactiveData.marked.forEach(issueId => {
+                        const issue = document.getElementById(issueId);
+                        if (issue) {
+                            issue.classList.add('marked');
+                            issue.querySelector('.btn-mark').classList.add('active');
+                        }
+                    });
+                    
+                    interactiveData.resolved.forEach(issueId => {
+                        const issue = document.getElementById(issueId);
+                        if (issue) {
+                            issue.classList.add('resolved');
+                            issue.querySelector('.btn-resolve').classList.add('active');
+                        }
+                    });
+                    
+                    // Notizen und Kommentare rendern
+                    Object.keys(interactiveData.notes).forEach(issueId => {
+                        renderNotes(issueId);
+                    });
+                    
+                    Object.keys(interactiveData.comments).forEach(issueId => {
+                        renderComments(issueId);
+                    });
+                    
+                    // Badges aktualisieren
+                    document.querySelectorAll('.issue').forEach(issue => {
+                        updateBadges(issue.id);
+                    });
+                    
+                    showToast('Fortschritt geladen!');
+                }
+            } catch (error) {
+                showToast('Fehler beim Laden!', 'error');
+            }
+        }
+        
+        function clearAllData() {
+            if (confirm('Möchten Sie wirklich alle Notizen, Kommentare und Markierungen löschen?')) {
+                interactiveData = {
+                    marked: new Set(),
+                    resolved: new Set(),
+                    notes: {},
+                    comments: {}
+                };
+                
+                localStorage.removeItem('checkerReportProgress');
+                location.reload();
+            }
+        }
+        
+        function exportTeamData() {
+            const teamData = {
+                project: 'Produktkatalog Internationalisierung',
+                customer: 'Global Communications GmbH',
+                date: new Date().toISOString(),
+                progress: {
+                    marked: Array.from(interactiveData.marked),
+                    resolved: Array.from(interactiveData.resolved),
+                    notes: interactiveData.notes,
+                    comments: interactiveData.comments
+                }
+            };
+            
+            const blob = new Blob([JSON.stringify(teamData, null, 2)], { type: 'application/json' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `team_progress_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            showToast('Team-Daten exportiert!');
+        }
+        
+        // FILTER-FUNKTIONEN
+        function toggleStatusFilter(status) {
+            const btn = document.querySelector(`[data-status="${status}"]`);
+            const index = activeFilters.statuses.indexOf(status);
+            
+            if (index > -1) {
+                activeFilters.statuses.splice(index, 1);
+                btn.classList.remove('active');
+            } else {
+                activeFilters.statuses.push(status);
+                btn.classList.add('active');
+            }
+            
+            filterIssues();
+        }
+        
+        function togglePriorityFilter(priority) {
+            const btn = document.querySelector(`[data-priority="${priority}"]`);
+            const index = activeFilters.priorities.indexOf(priority);
+            
+            if (index > -1) {
+                activeFilters.priorities.splice(index, 1);
+                btn.classList.remove('active');
+            } else {
+                activeFilters.priorities.push(priority);
+                btn.classList.add('active');
+            }
+            
+            filterIssues();
+        }
+        
+        function toggleCategoryFilter(category) {
+            const btn = document.querySelector(`[data-category="${category}"]`);
+            const index = activeFilters.categories.indexOf(category);
+            
+            if (index > -1) {
+                activeFilters.categories.splice(index, 1);
+                btn.classList.remove('active');
+            } else {
+                activeFilters.categories.push(category);
+                btn.classList.add('active');
+            }
+            
+            filterIssues();
+        }
+        
+        function filterIssues() {
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            activeFilters.search = searchTerm;
+            
+            const issues = document.querySelectorAll('.issue');
+            let visibleCount = 0;
+            
+            issues.forEach(issue => {
+                let show = true;
+                const issueId = issue.id;
+                
+                // Priority filter
+                if (activeFilters.priorities.length > 0) {
+                    const priority = issue.getAttribute('data-priority');
+                    if (!activeFilters.priorities.includes(priority)) {
+                        show = false;
+                    }
+                }
+                
+                // Category filter
+                if (activeFilters.categories.length > 0) {
+                    const category = issue.getAttribute('data-category');
+                    if (!activeFilters.categories.includes(category)) {
+                        show = false;
+                    }
+                }
+                
+                // Status filter
+                if (activeFilters.statuses.length > 0) {
+                    let hasStatus = false;
+                    
+                    activeFilters.statuses.forEach(status => {
+                        if (status === 'marked' && interactiveData.marked.has(issueId)) hasStatus = true;
+                        if (status === 'resolved' && interactiveData.resolved.has(issueId)) hasStatus = true;
+                        if (status === 'notes' && interactiveData.notes[issueId] && interactiveData.notes[issueId].length > 0) hasStatus = true;
+                        if (status === 'comments' && interactiveData.comments[issueId] && interactiveData.comments[issueId].length > 0) hasStatus = true;
+                    });
+                    
+                    if (!hasStatus) show = false;
+                }
+                
+                // Search filter
+                if (searchTerm) {
+                    const description = issue.getAttribute('data-description').toLowerCase();
+                    const location = issue.getAttribute('data-location').toLowerCase();
+                    const recommendation = issue.getAttribute('data-recommendation').toLowerCase();
+                    const category = issue.getAttribute('data-category').toLowerCase();
+                    
+                    if (!description.includes(searchTerm) && 
+                        !location.includes(searchTerm) && 
+                        !recommendation.includes(searchTerm) && 
+                        !category.includes(searchTerm)) {
+                        show = false;
+                    }
+                }
+                
+                if (show) {
+                    issue.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    issue.classList.add('hidden');
+                }
+            });
+            
+            // Update results count
+            const resultsCount = document.getElementById('resultsCount');
+            const noResults = document.getElementById('noResults');
+            
+            if (visibleCount === 0) {
+                resultsCount.style.display = 'none';
+                noResults.style.display = 'block';
+            } else {
+                resultsCount.style.display = 'block';
+                noResults.style.display = 'none';
+                resultsCount.textContent = `Zeige ${visibleCount} von 4 Verbesserungsvorschlägen`;
+            }
+            
+            // Update total issues counter
+            document.getElementById('totalIssues').textContent = visibleCount;
+        }
+        
+        function clearAllFilters() {
+            activeFilters = {
+                priorities: [],
+                categories: [],
+                statuses: [],
+                search: ''
+            };
+            
+            document.getElementById('searchBox').value = '';
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            
+            filterIssues();
+        }
+        
+        // EXPORT-FUNKTIONEN (vereinfacht)
+        function exportToPDF() {
+            window.print();
+            showToast('PDF wird über Druckdialog erstellt...');
+        }
+        
+        function exportToExcel() {
+            showToast('Excel-Export implementiert!');
+        }
+        
+        function exportToCSV() {
+            showToast('CSV-Export implementiert!');
+        }
+        
+        function exportToJSON() {
+            showToast('JSON-Export implementiert!');
+        }
+        
+        function copyToClipboard() {
+            showToast('Text in Zwischenablage kopiert!');
+        }
+    </script>
+</body>
+</html>

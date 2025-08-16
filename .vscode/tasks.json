@@ -1,0 +1,55 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run Welcome Screen Test",
+			"type": "shell",
+			"command": "${workspaceFolder}/final_test.bat",
+			"group": "build",
+			"problemMatcher": [],
+			"isBackground": false
+		},
+		{
+			"label": "Run Welcome Screen Test",
+			"type": "shell",
+			"command": "${workspaceFolder}/final_test.bat",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Welcome Screen Test",
+			"type": "shell",
+			"command": "${workspaceFolder}/final_test.bat",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Welcome Screen Test",
+			"type": "shell",
+			"command": "${workspaceFolder}/final_test.bat",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Welcome Screen Test",
+			"type": "shell",
+			"command": "${workspaceFolder}/final_test.bat",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Welcome Screen Test",
+			"type": "shell",
+			"command": "${workspaceFolder}/final_test.bat",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Welcome Screen Test",
+			"type": "shell",
+			"command": "${workspaceFolder}/final_test.bat",
+			"isBackground": false,
+			"group": "build"
+		}
+	]
+}

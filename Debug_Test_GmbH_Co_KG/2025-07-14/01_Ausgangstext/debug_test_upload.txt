@@ -1,3 +1,0 @@
-Debug Upload Test
-Erstellt: 2025-07-14 20:13:06.906509
-Diese Datei testet das Upload-System.

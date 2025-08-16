@@ -1,12 +1,13 @@
-import customtkinter as ctk
-import tkinter.messagebox as msgbox
-import tkinter as tk
-import platform
 import sys
-import psutil
-import gc
 import threading
 import time
+
+import customtkinter as ctk
+import gc
+import platform
+import psutil
+import tkinter as tk
+import tkinter.messagebox as msgbox
 
 class AppUtils:
     """
@@ -24,20 +25,19 @@ class AppUtils:
         self.logger = app.logger
 
     def toggle_theme(self):
-        """Toggle application theme."""
+        """Force light theme only - dark mode disabled."""
         try:
-            current_mode = ctk.get_appearance_mode()
-            new_mode = "Dark" if current_mode == "Light" else "Light"
-            ctk.set_appearance_mode(new_mode)
-            
+            # ALWAYS FORCE LIGHT MODE
+            ctk.set_appearance_mode("Light")
+
             if hasattr(self.app, 'enhanced_ui') and self.app.enhanced_ui:
                 try:
-                    self.app.enhanced_ui.show_toast(f"Theme gewechselt zu {new_mode}", duration=2000)
+                    self.app.enhanced_ui.show_toast("Light Mode aktiv", duration=2000)
                 except Exception as e:
                     self.logger.error(f"Toast error: {e}")
-            
-            self.logger.info(f"Theme changed from {current_mode} to {new_mode}")
-            
+
+            self.logger.info("Theme forced to Light mode")
+
         except Exception as e:
             self.app.error_monitor.handle_error(e, "Toggle Theme", "warning")
 
@@ -49,7 +49,7 @@ class AppUtils:
         """Show system information."""
         try:
             info = f"""System-Information:
-            
+
 Betriebssystem: {platform.system()} {platform.release()}
 Python-Version: {sys.version}
 Arbeitsspeicher: {round(psutil.virtual_memory().total / (1024**3), 1)} GB
@@ -62,9 +62,9 @@ Kunden: {len(self.app.kunden_manager.alle_kunden())}"""
             if hasattr(self.app, 'upload_manager') and self.app.upload_manager:
                 stats = self.app.upload_manager.get_upload_statistics()
                 info += f"\nUpload-Dateien: {stats['uploaded_files_count']}"
-            
+
             msgbox.showinfo("System-Information", info)
-            
+
         except Exception as e:
             self.app.error_monitor.handle_error(e, "Show System Info", "warning")
 
@@ -72,7 +72,7 @@ Kunden: {len(self.app.kunden_manager.alle_kunden())}"""
         """Show memory debug menu."""
         try:
             menu = tk.Menu(self.app.root, tearoff=0)
-            
+
             menu.add_command(label="Memory Statistics", command=self.show_memory_stats)
             menu.add_command(label="Performance Stats", command=self.show_performance_stats)
             menu.add_command(label="Icon Cache Stats", command=self.show_icon_cache_stats)
@@ -82,10 +82,10 @@ Kunden: {len(self.app.kunden_manager.alle_kunden())}"""
             menu.add_separator()
             menu.add_command(label="Test Background Task", command=self.test_background_task)
             menu.add_command(label="Welcome Screen Performance Insights", command=self.show_welcome_performance_insights)
-            
+
             x, y = self.app.root.winfo_pointerxy()
             menu.post(x, y)
-            
+
         except Exception as e:
             self.app.error_monitor.handle_error(e, "Memory Debug Menu", "warning")
 
@@ -101,21 +101,21 @@ Kunden: {len(self.app.kunden_manager.alle_kunden())}"""
                     print_memory_stats()
                 except ImportError:
                     pass
-                
+
                 # Also show in notification
                 try:
                     process = psutil.Process()
                     memory_mb = process.memory_info().rss / (1024 * 1024)
                     self.app.notification_center.show_notification(
-                        f"Memory Usage: {memory_mb:.1f} MB", 
+                        f"Memory Usage: {memory_mb:.1f} MB",
                         "info"
                     )
                 except Exception:
                     self.app.notification_center.show_notification(
-                        "Memory stats printed to console", 
+                        "Memory stats printed to console",
                         "info"
                     )
-                    
+
         except Exception as e:
             if hasattr(self.app, 'error_monitor') and self.app.error_monitor:
                 self.app.error_monitor.handle_error(e, "Memory Stats", "warning")
@@ -135,12 +135,12 @@ Kunden: {len(self.app.kunden_manager.alle_kunden())}"""
                     profiler.print_stats()
                 except ImportError:
                     pass
-                
+
                 self.app.notification_center.show_notification(
-                    "Performance stats printed to console", 
+                    "Performance stats printed to console",
                     "info"
                 )
-                
+
         except Exception as e:
             if hasattr(self.app, 'error_monitor') and self.app.error_monitor:
                 self.app.error_monitor.handle_error(e, "Performance Stats", "warning")
@@ -152,19 +152,19 @@ Kunden: {len(self.app.kunden_manager.alle_kunden())}"""
         try:
             if hasattr(self.app, 'icon_manager') and self.app.icon_manager:
                 stats = self.app.icon_manager.get_cache_stats()
-                
+
                 if stats:
                     if 'hit_rate' in stats:
                         message = f"Icon Cache: {stats['hits']}/{stats['total']} hits ({stats['hit_rate']:.1f}%)"
                     else:
                         message = f"Icon Cache: {stats['hits']} hits, {stats['misses']} misses"
-                    
+
                     self.app.notification_center.show_notification(message, "info")
                 else:
                     self.app.notification_center.show_notification("No cache stats available", "warning")
             else:
                 self.app.notification_center.show_notification("Icon manager not available", "warning")
-                
+
         except Exception as e:
             self.app.error_monitor.handle_error(e, "Icon Cache Stats", "warning")
 
@@ -176,7 +176,7 @@ Kunden: {len(self.app.kunden_manager.alle_kunden())}"""
                 self.app.notification_center.show_notification("Icon cache cleared", "success")
             else:
                 self.app.notification_center.show_notification("Icon manager not available", "warning")
-                
+
         except Exception as e:
             self.app.error_monitor.handle_error(e, "Clear Icon Cache", "warning")
 
@@ -185,10 +185,10 @@ Kunden: {len(self.app.kunden_manager.alle_kunden())}"""
         try:
             collected = gc.collect()
             self.app.notification_center.show_notification(
-                f"Garbage collection: {collected} objects collected", 
+                f"Garbage collection: {collected} objects collected",
                 "success"
             )
-            
+
         except Exception as e:
             self.app.error_monitor.handle_error(e, "Force GC", "warning")
 
@@ -200,25 +200,25 @@ Kunden: {len(self.app.kunden_manager.alle_kunden())}"""
                 for i in range(10):
                     if stop_event.is_set():
                         break
-                    
+
                     # Simulate work
                     time.sleep(0.5)
-                    
+
                     # Report progress (this should be thread-safe)
                     progress = (i + 1) / 10
                     self.safe_show_notification(
-                        f"Background task progress: {progress:.0%}", 
+                        f"Background task progress: {progress:.0%}",
                         "info"
                     )
-                
+
                 return "Background task completed successfully"
-            
+
             worker = self.create_background_task(test_task, "TestTask")
             self.app.notification_center.show_notification(
-                "Background task started", 
+                "Background task started",
                 "info"
             )
-                
+
         except Exception as e:
             self.app.error_monitor.handle_error(e, "Test Background Task", "warning")
 
@@ -227,7 +227,7 @@ Kunden: {len(self.app.kunden_manager.alle_kunden())}"""
         try:
             about_text = f"""{self.app.WINDOW_TITLE}
 
-Eine professionelle Anwendung zur Optimierung von 
+Eine professionelle Anwendung zur Optimierung von
 Übersetzungs-Workflows und zur Qualitätssicherung.
 
 Entwickelt für höchste Effizienz und Präzision.
@@ -248,7 +248,7 @@ Python: {sys.version.split()[0]}
             # Collect performance data
             process = psutil.Process()
             memory_mb = process.memory_info().rss / (1024 * 1024)
-            
+
             message = (
                 "Performance Insights (Welcome Screen):\n\n"
                 f"Ladezeit: ~50ms\n"
@@ -286,21 +286,21 @@ Python: {sys.version.split()[0]}
         try:
             # Create stop event for task control
             stop_event = threading.Event()
-            
+
             def task_wrapper():
                 try:
                     result = task_func(stop_event)
                     self.safe_show_notification(f"Task '{task_name}' completed: {result}", "success")
                 except Exception as e:
                     self.safe_show_notification(f"Task '{task_name}' failed: {e}", "error")
-            
+
             # Start task in background thread
             worker_thread = threading.Thread(target=task_wrapper, name=task_name)
             worker_thread.daemon = True
             worker_thread.start()
-            
+
             return worker_thread
-            
+
         except Exception as e:
             self.logger.error(f"[BACKGROUND] Failed to create task '{task_name}': {e}")
             return None
@@ -311,19 +311,19 @@ Python: {sys.version.split()[0]}
             # Memory optimization
             if hasattr(self.app, '_cleanup_memory'):
                 self.app._cleanup_memory()
-            
+
             # Icon cache optimization
             if hasattr(self.app, 'icon_manager') and self.app.icon_manager:
                 self.app.icon_manager.optimize_cache()
-            
+
             # UI responsiveness optimization
             if hasattr(self.app, 'ui_initializer') and self.app.ui_initializer:
                 self.app.ui_initializer.optimize_ui_performance()
-            
+
             # Force garbage collection
             collected = gc.collect()
-            
+
             self.logger.info(f"[OPTIMIZATION] System optimized - {collected} objects collected")
-            
+
         except Exception as e:
             self.logger.error(f"[OPTIMIZATION] Failed to apply optimizations: {e}")

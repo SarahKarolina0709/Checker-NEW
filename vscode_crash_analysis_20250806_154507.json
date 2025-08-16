@@ -1,0 +1,143 @@
+{
+  "file_sizes": {
+    "total_size_mb": 2.03,
+    "large_files": [
+      {
+        "file": "welcome_screen.py",
+        "size_kb": 493.4,
+        "lines": 10636
+      },
+      {
+        "file": "modern_translation_quality_gui.py",
+        "size_kb": 462.6,
+        "lines": 10478
+      },
+      {
+        "file": "modern_translation_quality_gui_BEFORE_SIZE_OPTIMIZATION_20250806_115832.py",
+        "size_kb": 462.6,
+        "lines": 10478
+      }
+    ],
+    "total_files": 89
+  },
+  "memory_patterns": [
+    {
+      "pattern": "Global Variables",
+      "count": 82,
+      "files": [
+        "ki_module.py",
+        "refactor_color_system.py",
+        "ui_theme.py"
+      ],
+      "description": "Globale Variablen können Memory-Leaks verursachen"
+    },
+    {
+      "pattern": "Large Data Structures",
+      "count": 42,
+      "files": [
+        "add_keyboard_shortcuts.py",
+        "aggressive_anti_dark_mode.py",
+        "critical_files_watcher.py",
+        "modern_translation_quality_gui.py",
+        "modern_translation_quality_gui_BEFORE_SIZE_OPTIMIZATION_20250806_115832.py",
+        "modern_ui_components.py",
+        "production_welcome_launcher.py",
+        "quality_gui_advanced_features.py",
+        "quality_gui_utilities.py",
+        "real_welcome_integration.py",
+        "typography_validation.py",
+        "ui_theme.py",
+        "vscode_crash_analysis.py",
+        "welcome_screen.py",
+        "widget_safety_patches.py"
+      ],
+      "description": "Große Listen/Dicts ohne cleanup"
+    },
+    {
+      "pattern": "Threading ohne Cleanup",
+      "count": 15,
+      "files": [
+        "advanced_gui_improvements.py",
+        "modern_translation_quality_gui.py",
+        "modern_translation_quality_gui_BEFORE_SIZE_OPTIMIZATION_20250806_115832.py",
+        "ollama_model_manager.py",
+        "quality_gui_advanced_features.py"
+      ],
+      "description": "Threads ohne proper cleanup"
+    },
+    {
+      "pattern": "Async ohne await",
+      "count": 1,
+      "files": [
+        "vscode_crash_analysis.py"
+      ],
+      "description": "Async-Funktionen ohne proper handling"
+    },
+    {
+      "pattern": "File Handles",
+      "count": 161,
+      "files": [
+        "add_keyboard_shortcuts.py",
+        "advanced_gui_improvements.py",
+        "aggressive_cleanup.py",
+        "ascii_clean.py",
+        "binary_clean.py",
+        "cleanup_icons.py",
+        "clean_utf8.py",
+        "complete_unicode_fix.py",
+        "comprehensive_diagnosis.py",
+        "comprehensive_umlaut_cleanup.py",
+        "critical_files_watcher.py",
+        "critical_warning.py",
+        "diagnose_quality_gui.py",
+        "error_analysis.py",
+        "external_workflow_launcher.py",
+        "final_optimization_report.py",
+        "final_unicode_cleanup.py",
+        "find_class_end.py",
+        "find_parens.py",
+        "find_syntax_error.py",
+        "html_integration_report.py",
+        "implement_gui_optimizations.py",
+        "mass_fix_design.py",
+        "modern_translation_quality_gui.py",
+        "modern_translation_quality_gui_BEFORE_SIZE_OPTIMIZATION_20250806_115832.py",
+        "optimization_complete_report.py",
+        "optimize_gui_logic.py",
+        "optimize_gui_performance.py",
+        "optimize_welcome_screen.py",
+        "phase3_demo_launcher.py",
+        "phase3_implementation.py",
+        "phase4_demo_launcher.py",
+        "protect_critical_files.py",
+        "quality_gui_advanced_features.py",
+        "quality_gui_utilities.py",
+        "refactor_color_system.py",
+        "simple_utf8_fix.py",
+        "typography_validation.py",
+        "vscode_crash_analysis.py",
+        "welcome_screen.py"
+      ],
+      "description": "File-Handles ohne with-statement"
+    },
+    {
+      "pattern": "Event Bindings",
+      "count": 90,
+      "files": [
+        "advanced_gui_improvements.py",
+        "modern_translation_quality_gui.py",
+        "modern_translation_quality_gui_BEFORE_SIZE_OPTIMIZATION_20250806_115832.py",
+        "modern_ui_components.py",
+        "quality_gui_ui_components.py",
+        "ui_theme.py",
+        "welcome_screen.py"
+      ],
+      "description": "Event-Bindings ohne unbind"
+    }
+  ],
+  "vscode_load": {
+    "processes": 15,
+    "total_memory_mb": 5332.1,
+    "memory_percentage": 16.3
+  }
+}

@@ -6,14 +6,14 @@ This package provides centralized management systems that address
 the logic issues identified in the comprehensive review:
 
 - ThreadManager: Centralized thread lifecycle management
-- StateManager: Unified state management with validation  
+- StateManager: Unified state management with validation
 - WorkflowFactory: Consistent workflow creation and lifecycle
 """
 
 from .thread_manager import (
-    ThreadManager, 
-    ThreadPriority, 
-    ThreadState, 
+    ThreadManager,
+    ThreadPriority,
+    ThreadState,
     ThreadInfo,
     start_background_task,
     wait_for_task,
@@ -63,7 +63,7 @@ from .memory_manager import (
 __all__ = [
     # Thread Management
     'ThreadManager',
-    'ThreadPriority', 
+    'ThreadPriority',
     'ThreadState',
     'ThreadInfo',
     'start_background_task',
@@ -71,7 +71,7 @@ __all__ = [
     'stop_background_task',
     'get_task_status',
     'shutdown_all_threads',
-    
+
     # State Management
     'StateManager',
     'StateChangeType',
@@ -84,7 +84,7 @@ __all__ = [
     'set_current_workflow',
     'get_project_data',
     'set_project_data',
-    
+
     # Workflow Management
     'WorkflowFactory',
     'WorkflowType',
@@ -95,7 +95,7 @@ __all__ = [
     'release_workflow',
     'cleanup_workflow',
     'cleanup_all_workflows',
-    
+
     # Memory Management
     'MemoryManager',
     'MemoryThreshold',

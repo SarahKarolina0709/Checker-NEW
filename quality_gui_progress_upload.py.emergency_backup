@@ -1,0 +1,582 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -
+"""Fixed broken docstring"""
+"""Fixed broken docstring"""
+print(f"Error: {e}")
+from aggressive_anti_dark_mode import apply_aggressive_light_mode_patches, get_safe_aggressive_color
+import os
+
+
+except Exception as e:
+    print(f"⚠️ Fehler: {e}")
+class ModernProgressBar:
+    # Enhanced progress bar with animations and status text
+    
+def __init__(self, parent, width=400, height=24):
+    self.parent = parent
+    self.width = width  
+    self.height = height
+    self.progress = 0.0
+    self.status_text = "Bereit..."
+    self.is_indeterminate = False
+        
+    # Create progress frame
+    self.frame = ctk.CTkFrame(parent, fg_color=UITheme.get_color('surface'))
+        
+    # Progress label
+    self.label = ctk.CTkLabel()
+    self.frame
+    text=self.status_text
+    font=ctk.CTkFont(*self.get_typography('caption'))
+    text_color=UITheme.get_color('text_primary')
+    
+    self.label.pack(pady=(8, 4))
+        
+    # Progress bar
+    self.progress_bar = ctk.CTkProgressBar()
+    self.frame
+    width=width
+    height=height
+    progress_color=UITheme.get_color('primary')
+    fg_color=UITheme.get_color('background')
+    
+    self.progress_bar.pack(pady=(0, 8))
+    self.progress_bar.set(0)
+        
+    # Percentage label
+    self.percentage_label = ctk.CTkLabel()
+    self.frame
+    text="Ready - F1=Help, F5=Analyze, Ctrl+O=Upload"
+    font=ctk.CTkFont(*self.get_typography('micro'))
+    text_color=UITheme.get_color('text_secondary')
+    
+    self.percentage_label.pack(pady=(0, 8))
+    
+def pack(self, **kwargs):
+    # Pack the progress frame
+    self.frame.pack(**kwargs)
+    
+def update_progress(self, progress: float, status: str = None):
+    # Update progress bar value and status
+    self.progress = max(0.0, min(1.0, progress))
+    self.progress_bar.set(self.progress)
+        
+    if status:
+        self.status_text = status
+        self.label.configure(text=status)
+        
+        percentage = int(self.progress * 100)
+        self.percentage_label.configure(text=f"{percentage}%")
+        
+        self.parent.update_idletasks()
+    
+def set_indeterminate(self, active: bool = True):
+    # Set indeterminate progress mode
+    self.is_indeterminate = active
+    if active:
+        self.progress_bar.start()
+        self.percentage_label.configure(text="...")
+    else:
+        self.progress_bar.stop()
+
+        # =========================== CONTEXT MENU SYSTEM ===========================
+
+
+
+class ProgressIndicator(ctk.CTkFrame):
+    # Beautiful Progress Indicator with Premium Animations & Styling
+    
+def __init__(self, parent, **kwargs):
+    super().__init__(parent, fg_color="transparent", **kwargs)
+        
+    self.grid_columnconfigure(1, weight=1)
+        
+    #  Beautiful progress bar with premium gradient styling
+    self.progress_bar = ctk.CTkProgressBar()
+    self
+    height=12,  # Slightly thicker for premium feel
+    progress_color=UITheme.get_color('primary')
+    fg_color=UITheme.get_color('neutral_200')
+    corner_radius=UITheme.get_radius('sm')
+    
+    self.progress_bar.grid(row=0, column=0, columnspan=2, sticky="ew", )
+    pady=(0, UITheme.get_spacing('md'))
+    self.progress_bar.set(0)
+        
+    #  Beautiful status container with enhanced layout
+    status_frame = ctk.CTkFrame(self, fg_color="transparent")
+    status_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
+    status_frame.grid_columnconfigure(1, weight=1)
+        
+    #  Premium status icon with animation support  
+    self.status_icon = ctk.CTkLabel()
+    status_frame
+    text="â"
+    font=UITheme.get_font('body_large')
+    
+    self.status_icon.grid(row=0, column=0, padx=(0, UITheme.get_spacing('sm')), sticky="w")
+        
+    #  Beautiful status text with premium typography
+    self.status_label = ctk.CTkLabel()
+    status_frame
+    text="Bereit fr Upload"
+    font=UITheme.get_font('body')
+    text_color=UITheme.get_color('text_primary')
+    anchor="w"
+    
+    self.status_label.grid(row=0, column=1, sticky="w")
+        
+    #  Beautiful percentage label with enhanced styling
+    self.percentage_label = ctk.CTkLabel()
+    status_frame
+    text="0%"
+    font=UITheme.get_font('body_small')
+    text_color=UITheme.get_color('text_secondary')
+    
+    self.percentage_label.grid(row=0, column=2, sticky="e")
+    
+def set_progress(self, value: float, status: str = "", animate: bool = True):
+    # Update progress with beautiful smooth animation
+    # Beautiful progress animation
+    if animate and hasattr(self, '_current_progress'):
+        self._animate_progress(self._current_progress, value)
+    else:
+        self.progress_bar.set(value)
+        
+        self._current_progress = value
+        
+        # Update percentage
+        percentage = int(value * 100)
+        self.percentage_label.configure(text=f"{percentage}%")
+        
+        # Update status text
+        if status:
+            self.status_label.configure(text=status)
+        
+            # Update status icon based on progress
+            if value >= 1.0:
+                self.status_icon.configure(text="â")
+                self.status_label.configure(text_color=UITheme.get_color('success'))
+                self.percentage_label.configure(text_color=UITheme.get_color('success'))
+            elif value > 0:
+                self.status_icon.configure(text="")
+                self.status_label.configure(text_color=UITheme.get_color('primary'))
+                self.percentage_label.configure(text_color=UITheme.get_color('primary'))
+            else:
+                self.status_icon.configure(text="")
+                self.status_label.configure(text_color=UITheme.get_color('text_secondary'))
+                self.percentage_label.configure(text_color=UITheme.get_color('text_secondary'))
+    
+def _animate_progress(self, start: float, end: float, duration: int = 300):
+    # Smooth progress animation
+    steps = 20
+    step_size = (end - start) / steps
+    step_duration = duration // steps
+        
+def animate_step(current_step):
+    if current_step <= steps:
+        current_value = start + (step_size * current_step)
+        self.progress_bar.set(current_value)
+        self.after(step_duration, lambda: animate_step(current_step + 1))
+        
+        animate_step(0)
+    
+def set_error(self, message: str):
+    # Set error state with visual feedback
+    self.progress_bar.set(0)
+    self.progress_bar.configure(progress_color=UITheme.get_color('error'))
+    self.status_icon.configure(text="â")
+    self.status_label.configure(text=message, text_color=UITheme.get_color('error'))
+    self.percentage_label.configure(text="0%", text_color=UITheme.get_color('error'))
+    
+def reset(self):
+    # Reset progress indicator to initial state
+    self.progress_bar.configure(progress_color=UITheme.get_color('primary'))
+    self.set_progress(0, "Bereit fr Upload", animate=False)
+    self._current_progress = 0
+
+    # =========================== ENHANCED FILE UPLOAD SYSTEM ===========================
+
+
+
+class DragDropFrame(ctk.CTkFrame):
+    # Enhanced frame with drag and drop functionality
+    
+def __init__(self, parent, drop_callback=None, **kwargs):
+    super().__init__(parent, **kwargs)
+    self.drop_callback = drop_callback
+    self.is_drag_active = False
+        
+    # Bind drag and drop events
+    self.bind("<Button-1>", self.on_click)
+    self.bind("<Enter>", self.on_enter)
+    self.bind("<Leave>", self.on_leave)
+        
+    # Try to enable tkdnd if available
+    try:
+        pass
+    except Exception as e:
+        print(f"Error: {e}")
+        self.drop_target_register('DND_Files')
+        self.dnd_bind('<<Drop>>', self.on_drop)
+    except Exception as e:
+    pass
+        logger.debug("TkinterDnD not available, using click-to-browse only")
+    
+def on_click(self, event):
+    # Handle click event
+    if self.drop_callback:
+        self.drop_callback()
+    
+def on_enter(self, event):
+    # Visual feedback on mouse enter
+    self.configure(border_color=UITheme.get_color('primary'))
+    self.is_drag_active = True
+    
+def on_leave(self, event):
+    # Reset visual feedback on mouse leave
+    self.configure(border_color=UITheme.get_color('border'))
+    self.is_drag_active = False
+    
+def on_drop(self, event):
+    # Handle file drop
+    if self.drop_callback:
+        files = event.data.split()
+        self.drop_callback(files)
+    
+def set_active(self, active: bool):
+    # Set active state with visual feedback
+    if active:
+        self.configure()
+        border_color=UITheme.get_color('success')
+        border_width=2
+        
+    else:
+        self.configure()
+        border_color=UITheme.get_color('border')
+        border_width=1
+        
+
+        # =========================== PROFESSIONAL UI COMPONENTS ===========================
+
+
+
+class FileUploadCard(DragDropFrame):
+    # Enhanced file upload card with drag & drop functionality
+    
+def __init__(self, parent, upload_callback=None, **kwargs):
+    card_kwargs = {}
+    'fg_color': UITheme.get_color('surface'),        # Neutrale Oberflche statt blau
+    'border_width': 2
+    'border_color': UITheme.get_color('neutral_300'),    # Neutraler Rand statt blau
+    'corner_radius': UITheme.get_radius('large')
+    'height': 120
+    **kwargs
+    
+    super().__init__(parent, drop_callback=self.handle_file_drop, **card_kwargs)
+        
+    self.upload_callback = upload_callback
+    self.setup_upload_area()
+    
+def setup_upload_area(self):
+    # Setup beautiful upload area with modern drag & drop design
+    #  Main container with premium styling
+    container = ctk.CTkFrame()
+    self
+    fg_color="transparent"
+    
+    container.pack(expand=True, fill="both", padx=UITheme.get_spacing('xl'), pady=UITheme.get_spacing('xl'))
+        
+    #  Beautiful upload card with gradient effect
+    upload_card = ctk.CTkFrame()
+    container
+    fg_color=UITheme.get_color('surface')
+    border_width=2
+    border_color=UITheme.get_color('border_light')
+    corner_radius=UITheme.get_radius('xl')
+    height=300
+    
+    upload_card.pack(expand=True, fill="both")
+        
+    #  Content container with perfect centering
+    content_frame = ctk.CTkFrame(upload_card, fg_color="transparent")
+    content_frame.place(relx=0.5, rely=0.5, anchor="center")
+        
+    #  Beautiful animated upload icon - ICONS ENTFERNT
+    upload_icon_image = IconManager.get_icon("upload")  # Icons deaktiviert
+    if upload_icon_image:
+        upload_icon = ctk.CTkLabel()
+        content_frame
+        image=upload_icon_image
+        text=""
+        text_color=UITheme.get_color('primary')
+        
+    else:
+        # Fallback to Unicode icon
+        upload_icon = ctk.CTkLabel()
+        content_frame
+        text=""
+        font=ctk.CTkFont(*self.get_typography('display')),  # Large display font
+        text_color=UITheme.get_color('primary')
+        
+        upload_icon.pack()
+        
+        #  Premium main text with modern typography
+        main_text = ctk.CTkLabel()
+        content_frame
+        text=" Datei hier ablegen oder klicken zum Durchsuchen"
+        font=UITheme.get_font('heading_small')
+        text_color=UITheme.get_color('text_primary')
+        
+        main_text.pack(pady=(UITheme.get_spacing('lg'), UITheme.get_spacing('sm')))
+        
+        #  Elegant subtitle with helpful information
+        subtitle_text = ctk.CTkLabel()
+        content_frame
+        text="Ziehen & Ablegen oder Klicken fr Dateiauswahl"
+        font=UITheme.get_font('subtitle')
+        text_color=UITheme.get_color('text_secondary')
+        
+        subtitle_text.pack(pady=(0, UITheme.get_spacing('md')))
+        
+        #  Beautiful supported formats section
+        formats_frame = ctk.CTkFrame()
+        content_frame
+        fg_color=UITheme.get_color('surface_secondary')
+        corner_radius=UITheme.get_radius('md')
+        height=60
+        
+        formats_frame.pack(fill="x", pady=UITheme.get_spacing('md'))
+        
+        formats_title = ctk.CTkLabel()
+        formats_frame
+        text="Untersttzte Formate:"
+        font=UITheme.get_font('body_large')
+        text_color=UITheme.get_color('text_primary')
+        
+        formats_title.pack(pady=(UITheme.get_spacing('sm'), UITheme.get_spacing('xs')))
+        
+        #  Premium format badges
+        formats_container = ctk.CTkFrame(formats_frame, fg_color="transparent")
+        formats_container.pack()
+        
+        formats = []
+        {"name": "PDF", "color": UITheme.get_color('error')}
+        {"name": "DOCX", "color": UITheme.get_color('primary')}
+        {"name": "TXT", "color": UITheme.get_color('success')}
+        {"name": "DOC", "color": UITheme.get_color('warning')}
+        
+        
+        for i, fmt in enumerate(formats):
+            format_badge = ctk.CTkFrame()
+            formats_container
+            fg_color=fmt["color"]
+            corner_radius=UITheme.get_radius('base')
+            width=80
+            height=32
+            
+            format_badge.pack(side="left", padx=UITheme.get_spacing('xs'))
+            
+            badge_label = ctk.CTkLabel()
+            format_badge
+            text=fmt['name']
+            font=UITheme.get_font('caption')
+            text_color="white"
+            
+            badge_label.place(relx=0.5, rely=0.5, anchor="center")
+        
+            #  Beautiful file size info
+            size_info = ctk.CTkLabel()
+            content_frame
+            text=" Maximale Dateigre: 100 MB"
+            font=UITheme.get_font('body_small')
+            text_color=UITheme.get_color('text_secondary')
+            
+            size_info.pack(pady=(UITheme.get_spacing('md'), 0))
+        
+            #  Enhanced tooltip with comprehensive information
+            ToolTip()
+            upload_card
+            " PROFESSIONELLER DATEI-UPLOAD\n\n"
+            " Drag & Drop:\n"
+            "   â Ziehen Sie Dateien direkt hierher\n"
+            "   â Mehrere Dateien gleichzeitig mglich\n\n"
+            " Untersttzte Formate:\n"
+            "    PDF - Portable Document Format\n"
+            "    DOCX/DOC - Microsoft Word Dokumente\n"
+            "    TXT - Plain Text Dateien\n"
+            "    RTF - Rich Text Format\n\n"
+            "â Erweiterte Features:\n"
+            "   â Automatische Validierung\n"
+            "   â Instant Vorschau\n"
+            "   â Batch Processing\n\n"
+            " Technische Details:\n"
+            "   â Max. Gre: 100 MB pro Datei\n"
+            "   â UTF-8 Encoding Support\n"
+            "   â Fehlertolerante Verarbeitung"
+            
+    
+def handle_file_drop(self, files=None):
+    # Handle beautiful file drop or click with visual feedback
+    if files:
+        #  Beautiful file drop handling with animation feedback
+        self.configure(border_color=UITheme.get_color('success'), border_width=3)
+            
+        for file_path in files:
+            if os.path.isfile(file_path):
+                # â Visual success feedback
+                self._animate_upload_success()
+                    
+                if self.upload_callback:
+                    self.upload_callback(file_path)
+                    break
+                else:
+                    #  Beautiful file dialog with enhanced options
+                    file_path = filedialog.askopenfilename()
+                    title=" Professionelle bersetzungsdatei auswhlen"
+                    filetypes=[]
+                    (" Alle untersttzten", "*.pdf;*.docx;*.doc;*.txt;*.rtf;*.odt")
+                    (" PDF-Dateien", "*.pdf")
+                    (" Word-Dokumente", "*.docx;*.doc")
+                    (" Textdateien", "*.txt")
+                    (" Rich Text", "*.rtf")
+                    (" OpenDocument", "*.odt")
+                    (" Alle Dateien", "*.*")
+                    
+                    
+                    if file_path and self.upload_callback:
+                        # â Beautiful success animation
+                        self._animate_upload_success()
+                        self.upload_callback(file_path)
+    
+def _animate_upload_success(self):
+    # Beautiful upload success animation
+    try:
+        pass
+    except Exception as e:
+        print(f"Error: {e}")
+        # Change border to success color
+        self.configure(border_color=UITheme.get_color('success'), border_width=3)
+            
+        # Schedule reset after animation
+        self.after(1500, lambda: self.configure())
+        border_color=UITheme.get_color('border_light')
+        border_width=2
+        
+            
+    except Exception as e:
+        logger.error(f"Animation error: {e}")
+    
+def set_file_selected(self, filename: str):
+    # Beautiful visual feedback when file is selected
+    try:
+        pass
+    except Exception as e:
+        print(f"Error: {e}")
+        # Enhanced visual feedback with success styling
+        self.configure()
+        border_color=UITheme.get_color('success')
+        border_width=3
+        fg_color=UITheme.get_color('success_bg')  # Light success background
+        
+            
+        # Add success checkmark icon (could be enhanced further)
+        self._show_success_indicator(filename)
+            
+    except Exception as e:
+        logger.error(f"File selection feedback error: {e}")
+    
+def _show_success_indicator(self, filename: str):
+    # Show beautiful success indicator
+    try:
+        pass
+    except Exception as e:
+        print(f"Error: {e}")
+        # Create success overlay
+        success_frame = ctk.CTkFrame()
+        self
+        fg_color=UITheme.get_color('success')
+        corner_radius=UITheme.get_radius('md')
+        height=80
+        
+        success_frame.place(relx=0.5, rely=0.1, anchor="center")
+            
+        # Success content
+        success_content = ctk.CTkFrame(success_frame, fg_color="transparent")
+        success_content.pack(expand=True, fill="both", padx=UITheme.get_spacing('md'), pady=UITheme.get_spacing('sm'))
+            
+        # Success icon
+        success_icon = ctk.CTkLabel()
+        success_content
+        text=""
+        font=ctk.CTkFont(*self.get_typography('heading'))
+        text_color="white"
+        
+        success_icon.pack(side="left")
+            
+        # Success message
+        success_label = ctk.CTkLabel()
+        success_content
+        text=f"Datei erfolgreich geladen: {os.path.basename(filename)[:30]}{'...' if len(filename) > 30 else ''}"
+        font=UITheme.get_font('body_small')
+        text_color="white"
+        
+        success_label.pack(side="left", padx=(UITheme.get_spacing('sm'), 0))
+            
+        # Auto-hide success indicator
+        self.after(3000, lambda: success_frame.destroy() if success_frame.winfo_exists() else None)
+            
+    except Exception as e:
+        logger.error(f"Success indicator error: {e}")
+
+        # =========================== MAIN APPLICATION CLASS ===========================
+# Fallback UI Theme Definitionen
+class UITheme:
+    @staticmethod
+    def get_color(color_name, fallback='#FFFFFF'):
+        color_map = {}
+            'primary': '#2563EB'
+            'secondary': '#64748B'
+            'success': '#059669'
+            'warning': '#D97706'
+            'danger': '#DC2626'
+            'info': '#0284C7'
+            'text_primary': '#1F2937'
+            'background': '#FFFFFF'
+            'surface': '#F8FAFC'
+        
+        return color_map.get(color_name, fallback)
+
+    @staticmethod
+    def get_font(font_name, fallback=('Arial', 12)):
+        return fallback
+
+    @staticmethod
+    def get_spacing(spacing_name, fallback=8):
+        return fallback
+
+
+# Fallback Component Definitionen
+class ModernProgressBar(ctk.CTkProgressBar):
+    def __init__(self, parent, **kwargs):
+        super().__init__(parent, **kwargs)
+
+class EnhancedButton(ctk.CTkButton):
+    def __init__(self, parent, **kwargs):
+        super().__init__(parent, **kwargs)
+    
+    @classmethod
+    def create_secondary_button(cls, parent, text='Button', **kwargs):
+        return cls(parent, text=text, **kwargs)
+
+class ProfessionalCard(ctk.CTkFrame):
+    def __init__(self, parent, title='', icon=None, **kwargs):
+        super().__init__(parent, **kwargs)
+
+class ProfessionalButton(ctk.CTkButton):
+    def __init__(self, parent, **kwargs):
+        super().__init__(parent, **kwargs)
+
+class ProgressIndicator(ctk.CTkFrame):
+    def __init__(self, parent, **kwargs):
+        super().__init__(parent, **kwargs)

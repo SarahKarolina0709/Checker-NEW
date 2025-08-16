@@ -1,31 +1,7 @@
-"""
-Enhanced Welcome Screen Components
-=================================
-Improved welcome screen with better typography, spacing, and visual hierarchy.
-"""
-
-import customtkinter as ctk
-import tkinter as tk
-from typing import Optional, Dict, Any, Callable
-from enhanced_typography import (
-    ui_helper, 
-    create_heading, 
-    create_body_text, 
-    create_card, 
-    create_primary_button, 
-    create_secondary_button,
-    create_section_container,
-    create_workflow_card,
-    create_info_card
-)
-
-class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
-    """Enhanced welcome screen with improved typography and layout."""
-    
-    def __init__(self, master, app, **kwargs):
-        """Initialize the enhanced welcome screen."""
-        
-        # Default styling
+"""Fixed broken docstring"""
+"""Fixed broken docstring"""
+"""Enhanced welcome screen with improved typography and layout."""Fixed broken docstring"""
+        """Initialize the enhanced welcome screen."""Fixed broken docstring"""
         kwargs.setdefault('fg_color', "#F8FAFC")
         kwargs.setdefault('corner_radius', 0)
         
@@ -38,23 +14,8 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         self._setup_ui()
     
     def _setup_ui(self):
-        """Set up the enhanced UI."""
-        
-        # Configure grid
-        self.grid_columnconfigure(0, weight=1)
-        
-        # Header
-        self._create_header()
-        
-        # Main content
-        self._create_main_content()
-        
-        # Footer
-        self._create_footer()
-    
-    def _create_header(self):
-        """Create the enhanced header section."""
-        
+        """Set up the enhanced UI."""Fixed broken docstring"""
+        """Create the enhanced header section."""Fixed broken docstring"""
         header = ctk.CTkFrame(self, fg_color="transparent")
         header.grid(row=0, column=0, sticky="ew", padx=self.ui.spacing.CONTAINER_PADDING, pady=self.ui.spacing.CONTAINER_PADDING)
         
@@ -65,11 +26,11 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         logo_frame = ctk.CTkFrame(header, fg_color="transparent")
         logo_frame.grid(row=0, column=0, sticky="w", padx=(0, self.ui.spacing.L))
         
-        logo_icon = ctk.CTkLabel(
-            logo_frame,
-            text="📋",
-            font=ctk.CTkFont(size=self.ui.typography.ICON_XL),
-            width=self.ui.typography.ICON_XL,
+        logo_icon = ctk.CTkLabel()
+            logo_frame
+            text="📋"
+            font=ctk.CTkFont(size=self.ui.typography.ICON_XL)
+            width=self.ui.typography.ICON_XL
             height=self.ui.typography.ICON_XL
         )
         logo_icon.pack()
@@ -83,10 +44,10 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         title.pack(anchor="w")
         
         # Subtitle
-        subtitle = create_body_text(
-            title_frame,
-            "Professionelle Übersetzungstools für höchste Qualität",
-            size="L",
+        subtitle = create_body_text()
+            title_frame
+            "Professionelle Übersetzungstools für höchste Qualität"
+            size="L"
             text_color="#6B7280"
         )
         subtitle.pack(anchor="w", pady=(self.ui.spacing.XS, 0))
@@ -96,27 +57,25 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         status_frame.grid(row=0, column=2, sticky="e")
         
         # Current time
-        time_label = create_body_text(
-            status_frame,
-            "09.07.2025 - 10:43",
-            size="M",
+        time_label = create_body_text()
+            status_frame
+            "09.07.2025 - 10:43"
+            size="M"
             text_color="#6B7280"
         )
         time_label.pack(anchor="e")
         
         # Version
-        version_label = create_body_text(
-            status_frame,
-            "Version 2.1.0",
-            size="S",
+        version_label = create_body_text()
+            status_frame
+            "Version 2.1.0"
+            size="S"
             text_color="#9CA3AF"
         )
         version_label.pack(anchor="e", pady=(self.ui.spacing.XS, 0))
     
     def _create_main_content(self):
-        """Create the main content area with three sections."""
-        
-        # Main container
+        """Create the main content area with three sections."""Fixed broken docstring"""
         main_container = ctk.CTkFrame(self, fg_color="transparent")
         main_container.grid(row=1, column=0, sticky="nsew", padx=self.ui.spacing.CONTAINER_PADDING, pady=(0, self.ui.spacing.CONTAINER_PADDING))
         
@@ -136,9 +95,7 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         self._create_workflow_section(main_container)
     
     def _create_project_section(self, parent):
-        """Create the project section."""
-        
-        section = create_section_container(parent)
+        """Create the project section."""Fixed broken docstring"""
         section.grid(row=0, column=0, sticky="nsew", padx=(0, self.ui.spacing.M))
         
         # Header
@@ -150,9 +107,9 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         title_frame.pack(fill="x")
         
         # Icon
-        icon_label = ctk.CTkLabel(
-            title_frame,
-            text="👤",
+        icon_label = ctk.CTkLabel()
+            title_frame
+            text="👤"
             font=ctk.CTkFont(size=self.ui.typography.ICON_L)
         )
         icon_label.pack(side="left", padx=(0, self.ui.spacing.M))
@@ -162,10 +119,10 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         title_label.pack(side="left", fill="x", expand=True)
         
         # Description
-        desc_label = create_body_text(
-            header,
-            "Kundendaten eingeben • Projekt auswählen oder erstellen",
-            size="M",
+        desc_label = create_body_text()
+            header
+            "Kundendaten eingeben • Projekt auswählen oder erstellen"
+            size="M"
             text_color="#6B7280"
         )
         desc_label.pack(fill="x", pady=(self.ui.spacing.S, 0))
@@ -194,20 +151,20 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         search_container.pack(fill="x", pady=(0, self.ui.spacing.S))
         
         # Search icon
-        search_icon = ctk.CTkLabel(
-            search_container,
-            text="🔍",
-            font=ctk.CTkFont(size=self.ui.typography.ICON_S),
+        search_icon = ctk.CTkLabel()
+            search_container
+            text="🔍"
+            font=ctk.CTkFont(size=self.ui.typography.ICON_S)
             width=20
         )
         search_icon.pack(side="left", padx=(0, self.ui.spacing.S))
         
         # Search input
-        customer_search = ctk.CTkEntry(
-            search_container,
-            placeholder_text="Firmenname oder Ansprechpartner eingeben...",
-            font=ctk.CTkFont(family=self.ui.typography.PRIMARY_FONT, size=self.ui.typography.BODY_M),
-            height=self.ui.layout.INPUT_HEIGHT,
+        customer_search = ctk.CTkEntry()
+            search_container
+            placeholder_text="Firmenname oder Ansprechpartner eingeben..."
+            font=ctk.CTkFont(family=self.ui.typography.PRIMARY_FONT, size=self.ui.typography.BODY_M)
+            height=self.ui.layout.INPUT_HEIGHT
             corner_radius=8
         )
         customer_search.pack(side="left", fill="x", expand=True)
@@ -304,18 +261,16 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         recent_container.pack(fill="both", expand=True)
         
         # Empty state
-        empty_label = create_body_text(
-            recent_container,
-            "Keine aktuellen Projekte",
-            size="M",
+        empty_label = create_body_text()
+            recent_container
+            "Keine aktuellen Projekte"
+            size="M"
             text_color="#9CA3AF"
         )
         empty_label.pack(pady=self.ui.spacing.XL)
     
     def _create_upload_section(self, parent):
-        """Create the upload section."""
-        
-        section = create_section_container(parent)
+        """Create the upload section."""Fixed broken docstring"""
         section.grid(row=0, column=1, sticky="nsew", padx=(self.ui.spacing.M, self.ui.spacing.M))
         
         # Header
@@ -327,9 +282,9 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         title_frame.pack(fill="x")
         
         # Icon
-        icon_label = ctk.CTkLabel(
-            title_frame,
-            text="📁",
+        icon_label = ctk.CTkLabel()
+            title_frame
+            text=""
             font=ctk.CTkFont(size=self.ui.typography.ICON_L)
         )
         icon_label.pack(side="left", padx=(0, self.ui.spacing.M))
@@ -339,10 +294,10 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         title_label.pack(side="left", fill="x", expand=True)
         
         # Description
-        desc_label = create_body_text(
-            header,
-            "Dateien per Drag & Drop oder Button hinzufügen",
-            size="M",
+        desc_label = create_body_text()
+            header
+            "Dateien per Drag & Drop oder Button hinzufügen"
+            size="M"
             text_color="#6B7280"
         )
         desc_label.pack(fill="x", pady=(self.ui.spacing.S, 0))
@@ -352,12 +307,12 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         content.pack(fill="both", expand=True, padx=self.ui.spacing.SECTION_PADDING, pady=(0, self.ui.spacing.SECTION_PADDING))
         
         # Drop zone with enhanced design
-        drop_zone = ctk.CTkFrame(
-            content,
-            height=160,
-            fg_color="#F8FAFC",
-            border_width=2,
-            border_color="#E2E8F0",
+        drop_zone = ctk.CTkFrame()
+            content
+            height=160
+            fg_color="#F8FAFC"
+            border_width=2
+            border_color="#E2E8F0"
             corner_radius=12
         )
         drop_zone.pack(fill="x", pady=(0, self.ui.spacing.M))
@@ -367,9 +322,9 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         drop_content.pack(expand=True)
         
         # Upload icon
-        upload_icon = ctk.CTkLabel(
-            drop_content,
-            text="⬆️",
+        upload_icon = ctk.CTkLabel()
+            drop_content
+            text="⬆"
             font=ctk.CTkFont(size=self.ui.typography.ICON_XL)
         )
         upload_icon.pack(pady=(self.ui.spacing.L, self.ui.spacing.S))
@@ -379,10 +334,10 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         upload_text.pack()
         
         # Upload subtitle
-        upload_subtitle = create_body_text(
-            drop_content,
-            "oder klicken zum Durchsuchen",
-            size="M",
+        upload_subtitle = create_body_text()
+            drop_content
+            "oder klicken zum Durchsuchen"
+            size="M"
             text_color="#6B7280"
         )
         upload_subtitle.pack(pady=(self.ui.spacing.XS, self.ui.spacing.S))
@@ -399,10 +354,10 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         info_frame = ctk.CTkFrame(controls_frame, fg_color="transparent")
         info_frame.pack(fill="x", pady=(0, self.ui.spacing.S))
         
-        formats_label = create_body_text(
-            info_frame,
-            "📄 Unterstützte Formate: PDF, DOCX, TXT, XLSX • Max. 50MB pro Datei",
-            size="S",
+        formats_label = create_body_text()
+            info_frame
+            "📄 Unterstützte Formate: PDF, DOCX, TXT, XLSX • Max. 50MB pro Datei"
+            size="S"
             text_color="#9CA3AF"
         )
         formats_label.pack(anchor="w")
@@ -423,10 +378,10 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         options_frame.grid(row=0, column=1, sticky="ew")
         
         # Auto-process checkbox
-        auto_process = ctk.CTkCheckBox(
-            options_frame,
-            text="Automatisch verarbeiten",
-            font=ctk.CTkFont(family=self.ui.typography.PRIMARY_FONT, size=self.ui.typography.BODY_S),
+        auto_process = ctk.CTkCheckBox()
+            options_frame
+            text="Automatisch verarbeiten"
+            font=ctk.CTkFont(family=self.ui.typography.PRIMARY_FONT, size=self.ui.typography.BODY_S)
             text_color="#6B7280"
         )
         auto_process.pack()
@@ -448,18 +403,16 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         files_container.pack(fill="both", expand=True)
         
         # Empty state
-        empty_files_label = create_body_text(
-            files_container,
-            "Noch keine Dateien hochgeladen",
-            size="M",
+        empty_files_label = create_body_text()
+            files_container
+            "Noch keine Dateien hochgeladen"
+            size="M"
             text_color="#9CA3AF"
         )
         empty_files_label.pack(pady=self.ui.spacing.XL)
     
     def _create_workflow_section(self, parent):
-        """Create the workflow section."""
-        
-        section = create_section_container(parent)
+        """Create the workflow section."""Fixed broken docstring"""
         section.grid(row=0, column=2, sticky="nsew", padx=(self.ui.spacing.M, 0))
         
         # Header
@@ -471,9 +424,9 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         title_frame.pack(fill="x")
         
         # Icon
-        icon_label = ctk.CTkLabel(
-            title_frame,
-            text="⚡",
+        icon_label = ctk.CTkLabel()
+            title_frame
+            text="⚡"
             font=ctk.CTkFont(size=self.ui.typography.ICON_L)
         )
         icon_label.pack(side="left", padx=(0, self.ui.spacing.M))
@@ -483,10 +436,10 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         title_label.pack(side="left", fill="x", expand=True)
         
         # Description
-        desc_label = create_body_text(
-            header,
-            "Wählen Sie einen Workflow zur Bearbeitung aus",
-            size="M",
+        desc_label = create_body_text()
+            header
+            "Wählen Sie einen Workflow zur Bearbeitung aus"
+            size="M"
             text_color="#6B7280"
         )
         desc_label.pack(fill="x", pady=(self.ui.spacing.S, 0))
@@ -497,9 +450,9 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
         
         # Workflow buttons
         workflows = [
-            {"title": "Angebotsanalyse", "description": "Erstelle professionelle Angebote", "icon": "💰", "color": "#0078D4"},
-            {"title": "Dateiprüfung", "description": "Prüfe Übersetzungen auf Qualität", "icon": "✅", "color": "#16A34A"},
-            {"title": "Finalisierung", "description": "Finalisiere Projekte", "icon": "🏁", "color": "#DC2626"},
+            {"title": "Angebotsanalyse", "description": "Erstelle professionelle Angebote", "icon": "💰", "color": "#0078D4"}
+            {"title": "Dateiprüfung", "description": "Prüfe Übersetzungen auf Qualität", "icon": "✅", "color": "#16A34A"}
+            {"title": "Finalisierung", "description": "Finalisiere Projekte", "icon": "🏁", "color": "#DC2626"}
             {"title": "Projektübersicht", "description": "Verwalte deine Projekte", "icon": "📊", "color": "#7C3AED"}
         ]
         
@@ -521,9 +474,9 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
             header_frame.pack(fill="x")
             
             # Icon
-            icon_label = ctk.CTkLabel(
-                header_frame,
-                text=workflow["icon"],
+            icon_label = ctk.CTkLabel()
+                header_frame
+                text=workflow["icon"]
                 font=ctk.CTkFont(size=self.ui.typography.ICON_M)
             )
             icon_label.pack(side="left", padx=(0, self.ui.spacing.S))
@@ -533,10 +486,10 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
             title_label.pack(side="left", fill="x", expand=True)
             
             # Description
-            desc_label = create_body_text(
-                info_frame,
-                workflow["description"],
-                size="S",
+            desc_label = create_body_text()
+                info_frame
+                workflow["description"]
+                size="S"
                 text_color="#6B7280"
             )
             desc_label.pack(fill="x", pady=(self.ui.spacing.XS, 0))
@@ -546,11 +499,11 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
             button_frame.pack(side="right", fill="y")
             
             # Start button
-            start_btn = create_primary_button(
-                button_frame,
-                "Start",
-                width=70,
-                height=36,
+            start_btn = create_primary_button()
+                button_frame
+                "Start"
+                width=70
+                height=36
                 fg_color=workflow["color"]
             )
             start_btn.pack(expand=True)
@@ -559,16 +512,15 @@ class EnhancedWelcomeScreen(ctk.CTkScrollableFrame):
             self.ui.apply_card_hover_effect(card)
     
     def _create_footer(self):
-        """Create the footer section."""
-        
+        """Create the footer section."""Fixed broken docstring"""
         footer = ctk.CTkFrame(self, fg_color="transparent")
         footer.grid(row=2, column=0, sticky="ew", padx=self.ui.spacing.CONTAINER_PADDING, pady=(0, self.ui.spacing.CONTAINER_PADDING))
         
         # Status info
-        status_text = create_body_text(
-            footer,
-            "✅ Bereit für die Bearbeitung",
-            size="M",
+        status_text = create_body_text()
+            footer
+            "✅ Bereit für die Bearbeitung"
+            size="M"
             text_color="#16A34A"
         )
         status_text.pack(anchor="w")

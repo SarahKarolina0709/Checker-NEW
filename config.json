@@ -1,74 +1,99 @@
+
+# 🚨 CRITICAL SYSTEM FILE - NIEMALS LÖSCHEN!
+# DATEI: config.json
+# STATUS: ESSENTIAL (Priorität: 2)
+# BESCHREIBUNG: Hauptkonfiguration der Anwendung
+# LETZTE VERIFIZIERUNG: 2025-07-19
+# ⚠️ WARNUNG: Diese Datei ist systemkritisch - nicht löschen oder stark modifizieren!
+# 🔒 SCHUTZ: Automatisches Backup bei Änderungen erforderlich
+# 📋 ABHÄNGIGKEITEN: 
+
 {
-  "app": {
-    "name": "Checker-App",
-    "version": "2.0.0",
-    "window": {
-      "default_geometry": "1400x900",
-      "min_size": [1400, 900],
-      "max_size": [2560, 1440]
-    }
-  },
-  "ui": {
-    "theme": {
-      "appearance_mode": "light",
-      "color_theme": "blue",
-      "scaling": {
-        "widget_scaling": 1.0,
-        "window_scaling": 1.0,
-        "dpi_awareness": false
-      }
+    "app": {
+        "name": "Checker-App",
+        "version": "2.0.0",
+        "window": {
+            "default_geometry": "1400x900",
+            "min_size": [
+                1400,
+                900
+            ],
+            "max_size": [
+                2560,
+                1440
+            ]
+        }
     },
-    "fonts": {
-      "family": "Segoe UI",
-      "sizes": {
-        "small": 12,
-        "normal": 14,
-        "large": 16,
-        "title": 18
-      }
-    }
-  },
-  "paths": {
-    "icons": "icons",
-    "logs": "logs",
-    "data": "data",
-    "customer_base": "kunden",
-    "workflows": "workflows",
-    "projects": {
-      "default_directory": "C:\\Users\\sarah\\Desktop\\Checker_Projekte",
-      "auto_create": true,
-      "allowed_extensions": [".pdf", ".docx", ".xlsx", ".pptx", ".txt", ".png", ".jpg", ".jpeg"],
-      "watch_subdirectories": true
-    }
-  },
-  "features": {
-    "optimizations_enabled": false,
-    "splash_screen": true,
-    "tooltips_enabled": true,
-    "animations_enabled": true
-  },
-  "logging": {
-    "level": "INFO",
-    "console_level": "INFO",
-    "file_level": "DEBUG",
-    "max_log_files": 7
-  },
-  "workflows": {
-    "angebots_workflow": {
-      "enabled": true,
-      "title": "Angebotsanalyse"
+    "ui": {
+        "theme": {
+            "appearance_mode": "light",
+            "color_theme": "blue",
+            "scaling": {
+                "widget_scaling": 1.0,
+                "window_scaling": 1.0,
+                "dpi_awareness": false
+            }
+        },
+        "fonts": {
+            "family": "Segoe UI",
+            "sizes": {
+                "small": 12,
+                "normal": 14,
+                "large": 16,
+                "title": 18
+            }
+        }
     },
-    "pruefung_workflow": {
-      "enabled": true,
-      "title": "Qualitätsprüfung"
+    "paths": {
+        "icons": "icons",
+        "logs": "logs",
+        "data": "data",
+        "customer_base": "kunden",
+        "workflows": "workflows",
+        "projects": {
+            "default_directory": "C:\\Users\\sarah\\Desktop\\Checker_Projekte",
+            "auto_create": true,
+            "allowed_extensions": [
+                ".pdf",
+                ".docx",
+                ".xlsx",
+                ".pptx",
+                ".txt",
+                ".png",
+                ".jpg",
+                ".jpeg"
+            ],
+            "watch_subdirectories": true
+        }
     },
-    "finalisierung_workflow": {
-      "enabled": true,
-      "title": "Finalisierung"
+    "features": {
+        "optimizations_enabled": false,
+        "splash_screen": true,
+        "tooltips_enabled": true,
+        "animations_enabled": true
     },
-    "projekt_workflow": {
-      "enabled": true,
-      "title": "Projektübersicht"
+    "logging": {
+        "level": "INFO",
+        "console_level": "INFO",
+        "file_level": "DEBUG",
+        "max_log_files": 7
+    },
+    "workflows": {
+        "angebots_workflow": {
+            "enabled": true,
+            "title": "Angebotsanalyse"
+        },
+        "pruefung_workflow": {
+            "enabled": true,
+            "title": "Qualitätsprüfung"
+        },
+        "finalisierung_workflow": {
+            "enabled": true,
+            "title": "Finalisierung"
+        },
+        "projekt_workflow": {
+            "enabled": true,
+            "title": "Projektübersicht"
+        }
     }
-  }
 }

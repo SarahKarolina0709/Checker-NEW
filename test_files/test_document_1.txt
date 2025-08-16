@@ -1,8 +1,0 @@
-Dies ist eine Test-PDF-Datei für den Multi-Upload-Test.
-
-Diese Datei dient dazu, die neue Funktionalität für mehrere Dateien gleichzeitig zu testen.
-
-Inhalt:
-- Test-Dokument 1
-- Erstellt für Multi-Upload-Funktionalität
-- PDF-Format Test

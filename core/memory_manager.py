@@ -1,3 +1,4 @@
+
 """
 Memory Management System for Checker Application
 ==============================================
@@ -7,19 +8,21 @@ management to address the memory issues identified in the logic review.
 
 Priority 4 Implementation from Logic Review Report
 """
+import sys
 
-import gc
+
+from pathlib import Path
+from typing import Dict, Set, Optional, Any, List, Callable
+import logging
 import threading
 import time
-import logging
-import weakref
-from typing import Dict, Set, Optional, Any, List, Callable
+
 from dataclasses import dataclass, field
 from enum import Enum
+import gc
 import tracemalloc
-from pathlib import Path
+import weakref
 
-# Optional psutil import for system memory monitoring
 try:
     import psutil
     PSUTIL_AVAILABLE = True
@@ -32,20 +35,20 @@ except ImportError:
             self.used = 4 * 1024 * 1024 * 1024   # 4GB mock
             self.available = 4 * 1024 * 1024 * 1024  # 4GB mock
             self.percent = 50.0
-    
+
     class MockProcess:
         def memory_info(self):
             class MemInfo:
                 rss = 100 * 1024 * 1024  # 100MB mock
                 vms = 200 * 1024 * 1024  # 200MB mock
             return MemInfo()
-    
+
     # Mock psutil module
     class psutil:
         @staticmethod
         def virtual_memory():
             return MockMemory()
-        
+
         @staticmethod
         def Process():
             return MockProcess()
@@ -86,7 +89,7 @@ class ObjectTracker:
 class MemoryManager:
     """
     Centralized memory management and monitoring system.
-    
+
     Features:
     - Memory usage monitoring
     - Large object tracking
@@ -95,10 +98,10 @@ class MemoryManager:
     - Memory alerts and cleanup
     - Performance optimization
     """
-    
+
     _instance: Optional['MemoryManager'] = None
     _lock = threading.Lock()
-    
+
     def __new__(cls) -> 'MemoryManager':
         """Singleton pattern implementation."""
         if cls._instance is None:
@@ -106,39 +109,39 @@ class MemoryManager:
                 if cls._instance is None:
                     cls._instance = super().__new__(cls)
         return cls._instance
-    
+
     def __init__(self):
         """Initialize the memory manager."""
         if hasattr(self, '_initialized'):
             return
-            
+
         self._initialized = True
         self._tracking_enabled = True
         self._monitor_thread: Optional[threading.Thread] = None
         self._shutdown_event = threading.Event()
         self._memory_lock = threading.RLock()
-        
+
         # Memory tracking
         self._tracked_objects: Dict[int, ObjectTracker] = {}
         self._memory_snapshots: List[MemorySnapshot] = []
         self._max_snapshots = 100
-        
+
         # Thresholds and settings
         self._cleanup_threshold = MemoryThreshold.HIGH
         self._alert_threshold = MemoryThreshold.CRITICAL
         self._large_object_threshold = 10 * 1024 * 1024  # 10MB
         self._max_tracked_objects = 1000
-        
+
         # Callbacks
         self._cleanup_callbacks: List[Callable[[], None]] = []
         self._alert_callbacks: List[Callable[[MemorySnapshot], None]] = []
           # Setup logging
         self._logger = logging.getLogger(__name__)
-        
+
         # Warn if psutil is not available
         if not PSUTIL_AVAILABLE:
             self._logger.warning("psutil not available - using mock memory monitoring")
-        
+
         # Start memory tracing if available
         try:
             tracemalloc.start(25)  # Keep 25 frames
@@ -146,20 +149,20 @@ class MemoryManager:
         except Exception as e:
             self._logger.warning(f"Could not start memory tracing: {e}")
             self._tracing_enabled = False
-        
+
         # Start monitoring
         self.start_monitoring()
-    
+
     @classmethod
     def get_instance(cls) -> 'MemoryManager':
         """Get the singleton instance."""
         return cls()
-    
+
     def start_monitoring(self, interval: float = 30.0):
         """Start memory monitoring in background thread."""
         if self._monitor_thread and self._monitor_thread.is_alive():
             return
-            
+
         self._monitor_thread = threading.Thread(
             target=self._monitor_worker,
             args=(interval,),
@@ -168,47 +171,47 @@ class MemoryManager:
         )
         self._monitor_thread.start()
         self._logger.info("Memory monitoring started")
-    
+
     def stop_monitoring(self):
         """Stop memory monitoring."""
         self._shutdown_event.set()
         if self._monitor_thread and self._monitor_thread.is_alive():
             self._monitor_thread.join(timeout=5.0)
         self._logger.info("Memory monitoring stopped")
-    
+
     def _monitor_worker(self, interval: float):
         """Background worker for memory monitoring."""
         while not self._shutdown_event.is_set():
             try:
                 # Take memory snapshot
                 snapshot = self._take_memory_snapshot()
-                
+
                 # Check thresholds
                 self._check_memory_thresholds(snapshot)
-                
+
                 # Cleanup if needed
                 if snapshot.percent >= self._cleanup_threshold.value * 100:
                     self._trigger_cleanup()
-                
+
                 # Clean up tracked objects
                 self._cleanup_dead_references()
-                
+
                 # Wait for next check
                 self._shutdown_event.wait(interval)
-                
+
             except Exception as e:
                 self._logger.error(f"Error in memory monitor: {e}")
                 self._shutdown_event.wait(5.0)
-    
+
     def _take_memory_snapshot(self) -> MemorySnapshot:
         """Take a snapshot of current memory usage."""
         try:
             # Get system memory info
             memory = psutil.virtual_memory()
-            
+
             # Get GC stats
             gc_count = len(gc.get_objects())
-            
+
             # Create snapshot
             snapshot = MemorySnapshot(
                 timestamp=time.time(),
@@ -219,15 +222,15 @@ class MemoryManager:
                 gc_count=gc_count,
                 tracked_objects=len(self._tracked_objects)
             )
-            
+
             # Store snapshot
             with self._memory_lock:
                 self._memory_snapshots.append(snapshot)
                 if len(self._memory_snapshots) > self._max_snapshots:
                     self._memory_snapshots = self._memory_snapshots[-self._max_snapshots:]
-            
+
             return snapshot
-            
+
         except Exception as e:
             self._logger.error(f"Error taking memory snapshot: {e}")
             return MemorySnapshot(
@@ -235,51 +238,51 @@ class MemoryManager:
                 total_mb=0, used_mb=0, available_mb=0,
                 percent=0, gc_count=0, tracked_objects=0
             )
-    
+
     def _check_memory_thresholds(self, snapshot: MemorySnapshot):
         """Check memory thresholds and trigger alerts."""
         if snapshot.percent >= self._alert_threshold.value * 100:
             self._logger.warning(f"Memory usage critical: {snapshot.percent:.1f}%")
-            
+
             # Trigger alert callbacks
             for callback in self._alert_callbacks:
                 try:
                     callback(snapshot)
                 except Exception as e:
                     self._logger.error(f"Error in alert callback: {e}")
-    
+
     def track_object(self, obj: Any, description: str = "") -> bool:
         """
         Track a large object for memory management.
-        
+
         Args:
             obj: Object to track
             description: Optional description
-            
+
         Returns:
             True if object was tracked
         """
         if not self._tracking_enabled:
             return False
-            
+
         try:
             # Get object size
             size = self._get_object_size(obj)
-            
+
             # Only track large objects
             if size < self._large_object_threshold:
                 return False
-            
+
             # Check tracking limit
             if len(self._tracked_objects) >= self._max_tracked_objects:
                 self._cleanup_oldest_tracked()
-            
+
             # Create tracker
             obj_id = id(obj)
             obj_type = type(obj).__name__
             if description:
                 obj_type += f" ({description})"
-            
+
             tracker = ObjectTracker(
                 obj_id=obj_id,
                 obj_type=obj_type,
@@ -288,17 +291,17 @@ class MemoryManager:
                 last_accessed=time.time(),
                 weak_ref=weakref.ref(obj, self._object_deleted_callback)
             )
-            
+
             with self._memory_lock:
                 self._tracked_objects[obj_id] = tracker
-            
+
             self._logger.debug(f"Tracking object: {obj_type} ({size / 1024 / 1024:.1f} MB)")
             return True
-            
+
         except Exception as e:
             self._logger.error(f"Error tracking object: {e}")
             return False
-    
+
     def untrack_object(self, obj: Any) -> bool:
         """Stop tracking an object."""
         obj_id = id(obj)
@@ -308,7 +311,7 @@ class MemoryManager:
                 self._logger.debug(f"Untracked object: {tracker.obj_type}")
                 return True
         return False
-    
+
     def _object_deleted_callback(self, weak_ref):
         """Callback when a tracked object is deleted."""
         with self._memory_lock:
@@ -317,12 +320,12 @@ class MemoryManager:
             for obj_id, tracker in self._tracked_objects.items():
                 if tracker.weak_ref is weak_ref:
                     to_remove.append(obj_id)
-            
+
             for obj_id in to_remove:
                 tracker = self._tracked_objects.pop(obj_id, None)
                 if tracker:
                     self._logger.debug(f"Tracked object deleted: {tracker.obj_type}")
-    
+
     def _cleanup_dead_references(self):
         """Remove trackers for deleted objects."""
         with self._memory_lock:
@@ -330,125 +333,125 @@ class MemoryManager:
             for obj_id, tracker in self._tracked_objects.items():
                 if tracker.weak_ref is not None and tracker.weak_ref() is None:
                     dead_refs.append(obj_id)
-            
+
             for obj_id in dead_refs:
                 self._tracked_objects.pop(obj_id, None)
-            
+
             if dead_refs:
                 self._logger.debug(f"Cleaned up {len(dead_refs)} dead references")
-    
+
     def _cleanup_oldest_tracked(self):
         """Remove oldest tracked objects to make room for new ones."""
         with self._memory_lock:
             if not self._tracked_objects:
                 return
-                
+
             # Sort by creation time and remove oldest
             sorted_trackers = sorted(
                 self._tracked_objects.items(),
                 key=lambda x: x[1].created_at
             )
-            
+
             # Remove oldest 10%
             remove_count = max(1, len(sorted_trackers) // 10)
             for i in range(remove_count):
                 obj_id, tracker = sorted_trackers[i]
                 self._tracked_objects.pop(obj_id, None)
                 self._logger.debug(f"Removed old tracked object: {tracker.obj_type}")
-    
+
     def _get_object_size(self, obj: Any) -> int:
         """Get approximate size of an object in bytes."""
         try:
             import sys
             size = sys.getsizeof(obj)
-            
+
             # For containers, add size of contents
             if hasattr(obj, '__dict__'):
                 size += sum(sys.getsizeof(v) for v in obj.__dict__.values())
-            
+
             if hasattr(obj, '__len__'):
                 try:
                     # For sequences/mappings, estimate content size
                     if len(obj) > 0:
                         if hasattr(obj, 'items'):  # dict-like
                             sample_size = sum(
-                                sys.getsizeof(k) + sys.getsizeof(v) 
+                                sys.getsizeof(k) + sys.getsizeof(v)
                                 for k, v in list(obj.items())[:min(10, len(obj))]
                             )
                             size += (sample_size * len(obj)) // min(10, len(obj))
                         else:  # list-like
                             sample_size = sum(
-                                sys.getsizeof(item) 
+                                sys.getsizeof(item)
                                 for item in list(obj)[:min(10, len(obj))]
                             )
                             size += (sample_size * len(obj)) // min(10, len(obj))
                 except (TypeError, AttributeError):
                     pass
-            
+
             return size
-            
+
         except Exception:
             return 0
-    
+
     def _trigger_cleanup(self):
         """Trigger memory cleanup procedures."""
         self._logger.info("Triggering memory cleanup")
-        
+
         # Run custom cleanup callbacks
         for callback in self._cleanup_callbacks:
             try:
                 callback()
             except Exception as e:
                 self._logger.error(f"Error in cleanup callback: {e}")
-        
+
         # Force garbage collection
         collected = gc.collect()
         self._logger.debug(f"Garbage collection freed {collected} objects")
-        
+
         # Clear some tracked objects that haven't been accessed recently
         self._cleanup_stale_objects()
-    
+
     def _cleanup_stale_objects(self):
         """Clean up objects that haven't been accessed recently."""
         with self._memory_lock:
             current_time = time.time()
             stale_threshold = 300  # 5 minutes
-            
+
             stale_objects = []
             for obj_id, tracker in self._tracked_objects.items():
                 if current_time - tracker.last_accessed > stale_threshold:
                     stale_objects.append(obj_id)
-            
+
             for obj_id in stale_objects:
                 tracker = self._tracked_objects.pop(obj_id, None)
                 if tracker:
                     self._logger.debug(f"Cleaned up stale object: {tracker.obj_type}")
-    
+
     def add_cleanup_callback(self, callback: Callable[[], None]):
         """Add a callback to run during memory cleanup."""
         self._cleanup_callbacks.append(callback)
-    
+
     def add_alert_callback(self, callback: Callable[[MemorySnapshot], None]):
         """Add a callback to run when memory alerts are triggered."""
         self._alert_callbacks.append(callback)
-    
+
     def force_cleanup(self):
         """Force immediate memory cleanup."""
         self._trigger_cleanup()
-    
+
     def get_memory_stats(self) -> Dict[str, Any]:
         """Get current memory statistics."""
         try:
             memory = psutil.virtual_memory()
             process = psutil.Process()
             process_memory = process.memory_info()
-            
+
             with self._memory_lock:
                 tracked_size = sum(
-                    tracker.size_bytes 
+                    tracker.size_bytes
                     for tracker in self._tracked_objects.values()
                 )
-            
+
             stats = {
                 "system_memory": {
                     "total_mb": memory.total / (1024 * 1024),
@@ -471,20 +474,20 @@ class MemoryManager:
                     "objects": len(gc.get_objects())
                 }
             }
-            
+
             if self._tracing_enabled:
                 current, peak = tracemalloc.get_traced_memory()
                 stats["tracing"] = {
                     "current_mb": current / (1024 * 1024),
                     "peak_mb": peak / (1024 * 1024)
                 }
-            
+
             return stats
-            
+
         except Exception as e:
             self._logger.error(f"Error getting memory stats: {e}")
             return {}
-    
+
     def get_tracked_objects(self) -> List[Dict[str, Any]]:
         """Get information about tracked objects."""
         with self._memory_lock:
@@ -500,22 +503,22 @@ class MemoryManager:
                 }
                 for tracker in self._tracked_objects.values()
             ]
-    
+
     def get_memory_trend(self, duration_minutes: int = 30) -> List[MemorySnapshot]:
         """Get memory usage trend over specified duration."""
         cutoff_time = time.time() - (duration_minutes * 60)
-        
+
         with self._memory_lock:
             return [
                 snapshot for snapshot in self._memory_snapshots
                 if snapshot.timestamp >= cutoff_time
             ]
-    
+
     def export_memory_report(self, filepath: Path) -> bool:
         """Export detailed memory report to file."""
         try:
             import json
-            
+
             report = {
                 "timestamp": time.time(),
                 "memory_stats": self.get_memory_stats(),
@@ -531,40 +534,18 @@ class MemoryManager:
                     for s in self._memory_snapshots[-50:]  # Last 50 snapshots
                 ]
             }
-            
+
             with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump(report, f, indent=2, default=str)
-            
+
             self._logger.info(f"Memory report exported to {filepath}")
             return True
-            
+
         except Exception as e:
             self._logger.error(f"Failed to export memory report: {e}")
             return False
-    
-    def shutdown(self):
-        """Shutdown the memory manager."""
-        self._logger.info("Shutting down MemoryManager...")
-        
-        # Stop monitoring
-        self.stop_monitoring()
-        
-        # Clear tracked objects
-        with self._memory_lock:
-            self._tracked_objects.clear()
-            self._memory_snapshots.clear()
-        
-        # Stop memory tracing
-        if self._tracing_enabled:
-            try:
-                tracemalloc.stop()
-            except Exception as e:
-                self._logger.error(f"Error stopping memory tracing: {e}")
-        
-        self._logger.info("MemoryManager shutdown complete")
 
 
-# Convenience functions for easy integration
 def track_large_object(obj: Any, description: str = "") -> bool:
     """Track a large object for memory management."""
     manager = MemoryManager.get_instance()

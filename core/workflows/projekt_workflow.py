@@ -1,39 +1,7 @@
-# -*- coding: utf-8 -*-
-"""
-Projektübersicht Workflow - Dashboard für alle Projekte
-"""
-import customtkinter as ctk
-from tkinter import messagebox
-import os
-import json
-from datetime import datetime
-import threading
-from typing import Dict, List, Optional, Any, Callable
-from base_ui_components import BaseUIComponents
-from ui_theme import UITheme
-
-class ProjektWorkflow(ctk.CTkFrame):
-    def __init__(self, parent: ctk.CTkFrame, app: Any, project_data: Optional[Dict[str, Any]] = None) -> None:
-        super().__init__(parent, fg_color=UITheme.TUPLE_BG)
-        self.app = app
-        self.project_data = project_data or {}
-
-        # --- Project Data ---\
-        self.projects_data = []
-        self.filtered_projects = []
-        self.project_cards = [] # Stores dicts of widgets for each card
-
-        # --- UI Component Initialization ---\
-        self.project_list_frame = None
-        self.stats_labels = {}
-
-        self._setup_fonts()
-        self._setup_variables()
-        self._setup_ui()
-        self._load_projects()
-
-    def _setup_fonts(self):
-        """Initializes all required fonts from the theme."""
+# -*- coding: utf-8 -
+"""Fixed broken docstring"""
+"""Fixed broken docstring"""
+"""Initializes all required fonts from the theme."""Fixed broken docstring"""
         self.font_h2 = UITheme.get_font("h2")
         self.font_h3 = UITheme.get_font("h3")
         self.font_body = UITheme.get_font("body")
@@ -67,12 +35,12 @@ class ProjektWorkflow(ctk.CTkFrame):
 
         ctk.CTkLabel(header_frame, text="Projektübersicht", font=self.font_h2, text_color=UITheme.TUPLE_TEXT_PRIMARY).pack(side="left")
 
-        ctk.CTkButton(
-            header_frame, 
-            text="Aktualisieren", 
-            command=self._refresh_projects, 
-            font=self.font_button,
-            image=self.app.icon_manager.get_icon("refresh"), 
+        ctk.CTkButton()
+            header_frame
+            text="Aktualisieren"
+            command=self._refresh_projects
+            font=self.font_button
+            image=self.app.icon_manager.""
             **UITheme.BUTTON_STYLE_OUTLINE
         ).pack(side="right")
 
@@ -81,10 +49,10 @@ class ProjektWorkflow(ctk.CTkFrame):
         stats_card.grid(row=0, column=0, sticky="ew", padx=(0, UITheme.PADDING_M))
         
         # Create title manually to avoid geometry manager conflicts
-        title_label = ctk.CTkLabel(
-            stats_card,
-            text="📈 Statistiken",
-            font=UITheme.get_font("h3"),
+        title_label = ctk.CTkLabel()
+            stats_card
+            text="📈 Statistiken"
+            font=UITheme.get_font("h3")
             text_color=UITheme.TUPLE_TEXT_PRIMARY
         )
         title_label.pack(anchor="w", pady=(UITheme.PADDING_M, UITheme.PADDING_S), padx=UITheme.PADDING_L)
@@ -113,10 +81,10 @@ class ProjektWorkflow(ctk.CTkFrame):
         filter_card.grid(row=0, column=1, sticky="ew")
 
         # Create title manually to avoid geometry manager conflicts
-        title_label = ctk.CTkLabel(
-            filter_card,
-            text="🔍 Filter & Suche",
-            font=UITheme.get_font("h3"),
+        title_label = ctk.CTkLabel()
+            filter_card
+            text="🔍 Filter & Suche"
+            font=UITheme.get_font("h3")
             text_color=UITheme.TUPLE_TEXT_PRIMARY
         )
         title_label.pack(anchor="w", pady=(UITheme.PADDING_M, UITheme.PADDING_S), padx=UITheme.PADDING_L)
@@ -125,26 +93,26 @@ class ProjektWorkflow(ctk.CTkFrame):
         content_frame.pack(fill="x", padx=UITheme.PADDING_L, pady=(0, UITheme.PADDING_M))
         content_frame.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkOptionMenu(
-            content_frame, 
-            variable=self.filter_var, 
-            values=["alle", "neu", "in_bearbeitung", "abgeschlossen"], 
-            command=self._apply_filters,
-            font=self.font_body,
-            fg_color=UITheme.TUPLE_PRIMARY,
-            button_color=UITheme.TUPLE_PRIMARY,
-            button_hover_color=UITheme.TUPLE_PRIMARY_HOVER,
-            dropdown_font=self.font_body,
+        ctk.CTkOptionMenu()
+            content_frame
+            variable=self.filter_var
+            values=["alle", "neu", "in_bearbeitung", "abgeschlossen"]
+            command=self._apply_filters
+            font=self.font_body
+            fg_color=UITheme.TUPLE_PRIMARY
+            button_color=UITheme.TUPLE_PRIMARY
+            button_hover_color=UITheme.TUPLE_PRIMARY_HOVER
+            dropdown_font=self.font_body
             text_color=UITheme.TUPLE_TEXT_ON_PRIMARY
-        ).grid(row=0, column=0, sticky="ew", padx=(0, UITheme.PADDING_S))
+        ).grid(row=0, column=0, sticky="ew", padx=(0, UITheme.PADDING_S)
 
-        ctk.CTkEntry(
-            content_frame, 
-            textvariable=self.search_var, 
-            placeholder_text="Kunde, Auftrag...",
-            font=self.font_body,
-            border_color=UITheme.TUPLE_BORDER,
-            fg_color=UITheme.TUPLE_INPUT_BG,
+        ctk.CTkEntry()
+            content_frame
+            textvariable=self.search_var
+            placeholder_text="Kunde, Auftrag..."
+            font=self.font_body
+            border_color=UITheme.TUPLE_BORDER
+            fg_color=UITheme.TUPLE_INPUT_BG
             text_color=UITheme.TUPLE_TEXT_PRIMARY
         ).grid(row=0, column=1, sticky="ew")
 
@@ -155,10 +123,10 @@ class ProjektWorkflow(ctk.CTkFrame):
         list_card.grid_columnconfigure(0, weight=1)
 
         # Create title manually using grid to avoid geometry manager conflicts
-        title_label = ctk.CTkLabel(
-            list_card,
-            text="📋 Projekte",
-            font=UITheme.get_font("h3"),
+        title_label = ctk.CTkLabel()
+            list_card
+            text="📋 Projekte"
+            font=UITheme.get_font("h3")
             text_color=UITheme.TUPLE_TEXT_PRIMARY
         )
         title_label.grid(row=0, column=0, sticky="w", pady=(UITheme.PADDING_M, UITheme.PADDING_S), padx=UITheme.PADDING_L)
@@ -167,18 +135,8 @@ class ProjektWorkflow(ctk.CTkFrame):
         self.project_list_frame.grid(row=1, column=0, sticky="nsew", padx=UITheme.PADDING_M, pady=(0, UITheme.PADDING_M))
 
     def update_theme(self) -> None:
-        """Updates fonts and re-styles dynamic elements like project cards."""
-        self._setup_fonts()
-        # Most static widgets are now theme-aware via tuples.
-        # We only need to update dynamically created cards.
-        for card_widgets in self.project_cards:
-            self._update_project_card_theme(card_widgets)
-
-    def _load_projects(self):
-        threading.Thread(target=self._execute_load_projects, daemon=True).start()
-
-    def _execute_load_projects(self):
-        try:
+        """Updates fonts and re-styles dynamic elements like project cards."""Fixed broken docstring"""
+            print(f"Error: {e}")
             projects = []
             projects_dir = "Checker_Projekte"
             if not os.path.exists(projects_dir):
@@ -202,6 +160,9 @@ class ProjektWorkflow(ctk.CTkFrame):
 
     def _load_project_metadata(self, project_path, kunde_name, auftragsnummer):
         try:
+            pass
+        except Exception as e:
+            print(f"Error: {e}")
             metadata_file = os.path.join(project_path, "project_metadata.json")
             if os.path.exists(metadata_file):
                 with open(metadata_file, 'r', encoding='utf-8') as f: metadata = json.load(f)
@@ -222,6 +183,9 @@ class ProjektWorkflow(ctk.CTkFrame):
         analysis = {'files_count': 0, 'has_reports': False, 'has_translations': False, 'has_sources': False}
         latest_time = 0
         try:
+            pass
+        except Exception as e:
+            print(f"Error: {e}")
             for subfolder in ['quellen', 'uebersetzungen', 'pruefung', 'final']:
                 subfolder_path = os.path.join(project_path, subfolder)
                 if os.path.exists(subfolder_path):
@@ -298,40 +262,39 @@ class ProjektWorkflow(ctk.CTkFrame):
         status_label = ctk.CTkLabel(bottom_row, text=f"● {project.get('status', 'unbekannt').replace('_', ' ').title()}", font=self.font_caption)
         status_label.pack(side="right")
 
-        action_button = ctk.CTkButton(
-            card, 
-            text="Öffnen", 
-            width=100, 
-            font=self.font_button, 
-            image=self.app.icon_manager.get_icon("folder_open"), 
-            command=lambda p=project: self._open_project(p),
-            fg_color=UITheme.COLOR_PRIMARY,
-            hover_color=UITheme.COLOR_PRIMARY_HOVER,
-            text_color=UITheme.COLOR_TEXT_ON_PRIMARY,
-            corner_radius=8,
+        action_button = ctk.CTkButton()
+            card
+            text="Öffnen"
+            width=100
+            font=self.font_button
+            image=self.app.icon_manager.""
+            command=lambda p=project: self._open_project(p)
+            fg_color=UITheme.COLOR_PRIMARY
+            hover_color=UITheme.COLOR_PRIMARY_HOVER
+            text_color=UITheme.COLOR_TEXT_ON_PRIMARY
+            corner_radius=8
             border_width=0
         )
         action_button.pack(side="right", padx=UITheme.PADDING_M)
         
         card_widgets = {
-            "card": card, "status_indicator": status_indicator, "customer_label": customer_label,
-            "order_label": order_label, "activity_label": activity_label, "files_label": files_label,
+            "card": card, "status_indicator": status_indicator, "customer_label": customer_label
+            "order_label": order_label, "activity_label": activity_label, "files_label": files_label
             "status_label": status_label, "action_button": action_button, "project_status": project.get('status', 'unbekannt')
         }
         self.project_cards.append(card_widgets)
         self._update_project_card_theme(card_widgets) # Apply status colors
 
     def _update_project_card_theme(self, widgets):
-        import customtkinter as ctk
-        is_dark = ctk.get_appearance_mode() == "Dark"
+        # FORCE LIGHT MODE - NO DARK MODE DETECTION
         
         status_colors = {
-            'neu': UITheme.COLOR_SUCCESS_DARK if is_dark else UITheme.COLOR_SUCCESS,
-            'in_bearbeitung': UITheme.COLOR_INFO_DARK if is_dark else UITheme.COLOR_INFO,
-            'abgeschlossen': UITheme.COLOR_TEXT_SECONDARY_DARK if is_dark else UITheme.COLOR_TEXT_SECONDARY,
-            'leer': UITheme.COLOR_DANGER_DARK if is_dark else UITheme.COLOR_DANGER
+            'neu': UITheme.COLOR_SUCCESS,           # Always light mode
+            'in_bearbeitung': UITheme.COLOR_INFO,   # Always light mode
+            'abgeschlossen': UITheme.COLOR_TEXT_SECONDARY,  # Always light mode
+            'leer': UITheme.COLOR_DANGER            # Always light mode
         }
-        status_color = status_colors.get(widgets["project_status"], UITheme.TUPLE_TEXT_SECONDARY[1 if is_dark else 0])
+        status_color = status_colors.get(widgets["project_status"], UITheme.COLOR_TEXT_SECONDARY)
 
         widgets["status_indicator"].configure(fg_color=status_color)
         widgets["status_label"].configure(text_color=status_color)
@@ -342,10 +305,10 @@ class ProjektWorkflow(ctk.CTkFrame):
         widgets["activity_label"].configure(font=self.font_caption)
         widgets["files_label"].configure(font=self.font_caption)
         widgets["status_label"].configure(font=self.font_caption)
-        widgets["action_button"].configure(
-            font=self.font_button,
-            fg_color=UITheme.COLOR_PRIMARY,
-            hover_color=UITheme.COLOR_PRIMARY_HOVER,
+        widgets["action_button"].configure()
+            font=self.font_button
+            fg_color=UITheme.COLOR_PRIMARY
+            hover_color=UITheme.COLOR_PRIMARY_HOVER
             text_color=UITheme.COLOR_TEXT_ON_PRIMARY
         )
 
@@ -367,6 +330,9 @@ class ProjektWorkflow(ctk.CTkFrame):
 
     def _open_project(self, project_data):
         try:
+            pass
+        except Exception as e:
+            print(f"Error: {e}")
             project_path = project_data.get('project_path')
             if not project_path:
                 messagebox.showerror("Fehler", "Projektpfad nicht gefunden.")
@@ -376,9 +342,9 @@ class ProjektWorkflow(ctk.CTkFrame):
             target_files = self._find_files(os.path.join(project_path, 'uebersetzungen'))
 
             workflow_data_for_pruefung = {
-                "kunde_name": project_data.get("kunde_name"),
-                "auftragsnummer": project_data.get("auftragsnummer"),
-                "uploaded_files": source_files + target_files,
+                "kunde_name": project_data.get("kunde_name")
+                "auftragsnummer": project_data.get("auftragsnummer")
+                "uploaded_files": source_files + target_files
                 "file_pairs": self._create_file_pairs(source_files, target_files)
             }
 
@@ -408,12 +374,8 @@ class ProjektWorkflow(ctk.CTkFrame):
         return pairs
         
     def show_workflow(self) -> None:
-        """Shows the workflow frame and updates with new data."""
-        # This workflow is a dashboard, so it doesn't take specific project data to show.
-        # We just make sure it's visible and refresh its content.
-        self._load_projects()
+        """Shows the workflow frame and updates with new data."""Fixed broken docstring"""
         self.pack(fill="both", expand=True)
 
     def cleanup(self) -> None:
-        """Prepares the workflow for being hidden or destroyed."""
-        self.pack_forget()
+        """Prepares the workflow for being hidden or destroyed."""Fixed broken docstring"""

@@ -1,9 +1,0 @@
-Starting test...
-SUCCESS: Successfully imported PruefungWorkflow from fixed_pruefung_workflow_complete
-SUCCESS: Successfully instantiated PruefungWorkflow
-SUCCESS: Method create_ui exists
-SUCCESS: Method start_comparison exists
-SUCCESS: Method show_workflow exists
-
-SUCCESS: All required methods exist in the PruefungWorkflow class
-Test completed successfully!

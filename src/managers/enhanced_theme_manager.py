@@ -1,21 +1,39 @@
+
 """
-Enhanced Theme Manager with Dark Mode Support
-=============================================
+Enhanced Theme Manager with Dark Mode             "dark": {
+                "name": "Light Theme (Dark Mode Disabled)",
+                "appearance": "light",  # FORCE LIGHT
+                "colors": {
+                    "primary": "#4a6741",
+                    "secondary": "#6c7b7f",
+                    "accent": "#5d737e",
+                    "surface": "#ffffff",  # WHITE SURFACES
+                    "background": "#ffffff",  # WHITE BACKGROUND
+                    "text": "#333333",  # DARK TEXT
+                    "text_secondary": "#666666",
+                    "border": "#e9ecef",
+                    "shadow": "rgba(0, 0, 0, 0.1)"
+                }
+            },=======================================
 Advanced theme management system with smooth transitions,
 dark mode toggle, and user preferences.
 """
-import customtkinter as ctk
-import tkinter as tk
+import os
+
+from datetime import datetime
 from typing import Dict, Callable, Optional, Any
 import json
 import os
 import threading
-from datetime import datetime
+
+import customtkinter as ctk
+import tkinter as tk
+
 from ui_theme import enhanced_theme
 
 class ThemeManager:
     """Advanced theme management with dark mode support."""
-    
+
     def __init__(self):
         self.current_theme = "light"
         self.callbacks = []
@@ -23,7 +41,7 @@ class ThemeManager:
         self.auto_switch_enabled = False
         self.smooth_transitions = True
         self.load_settings()
-        
+
         # Theme definitions
         self.themes = {
             "light": {
@@ -35,7 +53,7 @@ class ThemeManager:
                     "accent": "#FF7043",
                     "surface": "#FFFFFF",
                     "background": "#F5F5F5",
-                    "text": "#1A1A1A",
+                    "text": "#333333",  # Dark grey text for light theme
                     "text_secondary": "#666666",
                     "border": "#E0E0E0",
                     "shadow": "rgba(0, 0, 0, 0.1)"
@@ -87,7 +105,7 @@ class ThemeManager:
                 }
             }
         }
-    
+
     def load_settings(self):
         """Load theme settings from file."""
         try:
@@ -99,7 +117,7 @@ class ThemeManager:
                     self.smooth_transitions = settings.get('smooth_transitions', True)
         except Exception as e:
             print(f"Error loading theme settings: {e}")
-    
+
     def save_settings(self):
         """Save theme settings to file."""
         try:
@@ -113,38 +131,36 @@ class ThemeManager:
                 json.dump(settings, f, indent=2)
         except Exception as e:
             print(f"Error saving theme settings: {e}")
-    
+
     def get_current_theme(self) -> Dict[str, Any]:
         """Get current theme configuration."""
         return self.themes.get(self.current_theme, self.themes["light"])
-    
+
     def get_color(self, color_name: str) -> str:
         """Get color from current theme."""
         theme = self.get_current_theme()
-        return theme["colors"].get(color_name, "#000000")
-    
+        return theme["colors"].get(color_name, "#ffffff")  # WHITE FALLBACK
+
     def set_theme(self, theme_name: str, smooth: bool = True):
         """Set theme with optional smooth transition."""
         if theme_name not in self.themes:
             print(f"Theme '{theme_name}' not found")
-            return
-        
+        # FORCE LIGHT MODE - NO DARK THEMES ALLOWED
+        if theme_name not in ["light", "blue", "green"]:
+            theme_name = "light"  # Force light theme
+
         old_theme = self.current_theme
-        self.current_theme = theme_name
-        
-        # Set CustomTkinter appearance mode
-        appearance = self.themes[theme_name]["appearance"]
-        ctk.set_appearance_mode(appearance)
-        
-        # Apply theme with smooth transition if enabled
-        if smooth and self.smooth_transitions:
-            self._apply_theme_with_transition(old_theme, theme_name)
-        else:
-            self._apply_theme_immediate()
-        
+        self.current_theme = "light"  # ALWAYS LIGHT
+
+        # ALWAYS SET LIGHT MODE
+        ctk.set_appearance_mode("light")  # FORCE LIGHT
+
+        # Apply theme immediately
+        self._apply_theme_immediate()
+
         # Save settings
         self.save_settings()
-    
+
     def _apply_theme_immediate(self):
         """Apply theme changes immediately."""
         for callback in self.callbacks:
@@ -152,7 +168,7 @@ class ThemeManager:
                 callback(self.get_current_theme())
             except Exception as e:
                 print(f"Error applying theme callback: {e}")
-    
+
     def _apply_theme_with_transition(self, old_theme: str, new_theme: str):
         """Apply theme with smooth transition effect."""
         def transition():
@@ -161,80 +177,60 @@ class ThemeManager:
                 steps = 10
                 for i in range(steps + 1):
                     progress = i / steps
-                    
+
                     # Interpolate colors (simplified)
                     for callback in self.callbacks:
                         try:
                             callback(self.get_current_theme())
                         except Exception as e:
                             print(f"Error in transition callback: {e}")
-                    
+
                     # Small delay for smooth effect
                     threading.Event().wait(0.02)
-                
+
             except Exception as e:
                 print(f"Error in theme transition: {e}")
-        
+
         # Run transition in background thread
         transition_thread = threading.Thread(target=transition, daemon=True)
         transition_thread.start()
-    
+
     def toggle_theme(self):
-        """Toggle between light and dark theme."""
-        if self.current_theme == "light":
-            self.set_theme("dark")
-        else:
-            self.set_theme("light")
-    
+        """🚨 CRITICAL: NUR LIGHT MODE ERLAUBT - Dark Mode deaktiviert."""
+        # ❌ NIEMALS Dark Mode verwenden - fehleranfällig!
+        print("❌ FEHLER: Dark Mode Toggle deaktiviert! Nur Light Mode erlaubt.")
+        self.set_theme("light")
+
     def register_callback(self, callback: Callable):
         """Register callback for theme changes."""
         self.callbacks.append(callback)
-    
+
     def unregister_callback(self, callback: Callable):
         """Unregister theme change callback."""
         if callback in self.callbacks:
             self.callbacks.remove(callback)
-    
+
     def get_available_themes(self) -> Dict[str, str]:
         """Get available themes list."""
         return {name: theme["name"] for name, theme in self.themes.items()}
-    
-    def enable_auto_switch(self, enabled: bool = True):
-        """Enable/disable automatic theme switching based on time."""
-        self.auto_switch_enabled = enabled
-        if enabled:
-            self._start_auto_switch_monitor()
+
+    def enable_auto_switch(self, enabled: bool = False):
+        """🚨 CRITICAL: Auto-Switch DEAKTIVIERT - Dark Mode verboten!"""
+        # ❌ NIEMALS Auto-Switch aktivieren - führt zu Dark Mode!
+        self.auto_switch_enabled = False  # Immer deaktiviert
+        print("❌ WARNUNG: Auto-Switch ist deaktiviert - Dark Mode verboten!")
         self.save_settings()
-    
+
     def _start_auto_switch_monitor(self):
-        """Start automatic theme switching monitor."""
-        def monitor():
-            while self.auto_switch_enabled:
-                try:
-                    current_hour = datetime.now().hour
-                    
-                    # Switch to dark mode in the evening (6 PM - 6 AM)
-                    if 18 <= current_hour or current_hour < 6:
-                        if self.current_theme == "light":
-                            self.set_theme("dark")
-                    else:
-                        if self.current_theme == "dark":
-                            self.set_theme("light")
-                    
-                    # Check every 30 minutes
-                    threading.Event().wait(1800)
-                    
-                except Exception as e:
-                    print(f"Error in auto-switch monitor: {e}")
-                    break
-        
-        monitor_thread = threading.Thread(target=monitor, daemon=True)
-        monitor_thread.start()
-    
+        """🚨 AUTO-SWITCH MONITOR DEAKTIVIERT - Dark Mode verboten!"""
+        # ❌ NIEMALS Auto-Switch Monitor starten - führt zu Dark Mode!
+        print("❌ WARNUNG: Auto-Switch Monitor deaktiviert - Dark Mode verboten!")
+        return  # Sofort beenden
+
     def create_theme_selector(self, parent) -> ctk.CTkFrame:
         """Create theme selector widget."""
         theme_frame = ctk.CTkFrame(parent)
-        
+
         # Title
         title_label = ctk.CTkLabel(
             theme_frame,
@@ -242,12 +238,12 @@ class ThemeManager:
             font=ctk.CTkFont(size=16, weight="bold")
         )
         title_label.pack(pady=(10, 5))
-        
+
         # Theme buttons
         button_frame = ctk.CTkFrame(theme_frame)
         button_frame.pack(fill="x", padx=10, pady=5)
-        
-        themes = self.get_available_themes()
+
+        themes = {"light": "Light Mode Only"}  # Nur Light Mode verfügbar
         for theme_id, theme_name in themes.items():
             btn = ctk.CTkButton(
                 button_frame,
@@ -257,27 +253,38 @@ class ThemeManager:
                 height=30
             )
             btn.pack(side="left", padx=5, pady=5)
-        
-        # Toggle button
+
+        # Toggle button - 🚨 DEAKTIVIERT! Dark Mode verboten!
         toggle_btn = ctk.CTkButton(
             theme_frame,
-            text="🌓 Toggle Dark/Light",
-            command=self.toggle_theme,
+            text="☀ Light Mode Only",
+            command=lambda: self.set_theme("light"),  # Immer Light Mode
             width=150,
-            height=35
+            height=35,
+            state="disabled"  # Deaktiviert um Dark Mode zu verhindern
         )
         toggle_btn.pack(pady=10)
-        
-        # Auto-switch checkbox
-        auto_switch_var = tk.BooleanVar(value=self.auto_switch_enabled)
+
+        # DARK MODE WARNING LABEL
+        warning_label = ctk.CTkLabel(
+            theme_frame,
+            text="⚠ Dark Mode ist deaktiviert (fehleranfällig)",
+            font=ctk.CTkFont(size=12),
+            text_color="#ff6b6b"
+        )
+        warning_label.pack(pady=5)
+
+        # Auto-switch checkbox - DEAKTIVIERT!
+        auto_switch_var = tk.BooleanVar(value=False)  # Immer False
         auto_switch_cb = ctk.CTkCheckBox(
             theme_frame,
-            text="Auto-switch based on time",
+            text="Auto-switch deaktiviert (Dark Mode verboten)",
             variable=auto_switch_var,
-            command=lambda: self.enable_auto_switch(auto_switch_var.get())
+            command=lambda: self.enable_auto_switch(False),  # Immer False
+            state="disabled"  # Deaktiviert
         )
         auto_switch_cb.pack(pady=5)
-        
+
         return theme_frame
 
 # Global theme manager instance
@@ -292,7 +299,7 @@ def get_theme_color(color_name: str) -> str:
 def sync_with_enhanced_theme():
     """Synchronize with existing enhanced_theme."""
     current_theme = theme_manager.get_current_theme()
-    
+
     # Update enhanced_theme colors
     if hasattr(enhanced_theme, 'color_palette'):
         for color_name, color_value in current_theme["colors"].items():
