@@ -40,11 +40,8 @@ DATEI-ZUGEHÖRIGKEIT:
 - Zweck: Wiederverwendbare Hilfsfunktionen
 """
 import os
-
-
 import customtkinter as ctk
 import tkinter as tk
-import os
 import json
 import datetime
 import logging
@@ -54,7 +51,9 @@ from typing import Dict, List, Optional, Any, Callable, Union
 # =========================== TOAST NOTIFICATION SYSTEM ===========================
 
 class ToastNotification:
-    """Professional toast notification system with multiple styles and animations"""
+    """Professional toast notification system (thread-safe wrapper, reflow)."""
+
+    DEFAULT_FONT = ("Segoe UI", 12)
 
     def __init__(self, parent, position="top-right", duration=3000):
         self.parent = parent
@@ -62,48 +61,41 @@ class ToastNotification:
         self.default_duration = duration
         self.active_toasts = []
         self.toast_spacing = 10
-
-        # Toast styles
+        # Styles (könnten später via Design-System Tokens ersetzt werden)
         self.toast_styles = {
-            'success': {
-                'bg_color': '#10B981',
-                'text_color': '#FFFFFF',
-                'border_color': '#059669',
-                'icon': '✅'
-            },
-            'error': {
-                'bg_color': '#EF4444',
-                'text_color': '#FFFFFF',
-                'border_color': '#DC2626',
-                'icon': '❌'
-            },
-            'warning': {
-                'bg_color': '#F59E0B',
-                'text_color': '#FFFFFF',
-                'border_color': '#D97706',
-                'icon': '⚠️'
-            },
-            'info': {
-                'bg_color': '#3B82F6',
-                'text_color': '#FFFFFF',
-                'border_color': '#2563EB',
-                'icon': 'ℹ️'
-            }
+            'success': {'bg_color': '#10B981', 'text_color': '#FFFFFF', 'border_color': '#059669'},
+            'error':   {'bg_color': '#EF4444', 'text_color': '#FFFFFF', 'border_color': '#DC2626'},
+            'warning': {'bg_color': '#F59E0B', 'text_color': '#FFFFFF', 'border_color': '#D97706'},
+            # Vereinheitlichtes Info-Blau -> Brand Primary
+            'info':    {'bg_color': '#1F4E79', 'text_color': '#FFFFFF', 'border_color': '#1A3F65'},
         }
 
     def show_toast(self, message: str, toast_type: str = "info", duration: int = None):
-        """Show toast notification with specified type and duration"""
+        """Thread-sicherer Entry-Point – delegiert in Haupt-Thread."""
+        if hasattr(self.parent, 'after'):
+            return self.parent.after(0, lambda: self._show_toast_sync(message, toast_type, duration))
+        return self._show_toast_sync(message, toast_type, duration)
+
+    def _show_toast_sync(self, message: str, toast_type: str = "info", duration: int = None):
         if duration is None:
             duration = self.default_duration
-
         style = self.toast_styles.get(toast_type, self.toast_styles['info'])
-
-        # Create toast window
         toast_window = tk.Toplevel(self.parent)
         toast_window.wm_overrideredirect(True)
-        toast_window.wm_attributes('-topmost', True)
+        try:
+            toast_window.wm_attributes('-topmost', True)
+        except Exception:
+            pass
+        try:
+            toast_window.wm_attributes('-alpha', 0.0)
+        except Exception:
+            pass
+        try:
+            from design_system import get_color as _ds_get_color  # lazy import
+            transparent = _ds_get_color('transparent') or 'transparent'
+        except Exception:
+            transparent = 'transparent'
 
-        # Toast frame
         toast_frame = ctk.CTkFrame(
             toast_window,
             fg_color=style['bg_color'],
@@ -113,87 +105,82 @@ class ToastNotification:
         )
         toast_frame.pack(padx=2, pady=2)
 
-        # Message container
-        message_frame = ctk.CTkFrame(toast_frame, fg_color='transparent')
+        message_frame = ctk.CTkFrame(toast_frame, fg_color=transparent)
         message_frame.pack(padx=12, pady=8)
 
-        # Icon and message
-        content_frame = ctk.CTkFrame(message_frame, fg_color='transparent')
+        content_frame = ctk.CTkFrame(message_frame, fg_color=transparent)
         content_frame.pack(fill='x')
 
-        # Icon (removed per NO ICONS POLICY)
-
-        # Message text
         message_label = ctk.CTkLabel(
             content_frame,
             text=message,
-            font=ctk.CTkFont(family="Segoe UI", size=12),
+            font=ctk.CTkFont(family=self.DEFAULT_FONT[0], size=self.DEFAULT_FONT[1]),
             text_color=style['text_color'],
             wraplength=300
         )
         message_label.pack(side='left', fill='x', expand=True)
 
-        # Close button
-        close_button = ctk.CTkButton(
+        close_label = ctk.CTkLabel(
             content_frame,
             text="×",
-            width=20,
-            height=20,
-            corner_radius=10,
-            fg_color='transparent',
+            font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold"),
             text_color=style['text_color'],
-            hover_color='rgba(255,255,255,0.1)',
-            command=lambda: self._close_toast(toast_window)
         )
-        close_button.pack(side='right', padx=(8, 0))
+        close_label.pack(side='right', padx=(8, 0))
+        close_label.bind("<Button-1>", lambda _e: self._close_toast(toast_window))
+        close_label.bind("<Enter>", lambda _e: close_label.configure(text_color="#FFFFFF"))
+        close_label.bind("<Leave>", lambda _e: close_label.configure(text_color=style['text_color']))
 
-        # Position toast
+        toast_window.bind("<Escape>", lambda _e: self._close_toast(toast_window))
+        toast_window.bind("<Destroy>", lambda _e: self.active_toasts.remove(toast_window) if toast_window in self.active_toasts else None)
+
         self._position_toast(toast_window)
-
-        # Add to active toasts
         self.active_toasts.append(toast_window)
-
-        # Auto-close after duration
         toast_window.after(duration, lambda: self._close_toast(toast_window))
-
-        # Fade-in animation
         self._animate_toast_in(toast_window)
-
         return toast_window
 
     def _position_toast(self, toast_window):
-        """Position toast based on configured position"""
+        """Position toast – bevorzugt relativ zum Parent (wenn sichtbar)."""
         toast_window.update_idletasks()
+        try:
+            pw = self.parent.winfo_width()
+            ph = self.parent.winfo_height()
+            px = self.parent.winfo_rootx()
+            py = self.parent.winfo_rooty()
+            use_parent = pw > 0 and ph > 0
+        except Exception:
+            use_parent = False
 
-        # Get screen dimensions
-        screen_width = self.parent.winfo_screenwidth()
-        screen_height = self.parent.winfo_screenheight()
+        if use_parent:
+            avail_w, avail_h, offset_x, offset_y = pw, ph, px, py
+        else:
+            avail_w = self.parent.winfo_screenwidth()
+            avail_h = self.parent.winfo_screenheight()
+            offset_x = 0
+            offset_y = 0
 
-        # Get toast dimensions
         toast_width = toast_window.winfo_reqwidth()
         toast_height = toast_window.winfo_reqheight()
+        offset_y_stack = len(self.active_toasts) * (toast_height + self.toast_spacing)
 
-        # Calculate position offset for multiple toasts
-        offset_y = len(self.active_toasts) * (toast_height + self.toast_spacing)
-
-        # Position based on preference
         if self.position == "top-right":
-            x = screen_width - toast_width - 20
-            y = 20 + offset_y
+            x = offset_x + avail_w - toast_width - 20
+            y = offset_y + 20 + offset_y_stack
         elif self.position == "top-left":
-            x = 20
-            y = 20 + offset_y
+            x = offset_x + 20
+            y = offset_y + 20 + offset_y_stack
         elif self.position == "bottom-right":
-            x = screen_width - toast_width - 20
-            y = screen_height - toast_height - 20 - offset_y
+            x = offset_x + avail_w - toast_width - 20
+            y = offset_y + avail_h - toast_height - 20 - offset_y_stack
         elif self.position == "bottom-left":
-            x = 20
-            y = screen_height - toast_height - 20 - offset_y
-        else:  # center
-            x = (screen_width - toast_width) // 2
-            y = (screen_height - toast_height) // 2 + offset_y
+            x = offset_x + 20
+            y = offset_y + avail_h - toast_height - 20 - offset_y_stack
+        else:
+            x = offset_x + (avail_w - toast_width) // 2
+            y = offset_y + (avail_h - toast_height) // 2 + offset_y_stack
 
-        toast_window.wm_geometry(f"+{x}+{y}")
+        toast_window.wm_geometry(f"+{max(0, int(x))}+{max(0, int(y))}")
 
     def _animate_toast_in(self, toast_window):
         """Animate toast appearance"""
@@ -208,18 +195,25 @@ class ToastNotification:
         fade_in()
 
     def _close_toast(self, toast_window):
-        """Close toast with fade-out animation"""
+        """Close toast (fade-out) und reflow verbleibende."""
         if toast_window in self.active_toasts:
             self.active_toasts.remove(toast_window)
 
         def fade_out(alpha=1.0):
             alpha -= 0.1
             if alpha >= 0.0:
-                toast_window.wm_attributes('-alpha', alpha)
+                try:
+                    toast_window.wm_attributes('-alpha', alpha)
+                except Exception:
+                    pass
                 toast_window.after(50, lambda: fade_out(alpha))
             else:
-                toast_window.destroy()
-
+                try:
+                    toast_window.destroy()
+                finally:
+                    # Reflow
+                    for idx, tw in enumerate(self.active_toasts):
+                        self._position_toast(tw)
         fade_out()
 
     def clear_all_toasts(self):
@@ -305,7 +299,7 @@ class FileManager:
                 'name': os.path.basename(file_path),
                 'path': file_path,
                 'size': stat.st_size,
-                'size_formatted': self._format_file_size(stat.st_size),
+                'size_formatted': format_file_size(stat.st_size),
                 'modified': datetime.datetime.fromtimestamp(stat.st_mtime),
                 'extension': os.path.splitext(file_path)[1].lower(),
                 'type': self.supported_formats.get(os.path.splitext(file_path)[1].lower(), 'Unknown'),
@@ -319,44 +313,72 @@ class FileManager:
                 'exists': False
             }
 
-    def _format_file_size(self, size_bytes: int) -> str:
-        """Format file size in human readable format"""
+    def copy_file_to_project(self, source_path: str, project_path: str, category: str = 'source') -> str:
+        """Copy file to project directory ensuring unique filename."""
+        import shutil
+        try:
+            category_dir = os.path.join(project_path, category)
+            os.makedirs(category_dir, exist_ok=True)
+            filename = os.path.basename(source_path)
+            dest_path = os.path.join(category_dir, filename)
+            base, ext = os.path.splitext(filename)
+            i = 1
+            while os.path.exists(dest_path):
+                dest_path = os.path.join(category_dir, f"{base}_{i}{ext}")
+                i += 1
+            shutil.copy2(source_path, dest_path)
+            return dest_path
+        except Exception as e:
+            logging.error(f"Error copying file: {e}", exc_info=True)
+            raise
+
+# ------------------------------------------------------------
+# PUBLIC UTILITY HELPERS (Single Source of Truth)
+# ------------------------------------------------------------
+def format_file_size(size_bytes: int) -> str:
+    """Zentrale Dateigrößen-Formatierung (wird von GUI-Klassen genutzt).
+
+    Hintergrund:
+    Es gab mehrere leicht unterschiedliche Implementierungen von
+    _format_file_size in verschiedenen GUI-Dateien. Diese Funktion stellt
+    eine konsolidierte, getestete Variante bereit um zukünftige
+    Divergenzen zu verhindern. Andere Module sollen NICHT eigene Logik
+    duplizieren, sondern diese Funktion importieren.
+    """
+    try:
         if size_bytes == 0:
             return "0 B"
-
         size_names = ["B", "KB", "MB", "GB"]
         import math
         i = int(math.floor(math.log(size_bytes, 1024)))
         p = math.pow(1024, i)
         s = round(size_bytes / p, 2)
         return f"{s} {size_names[i]}"
+    except Exception:
+        return "Unknown"
 
-    def copy_file_to_project(self, source_path: str, project_path: str, category: str = 'source') -> str:
-        """Copy file to project directory with proper organization"""
-        try:
-            # Create category directory if needed
-            category_dir = os.path.join(project_path, category)
-            os.makedirs(category_dir, exist_ok=True)
+def is_backup_filename(name: str) -> bool:
+    """Erkennt Backup/alte Datei-Namen (Single Source für Backup-Filter).
 
-            # Generate unique filename if needed
-            filename = os.path.basename(source_path)
-            dest_path = os.path.join(category_dir, filename)
+    Regeln:
+    - Enthält typische Muster (backup, old, original, before, alt, copy, deprecated)
+    - Enthält '.backup_' oder endet auf '.bak'
+    - Case-insensitive
+    """
+    try:
+        n = name.lower()
+        patterns = [
+            'backup', 'old', 'original', 'before', 'alt', 'copy', 'deprecated'
+        ]
+        if any(p in n for p in patterns):
+            return True
+        if '.backup_' in n or n.endswith('.bak'):
+            return True
+        return False
+    except Exception:
+        return False
 
-            counter = 1
-            base_name, ext = os.path.splitext(filename)
-            while os.path.exists(dest_path):
-                new_filename = f"{base_name}_{counter}{ext}"
-                dest_path = os.path.join(category_dir, new_filename)
-                counter += 1
-
-            # Copy file
-            import shutil
-            shutil.copy2(source_path, dest_path)
-            return dest_path
-
-        except Exception as e:
-            logging.error(f"Error copying file: {e}")
-            raise
+    # (Fehlerhafte Einrückung für copy_file_to_project entfernt – Methode ist jetzt Teil von FileManager)
 
 # =========================== UI STATE MANAGEMENT ===========================
 
@@ -403,9 +425,11 @@ class UIStateManager:
             logging.error(f"Failed to save UI state: {e}")
 
     def get_window_geometry(self) -> str:
-        """Get saved window geometry"""
+        """Get saved window geometry (mit Offscreen-Schutz)."""
         w = self.state['window']
-        return f"{w['width']}x{w['height']}+{w['x']}+{w['y']}"
+        x = max(0, int(w.get('x', 0)))
+        y = max(0, int(w.get('y', 0)))
+        return f"{w['width']}x{w['height']}+{x}+{y}"
 
     def save_window_geometry(self, window):
         """Save current window geometry"""
@@ -576,7 +600,7 @@ class SearchFilter:
                 reader = PyPDF2.PdfReader(file)
                 text = ""
                 for page in reader.pages:
-                    text += page.extract_text()
+                    text += page.extract_text() or ""
                 return text
         except ImportError:
             logging.warning("PyPDF2 not available for PDF text extraction")
@@ -590,7 +614,7 @@ class SearchFilter:
         try:
             import docx
             doc = docx.Document(file_path)
-            return '\n'.join([paragraph.text for paragraph in doc.paragraphs])
+            return '\n'.join(p.text for p in doc.paragraphs if p.text)
         except ImportError:
             logging.warning("python-docx not available for Word text extraction")
             return ""
@@ -669,6 +693,7 @@ class ValidationUtils:
 
         except Exception as e:
             result['error'] = str(e)
+            logging.exception("validate_file_path exception")
 
         return result
 
@@ -831,6 +856,7 @@ class ConfigManager:
         for dir_key, dir_path in paths.items():
             try:
                 os.makedirs(dir_path, exist_ok=True)
+                logging.debug(f"Ensured directory exists: {dir_path}")
             except Exception as e:
                 logging.error(f"Failed to create directory {dir_path}: {e}")
 

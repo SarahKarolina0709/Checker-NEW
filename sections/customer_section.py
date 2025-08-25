@@ -36,6 +36,58 @@ class CustomerSection:
         self.content = None
         self.build()
 
+    # --- Safe helpers for host API fallbacks ---
+    def _gv(self, key: str, default: Any = None) -> Any:
+        """Get component value with safe fallback if host API is missing."""
+        try:
+            if hasattr(self.host, 'get_component_value'):
+                val = self.host.get_component_value(key)
+                return val if val is not None else default
+        except Exception:
+            pass
+        return default
+
+    def _gs(self, token: str, default: Any = None) -> Any:
+        """Get spacing value with safe fallback if host API is missing."""
+        try:
+            if hasattr(self.host, 'get_spacing'):
+                val = self.host.get_spacing(token)
+                return val if val is not None else default
+        except Exception:
+            pass
+        return default
+
+    def _btn_style(self, style: str = 'primary', size: str = 'md', variant: str = 'solid', **overrides) -> dict:
+        """Return a CTkButton style dict using host helper or DS-based fallback."""
+        # Prefer host-provided style helper
+        try:
+            if hasattr(self.host, '_button_style'):
+                cfg = self.host._button_style(style, size, variant)
+                if isinstance(cfg, dict):
+                    cfg.update(overrides)
+                    return cfg
+        except Exception:
+            pass
+        # DS-based fallback
+        # Einheitliches Blau: alle aktiven Varianten nutzen primary
+        # Inaktiv: hellere Fläche (primary_light) mit primärem Text für dezente Differenzierung
+        if style == 'inactive':
+            cfg = {
+                'fg_color': self.host.get_color('primary_light'),
+                'hover_color': self.host.get_color('primary_light'),  # kein starker Hover im deaktivierten Zustand
+                'text_color': self.host.get_color('primary'),
+                'corner_radius': self._gv('borders.radius_md', 8),
+            }
+        else:
+            cfg = {
+                'fg_color': self.host.get_color('primary'),
+                'hover_color': self.host.get_color('primary_hover'),
+                'text_color': self.host.get_color('white'),
+                'corner_radius': self._gv('borders.radius_md', 8),
+            }
+        cfg.update(overrides)
+        return cfg
+
     def build(self) -> None:
         try:
             # 1) Container/Card in dieser Section aufbauen
@@ -66,17 +118,19 @@ class CustomerSection:
         card = ctk.CTkFrame(
             parent,
             fg_color=self.host.get_color('surface'),
-            corner_radius=self.host.get_component_value('borders.radius_md'),
+            corner_radius=self._gv('borders.radius_md', 8),
             border_width=1,
             border_color=self.host.get_color('surface_border'),
         )
         card.grid(row=0, column=column, sticky="nsew",
-                  padx=self.host.get_spacing('sm'), pady=0)
-
-        content = ctk.CTkFrame(card, fg_color="transparent")
-        content.pack(fill="both", expand=True,
-                     padx=self.host.get_spacing('card_padding'),
-                     pady=self.host.get_spacing('card_padding'))
+                  padx=self._gs('sm', 8), pady=0)
+        content = ctk.CTkFrame(card, fg_color=self.host.get_color('transparent'))
+        content.pack(
+            fill="both",
+            expand=True,
+            padx=self._gs('md', 16),
+            pady=self._gs('md', 16),
+        )
 
         return card, content
 
@@ -88,7 +142,7 @@ class CustomerSection:
         title = ctk.CTkLabel(
             content,
             text="Kundenmanagement",
-            font=ctk.CTkFont(*self.host.get_typography("subheading")),
+            font=ctk.CTkFont(*self.host.get_typography("heading_md")),
             text_color=self.host.get_color('primary'),
         )
         title.pack(pady=(0, 15), fill="x")
@@ -96,21 +150,21 @@ class CustomerSection:
         separator = ctk.CTkFrame(
             content,
             height=2,
-            fg_color=self.host.get_color('border'),
-            corner_radius=self.host.get_component_value('borders.radius_hairline'),
+            fg_color=self.host.get_color('surface_border'),
+            corner_radius=self._gv('borders.radius_hairline', 1),
         )
         separator.pack(fill="x", pady=(0, 25))
 
     def _build_input_section(self, content: Any) -> None:
         if ctk is None:
             return
-        input_section = ctk.CTkFrame(content, fg_color="transparent")
+        input_section = ctk.CTkFrame(content, fg_color=self.host.get_color('transparent'))
         input_section.pack(fill="x", pady=(0, 20))
 
         input_label = ctk.CTkLabel(
             input_section,
             text="Neuer Kunde:",
-            font=ctk.CTkFont(*self.host.get_typography("small")),
+            font=ctk.CTkFont(*self.host.get_typography("caption")),
             text_color=self.host.get_color('text_primary'),
         )
         input_label.pack(anchor="w", pady=(0, 10))
@@ -120,45 +174,49 @@ class CustomerSection:
             input_section,
             placeholder_text="Firmenname eingeben...",
             height=40,
-            font=ctk.CTkFont(*self.host.get_typography("body")),
+            font=ctk.CTkFont(*self.host.get_typography("body_md")),
             fg_color=self.host.get_color('input_bg'),
-            placeholder_text_color=self.host.get_color('gray_450'),
+            placeholder_text_color=self.host.get_color('input_placeholder'),
             border_width=2,
-            border_color=self.host.get_color('gray_400'),
-            corner_radius=self.host.get_component_value('borders.radius_lg'),
+            border_color=self.host.get_color('input_border'),
+            corner_radius=self._gv('borders.radius_lg', 12),
         )
         self.host.customer_entry.pack(fill="x", pady=(0, 15))
 
         # Bindings beibehalten (Callbacks auf dem Host)
         self.host.customer_entry.bind('<FocusIn>', self.host._on_customer_entry_focus_in)
         self.host.customer_entry.bind('<FocusOut>', self.host._on_customer_entry_focus_out)
-        self.host.customer_entry.bind('<Enter>', lambda e: self.host.customer_entry.configure(border_color=self.host.get_color('primary_hover')))
-        self.host.customer_entry.bind('<Leave>', lambda e: self.host.customer_entry.configure(border_color=self.host.get_color('gray_400')))
+        self.host.customer_entry.bind(
+            '<Enter>',
+            lambda e: self.host.customer_entry.configure(border_color=self.host.get_color('primary_hover')),
+        )
+        self.host.customer_entry.bind(
+            '<Leave>',
+            lambda e: self.host.customer_entry.configure(border_color=self.host.get_color('input_border')),
+        )
 
         add_btn = ctk.CTkButton(
             input_section,
             text="Kunde hinzufügen",
             height=44,
-            font=ctk.CTkFont(*self.host.get_typography("button")),
-            fg_color=self.host.get_color('primary'),
-            hover_color=self.host.get_color('primary_hover'),
-            text_color=self.host.get_color('white'),
-            corner_radius=self.host.get_component_value('borders.radius_lg'),
+            # Schrift normal (nicht fett) statt Button-Bold
+            font=ctk.CTkFont(*self.host.get_typography("body_md")),
             border_width=0,
             command=self.host._add_customer,
+            **self._btn_style('primary', 'md', 'solid'),
         )
         add_btn.pack(fill="x", pady=(0, 25))
 
     def _build_status_section(self, content: Any) -> None:
         if ctk is None:
             return
-        status_section = ctk.CTkFrame(content, fg_color="transparent")
+        status_section = ctk.CTkFrame(content, fg_color=self.host.get_color('transparent'))
         status_section.pack(fill="x", pady=(0, 20))
 
         current_label = ctk.CTkLabel(
             status_section,
             text="Aktueller Kunde:",
-            font=ctk.CTkFont(*self.host.get_typography("small")),
+            font=ctk.CTkFont(*self.host.get_typography("caption")),
             text_color=self.host.get_color('text_primary'),
         )
         current_label.pack(anchor="w", pady=(0, 8))
@@ -168,66 +226,60 @@ class CustomerSection:
             fg_color=self.host.get_color('surface'),
             border_width=1,
             border_color=self.host.get_color('surface_border'),
-            corner_radius=self.host.get_component_value('borders.radius_md'),
+            corner_radius=self._gv('borders.radius_md', 8),
             height=40,
         )
         status_card.pack(fill="x", pady=(0, 20))
         status_card.pack_propagate(False)
-        # Status-Pill Container
-        pill_container = ctk.CTkFrame(status_card, fg_color="transparent")
+        pill_container = ctk.CTkFrame(status_card, fg_color=self.host.get_color('transparent'))
         pill_container.pack(fill="both", expand=True)
         self.host.current_customer_pill = ctk.CTkFrame(
             pill_container,
             fg_color=self.host.get_color('warning'),
-            corner_radius=self.host.get_component_value('borders.radius_md'),
+            corner_radius=self._gv('borders.radius_md', 8),
             border_width=1,
             border_color=self.host.get_color('warning'),
         )
-        # Vollflächige Füllung innerhalb der Karte
         self.host.current_customer_pill.pack(fill="both", expand=True, padx=0, pady=0)
-        # Host-Attribut: Label bleibt kompatibel
         self.host.current_customer_label = ctk.CTkLabel(
             self.host.current_customer_pill,
             text="Kein Kunde ausgewählt",
-            font=ctk.CTkFont(*self.host.get_typography("small")),
+            font=ctk.CTkFont(*self.host.get_typography("caption")),
             text_color=self.host.get_color('white'),
-            padx=self.host.get_spacing('md'),
-            pady=self.host.get_spacing('xs'),
+            padx=self._gs('md', 16),
+            pady=self._gs('xs', 8),
         )
         self.host.current_customer_label.pack()
 
     def _build_search_section(self, content: Any) -> None:
         if ctk is None:
             return
-        search_section = ctk.CTkFrame(content, fg_color="transparent")
+        search_section = ctk.CTkFrame(content, fg_color=self.host.get_color('transparent'))
         search_section.pack(fill="x", pady=(0, 20))
 
         search_label = ctk.CTkLabel(
             search_section,
             text="Kunde suchen:",
-            font=ctk.CTkFont(*self.host.get_typography("small")),
+            font=ctk.CTkFont(*self.host.get_typography("caption")),
             text_color=self.host.get_color('text_primary'),
         )
         search_label.pack(anchor="w", pady=(0, 10))
-
-        search_container = ctk.CTkFrame(search_section, fg_color="transparent")
+        search_container = ctk.CTkFrame(search_section, fg_color=self.host.get_color('transparent'))
         search_container.pack(fill="x", pady=(0, 20))
 
-        # Host-Attribut setzen
         self.host.customer_search_entry = ctk.CTkEntry(
             search_container,
             placeholder_text="Kundenname eingeben oder auswählen...",
             height=40,
-            font=ctk.CTkFont(*self.host.get_typography("body")),
+            font=ctk.CTkFont(*self.host.get_typography("body_md")),
             fg_color=self.host.get_color('input_bg'),
-            placeholder_text_color=self.host.get_color('gray_450'),
+            placeholder_text_color=self.host.get_color('input_placeholder'),
             border_width=2,
-            border_color=self.host.get_color('gray_400'),
-            corner_radius=self.host.get_component_value('borders.radius_lg'),
+            border_color=self.host.get_color('input_border'),
+            corner_radius=self._gv('borders.radius_lg', 12),
         )
         self.host.customer_search_entry.pack(fill="x", pady=(0, 10))
 
-        # Debounce/Bindings
         self.host._search_after_id = None
         self.host.customer_search_entry.bind('<KeyRelease>', self.host._on_customer_search_keyrelease)
         self.host.customer_search_entry.bind('<FocusIn>', self.host._on_search_focus_in)
@@ -243,19 +295,17 @@ class CustomerSection:
         )
         self.host.customer_search_entry.bind(
             '<Leave>',
-            lambda e: self.host.customer_search_entry.configure(border_color=self.host.get_color('gray_400')),
+            lambda e: self.host.customer_search_entry.configure(border_color=self.host.get_color('input_border')),
         )
 
-        # Result-Container auf dem Host referenzieren (für spätere Updates)
         self.host.customer_results_frame = ctk.CTkFrame(
             search_container,
             fg_color=self.host.get_color('white'),
             border_width=1,
             border_color=self.host.get_color('input_border'),
-            corner_radius=self.host.get_component_value('borders.radius_lg'),
+            corner_radius=self._gv('borders.radius_lg', 12),
             height=0,
         )
-        # Noch nicht packen – dynamisch, wie im Host
         self.host.search_results_container = None
         self.host.search_active = False
         self.host.filtered_customers = []
@@ -263,37 +313,27 @@ class CustomerSection:
     def _build_actions_section(self, content: Any) -> None:
         if ctk is None:
             return
-        actions_section = ctk.CTkFrame(content, fg_color="transparent")
+        actions_section = ctk.CTkFrame(content, fg_color=self.host.get_color('transparent'))
         actions_section.pack(fill="x")
 
-        button_frame = ctk.CTkFrame(actions_section, fg_color="transparent")
+        button_frame = ctk.CTkFrame(actions_section, fg_color=self.host.get_color('transparent'))
         button_frame.pack(fill="x", pady=(0, 15))
         button_frame.grid_columnconfigure(0, weight=1)
         button_frame.grid_columnconfigure(1, weight=1)
 
-        # Gemeinsame Maße (Fallbacks bei Token-Fehlern)
-        try:
-            common_h = self.host.get_component_value('heights.button_md')
-            common_r = self.host.get_component_value('borders.radius_md')
-        except Exception:
-            common_h, common_r = 44, 8
+        common_h = self._gv('heights.button_md', 44)
+        common_r = self._gv('borders.radius_md', 8)
 
-        # Primäre Aktionen
         select_btn = ctk.CTkButton(
             button_frame,
             text="Auswählen",
             command=self.host._select_customer,
-            **self.host._button_style('primary', 'md', 'solid')
+            **self._btn_style('primary', 'md', 'solid')
         )
-        # Einheitliche Mindestbreite aus Design-System
+        min_w = int(self._gv('buttons.min_width_md', 140))
+        select_btn.grid(row=0, column=0, sticky="ew", padx=(0, self._gs('xs', 8)))
         try:
-            min_w = int(self.host.get_component_value('buttons.min_width_md') or 140)
-        except Exception:
-            min_w = 140
-        select_btn.grid(row=0, column=0, sticky="ew", padx=(0, self.host.get_spacing('xs')))
-        try:
-            select_btn.configure(height=common_h, corner_radius=common_r)
-            select_btn.configure(width=min_w)
+            select_btn.configure(height=common_h, corner_radius=common_r, width=min_w)
         except Exception:
             pass
         try:
@@ -308,15 +348,14 @@ class CustomerSection:
         except Exception:
             pass
 
-        # Neue Suche starten: Blaue Aktion (initially disabled)
         remove_btn = ctk.CTkButton(
             button_frame,
             text="Neue Suche",
-            command=self.host._remove_customer,
-            **self.host._button_style('secondary', 'md', 'solid'),
-            state="disabled"  # Initially disabled until customer is selected
+            command=self.host._clear_customer_selection if hasattr(self.host, '_clear_customer_selection') else self.host._remove_customer,
+            **self._btn_style('secondary', 'md', 'solid'),
+            state="disabled"
         )
-        remove_btn.grid(row=0, column=1, sticky="ew", padx=(self.host.get_spacing('xs'), 0))
+        remove_btn.grid(row=0, column=1, sticky="ew", padx=(self._gs('xs', 8), 0))
         try:
             remove_btn.configure(height=common_h, corner_radius=common_r, width=min_w)
         except Exception:
@@ -333,8 +372,7 @@ class CustomerSection:
         except Exception:
             pass
 
-        # Sekundäre Aktionen - nur Kundenordner (Kalender entfernt)
-        secondary_frame = ctk.CTkFrame(actions_section, fg_color="transparent")
+        secondary_frame = ctk.CTkFrame(actions_section, fg_color=self.host.get_color('transparent'))
         secondary_frame.pack(fill="x", pady=(10, 0))
         secondary_frame.grid_columnconfigure(0, weight=1)
 
@@ -342,8 +380,8 @@ class CustomerSection:
             secondary_frame,
             text="Kundenordner öffnen",
             command=self.host._open_current_customer_folder,
-            **self.host._button_style('primary', 'md', 'solid'),
-            state="disabled"  # Initially disabled until customer is selected
+            **self._btn_style('primary', 'md', 'solid'),
+            state="disabled"
         )
         folder_btn.grid(row=0, column=0, sticky="ew", padx=0)
         try:
@@ -364,19 +402,15 @@ class CustomerSection:
         except Exception:
             pass
 
-        # 🔒 Initiale Button-Zustände: Deaktivieren wenn kein Kunde aktiv
         try:
             no_customer = not bool(getattr(self.host, 'current_customer', None))
             if no_customer:
-                # Folder-Button deaktivieren
-                self.host.folder_btn.configure(state="disabled", **self.host._button_style('inactive', 'md', 'solid'))
-                # Remove-Button deaktivieren
+                self.host.folder_btn.configure(state="disabled", **self._btn_style('inactive', 'md', 'solid'))
                 if hasattr(self.host, 'remove_btn') and self.host.remove_btn:
-                    self.host.remove_btn.configure(state="disabled", **self.host._button_style('inactive', 'md', 'solid'))
+                    self.host.remove_btn.configure(state="disabled", **self._btn_style('inactive', 'md', 'solid'))
         except Exception:
             pass
 
-        # 🔧 Tooltips für deaktivierte Buttons
         try:
             tip_text = "Bitte zuerst einen Kunden auswählen"
             if hasattr(self.host, 'folder_btn') and self.host.folder_btn:

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# DEPRECATED: Benutze 'start_checker.py --legacy'
 # -*- coding: utf-8 -*-
 """
 🏠 DIREKTER STARTER FÜR ORIGINALEN WELCOME SCREEN

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# DEPRECATED: Ersetzt durch start_checker.py --welcome
 # -*- coding: utf-8 -*-
 """
 🏠 ORIGINALER WELCOME SCREEN GUI STARTER

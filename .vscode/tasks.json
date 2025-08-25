@@ -50,6 +50,20 @@
 			"command": "${workspaceFolder}/final_test.bat",
 			"isBackground": false,
 			"group": "build"
+		},
+		{
+			"label": "Run Welcome Screen Test",
+			"type": "shell",
+			"command": "${workspaceFolder}/final_test.bat",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Welcome Screen Test",
+			"type": "shell",
+			"command": "${workspaceFolder}/final_test.bat",
+			"isBackground": false,
+			"group": "build"
 		}
 	]
 }

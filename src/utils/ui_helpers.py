@@ -9,7 +9,8 @@ and user interface helpers used throughout the Checker application.
 from typing import Optional, Any, Dict, Tuple, List
 import logging
 
-from tkinter import messagebox
+from tkinter import messagebox  # Legacy (wird schrittweise ersetzt)
+import customtkinter as ctk
 
 class UIHelpers:
     """Utility class for UI operations and helpers."""
@@ -117,16 +118,9 @@ class UIHelpers:
             return False
 
     def show_confirmation_dialog(self, title: str, message: str, parent=None) -> bool:
-        """
-        Show a confirmation dialog.
+        """(Blocking) Bestätigungsdialog (Legacy) – wird migriert auf non-blocking Variante.
 
-        Args:
-            title: Dialog title
-            message: Dialog message
-            parent: Parent window
-
-        Returns:
-            True if user confirmed, False otherwise
+        Bevorzugt: `show_non_blocking_confirm` verwenden.
         """
         try:
             result = messagebox.askyesno(
@@ -138,6 +132,122 @@ class UIHelpers:
         except Exception as e:
             self.logger.error(f"[UI] Error showing confirmation dialog: {e}")
             return False
+
+    # ------------------------------------------------------------------
+    # Non-blocking Modern Confirmation
+    # ------------------------------------------------------------------
+    def show_non_blocking_confirm(
+        self,
+        title: str,
+        message: str,
+        confirm_text: str = "OK",
+        cancel_text: str = "Abbrechen",
+        on_confirm=None,
+        on_cancel=None,
+        width: int = 480,
+        parent=None,
+    ):
+        """Nicht-blockierender, design-system konformer Bestätigungsdialog.
+
+        Args:
+            title: Dialog-Titel
+            message: Nachricht (mehrzeilig erlaubt)
+            confirm_text: Text für Bestätigen-Button
+            cancel_text: Text für Abbrechen-Button
+            on_confirm: Callback bei Bestätigen
+            on_cancel: Callback bei Abbruch
+            width: Dialogbreite
+            parent: Parent Window
+        """
+        try:
+            root = parent or (self.app.root if self.app else None)
+            dialog = ctk.CTkToplevel(root)
+            dialog.title(title)
+            dialog.transient(root)
+            dialog.grab_set()
+            try:
+                dialog.attributes('-topmost', True)
+            except Exception:
+                pass
+
+            # Dynamische Höhe anhand Inhalt
+            dialog.geometry(f"{width}x220")
+            frame = ctk.CTkFrame(dialog, fg_color=self._get_color('surface'), corner_radius=8, border_width=1, border_color=self._get_color('surface_border')) if self._has_design_system() else ctk.CTkFrame(dialog)
+            frame.pack(fill='both', expand=True, padx=12, pady=12)
+
+            title_lbl = ctk.CTkLabel(frame, text=title, font=self._font('subheading'), text_color=self._color('gray_700'))
+            title_lbl.pack(anchor='w', padx=16, pady=(16, 4))
+
+            msg_lbl = ctk.CTkLabel(frame, text=message, font=self._font('body'), text_color=self._color('gray_600'), justify='left', wraplength=width-64)
+            msg_lbl.pack(fill='x', padx=16, pady=(0, 20))
+
+            btn_bar = ctk.CTkFrame(frame, fg_color='transparent')
+            btn_bar.pack(fill='x', padx=16, pady=(0, 12))
+
+            def close_dialog():
+                try:
+                    dialog.destroy()
+                except Exception:
+                    pass
+
+            confirm_btn = ctk.CTkButton(
+                btn_bar,
+                text=confirm_text,
+                fg_color=self._color('primary'),
+                hover_color=self._color('primary_hover'),
+                text_color=self._color('white'),
+                command=lambda: (close_dialog(), on_confirm() if on_confirm else None)
+            )
+            confirm_btn.pack(side='left')
+
+            cancel_btn = ctk.CTkButton(
+                btn_bar,
+                text=cancel_text,
+                fg_color=self._color('surface'),
+                hover_color=self._color('surface_hover'),
+                text_color=self._color('gray_700'),
+                border_width=1,
+                border_color=self._color('surface_border'),
+                command=lambda: (close_dialog(), on_cancel() if on_cancel else None)
+            )
+            cancel_btn.pack(side='right')
+
+            dialog.bind('<Return>', lambda e: (close_dialog(), on_confirm() if on_confirm else None))
+            dialog.bind('<Escape>', lambda e: (close_dialog(), on_cancel() if on_cancel else None))
+
+            try:
+                self._center_window(dialog)
+            except Exception:
+                pass
+        except Exception as e:
+            self.logger.error(f"[UI] Error showing non-blocking confirm dialog: {e}")
+
+    # ---------------- Design System Fallback Helper -----------------
+    def _has_design_system(self) -> bool:
+        return bool(self.app and hasattr(self.app, 'get_color'))
+
+    def _color(self, token: str, fallback: str = '#FFFFFF') -> str:
+        try:
+            if self._has_design_system():
+                return self.app.get_color(token)
+        except Exception:
+            pass
+        return fallback
+
+    def _font(self, token: str):
+        try:
+            if self._has_design_system():
+                import customtkinter as ctk  # local import safe
+                return ctk.CTkFont(*self.app.get_typography(token))
+        except Exception:
+            pass
+        import customtkinter as ctk  # fallback
+        mapping = {
+            'subheading': ("Segoe UI", 18, 'bold'),
+            'body': ("Segoe UI", 14, 'normal'),
+        }
+        family, size, weight = mapping.get(token, ("Segoe UI", 12, 'normal'))
+        return ctk.CTkFont(family=family, size=size, weight=weight)
 
     def show_customer_actions_dialog(self, customer_name: str, actions: List[Tuple[str, callable]]) -> bool:
         """
@@ -336,3 +446,60 @@ class UIHelpers:
                 action_callback()
         except Exception as e:
             self.logger.error(f"[UI] Error executing action: {e}")
+
+    def apply_button_style(btn, style: str = "primary", enabled: bool = True, ds=None):
+        """Zentrale Button-Styling-Funktion auf Basis des Design-Systems.
+
+        Args:
+            btn: CTkButton-Instanz
+            style: 'primary' | 'secondary' | 'warning' | 'danger'
+            enabled: Button-Zustand
+            ds: Design-System-Kontext oder Host mit get_color(name)
+        """
+        try:
+            # Resolver nutzt bevorzugt ds.get_color, fällt sonst auf DesignSystem zurück
+            from design_system import DesignSystem
+
+            def color(token: str):
+                try:
+                    if ds and hasattr(ds, 'get_color'):
+                        return ds.get_color(token)
+                except Exception:
+                    pass
+                return DesignSystem.get_color(token)
+
+            palette = {
+                'primary':   (color('primary'),   color('primary_hover'),   color('white')),
+                'secondary': (color('secondary'), color('secondary_hover'), color('white')),
+                'warning':   (color('warning'),   color('warning_hover'),   color('white')),
+                'danger':    (color('error'),     color('error_hover'),     color('white')),
+            }
+            fg, hover, text = palette.get(style, palette['primary'])
+            if enabled:
+                btn.configure(state="normal", fg_color=fg, hover_color=hover, text_color=text)
+            else:
+                # Disabled: gleiche Hover-Farbe, gedimmte Fläche durch Hover-Farbe
+                btn.configure(state="disabled", fg_color=hover, hover_color=hover, text_color=text)
+        except Exception as e:
+            logging.getLogger(__name__).debug(f"[UI] apply_button_style fallback due to error: {e}")
+
+    class UploadMetrics:
+        """Leichtgewichtige Upload-Metriken (Speed/ETA) für UI-Updates."""
+        def __init__(self, total_bytes: int):
+            import time
+            self._time = time
+            self.start_time = self._time.time()
+            self.total_bytes = max(0, int(total_bytes))
+            self.transferred = 0
+
+        def update(self, transferred_bytes: int):
+            """Aktualisiert die übertragenen Bytes und berechnet (speed_bps, eta_seconds|None)."""
+            try:
+                self.transferred = max(0, int(transferred_bytes))
+                elapsed = max(0.0, self._time.time() - self.start_time)
+                speed = (self.transferred / elapsed) if elapsed > 0 else 0.0
+                remaining = max(0, self.total_bytes - self.transferred)
+                eta = (remaining / speed) if speed > 0 else None
+                return speed, eta
+            except Exception:
+                return 0.0, None

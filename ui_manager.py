@@ -101,9 +101,33 @@ class UIManager:
     def show_toast(self, message: str, type: str = "info") -> None:
         try:
             host = self._h()
-            # welcome_screen stellt _show_enhanced_toast bereit
+            # Bevorzugt zentralen ToastManager verwenden
+            tm = getattr(host, 'toast_manager', None)
+            if tm:
+                try:
+                    # Mappe Typen dynamisch auf show_* Methoden
+                    method_name = {
+                        'success': 'show_success',
+                        'warning': 'show_warning',
+                        'error': 'show_error',
+                        'info': 'show_info',
+                        'neutral': 'show',
+                    }.get((type or 'info').lower(), 'show_info')
+                    fn = getattr(tm, method_name, None)
+                    if callable(fn):
+                        fn(message)
+                        return
+                    # Fallback: generische show(message, type)
+                    if hasattr(tm, 'show'):
+                        tm.show(message, (type or 'info'))
+                        return
+                except Exception:
+                    pass
+            # Legacy-Fallbacks
             if hasattr(host, "_show_enhanced_toast"):
                 host._show_enhanced_toast(message, type)
+            elif hasattr(host, 'show_toast') and callable(getattr(host, 'show_toast')):
+                host.show_toast(message, type)
         except Exception:
             pass
 

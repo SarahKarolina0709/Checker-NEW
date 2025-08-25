@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# DEPRECATED: Nutze 'start_checker.py --welcome' oder '--menu'.
 # -*- coding: utf-8 -*-
 """
 🏠 WELCOME SCREEN GUI STARTER
@@ -24,7 +25,7 @@ except ImportError as e:
 
 def main():
     """🚀 Start the Welcome Screen GUI"""
-    print("🏠 CHECKER WELCOME SCREEN - GUI STARTER")
+    print("WELCOME SCREEN STARTER (Deprecated – nutze start_checker.py --welcome)")
     print("=" * 50)
     print("Starte dein Hauptinterface mit:")
     print("👤 Kundenmanagement")

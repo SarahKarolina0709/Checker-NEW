@@ -60,8 +60,16 @@ class WelcomeScreenUpload:
 
         print("✅ Upload Module initialized")
 
-    def create_upload_card(self, parent, column):
-        """📁 Create upload card in main grid"""
+    def create_upload_card(self, parent, column: int) -> ctk.CTkFrame:
+        """📁 Create upload card in main grid.
+
+        Args:
+            parent: Container in dem die Karte platziert wird.
+            column: Zielspalte im Grid.
+
+        Returns:
+            CTkFrame: Die erstellte Upload‑Karte (Container).
+        """
         return self._create_simple_upload_card(parent, column)
 
     def _create_simple_upload_card(self, parent, column):
@@ -191,6 +199,10 @@ class WelcomeScreenUpload:
                 self._handle_dropped_files(files)
             except Exception as e:
                 print(f"❌ File drop error: {e}")
+                try:
+                    self.parent.toast_show("Fehler beim Drag & Drop", "error")
+                except Exception:
+                    pass
 
         # Enable drag and drop (basic implementation)
         self._setup_drag_drop(drop_area, on_file_drop)
@@ -279,6 +291,11 @@ class WelcomeScreenUpload:
             height=36
         )
         self.upload_button.pack(side="left", padx=(0, self.parent.get_spacing('md')))
+        # Initialer Button-State basierend auf aktueller Dateiauswahl
+        try:
+            self._refresh_upload_button_state()
+        except Exception:
+            pass
 
         # Clear button
         clear_btn = ctk.CTkButton(
@@ -318,7 +335,10 @@ class WelcomeScreenUpload:
 
         except Exception as e:
             print(f"❌ File browser error: {e}")
-            self.parent.show_toast("Fehler beim Öffnen des Datei-Browsers", "error")
+            if getattr(self.parent, 'toast_manager', None):
+                self.parent.toast_manager.show_error("Fehler beim Öffnen des Datei-Browsers")
+            else:
+                self.parent.toast_show("Fehler beim Öffnen des Datei-Browsers", "error")
 
     def _handle_selected_files(self, file_paths):
         """📋 Process selected files"""
@@ -339,16 +359,25 @@ class WelcomeScreenUpload:
 
                 # Show success message
                 count = len(validation_result['valid_files'])
-                self.parent.show_toast(f"{count} Datei(en) hinzugefügt", "success")
+                if getattr(self.parent, 'toast_manager', None):
+                    self.parent.toast_manager.show_success(f"{count} Datei(en) hinzugefügt")
+                else:
+                    self.parent.toast_show(f"{count} Datei(en) hinzugefügt", "success")
 
             # Show warnings for invalid files
             if validation_result['invalid_files']:
                 invalid_count = len(validation_result['invalid_files'])
-                self.parent.show_toast(f"{invalid_count} Datei(en) übersprungen (ungültiges Format)", "warning")
+                if getattr(self.parent, 'toast_manager', None):
+                    self.parent.toast_manager.show_warning(f"{invalid_count} Datei(en) übersprungen (ungültiges Format)")
+                else:
+                    self.parent.toast_show(f"{invalid_count} Datei(en) übersprungen (ungültiges Format)", "warning")
 
         except Exception as e:
             print(f"❌ File handling error: {e}")
-            self.parent.show_toast("Fehler beim Verarbeiten der Dateien", "error")
+            if getattr(self.parent, 'toast_manager', None):
+                self.parent.toast_manager.show_error("Fehler beim Verarbeiten der Dateien")
+            else:
+                self.parent.toast_show("Fehler beim Verarbeiten der Dateien", "error")
 
     def _handle_dropped_files(self, file_paths):
         """🎯 Handle files dropped onto upload area"""
@@ -356,41 +385,47 @@ class WelcomeScreenUpload:
         self._handle_selected_files(file_paths)
 
     def _validate_selected_files(self, file_paths):
-        """✅ Validate selected files"""
+        """✅ Validate selected files (konfigbasiert)"""
         valid_files = []
         invalid_files = []
 
-        supported_extensions = {'.pdf', '.txt', '.docx', '.xlsx', '.doc'}
-        max_file_size = 50 * 1024 * 1024  # 50 MB
+        # Config lesen mit robustem Fallback
+        try:
+            exts = self.parent.get_config_value('upload_settings.allowed_extensions', ['.pdf', '.txt', '.docx', '.xlsx', '.doc'])
+            if not isinstance(exts, (list, tuple, set)):
+                exts = ['.pdf', '.txt', '.docx', '.xlsx', '.doc']
+            supported_extensions = {str(e).lower() for e in exts}
+        except Exception:
+            supported_extensions = {'.pdf', '.txt', '.docx', '.xlsx', '.doc'}
+
+        try:
+            max_mb = int(self.parent.get_config_value('upload_settings.max_file_size_mb', 50))
+        except Exception:
+            max_mb = 50
+        max_file_size = max_mb * 1024 * 1024
 
         for file_path in file_paths:
             try:
-                path_obj = Path(file_path)
+                p = Path(file_path)
 
-                # Check if file exists
-                if not path_obj.exists():
+                if not p.exists():
                     invalid_files.append({'path': file_path, 'reason': 'File not found'})
                     continue
 
-                # Check file extension
-                if path_obj.suffix.lower() not in supported_extensions:
+                if p.suffix.lower() not in supported_extensions:
                     invalid_files.append({'path': file_path, 'reason': 'Unsupported format'})
                     continue
 
-                # Check file size
-                if path_obj.stat().st_size > max_file_size:
+                if p.stat().st_size > max_file_size:
                     invalid_files.append({'path': file_path, 'reason': 'File too large'})
                     continue
 
-                valid_files.append(file_path)
+                valid_files.append(str(p))
 
             except Exception as e:
                 invalid_files.append({'path': file_path, 'reason': f'Error: {e}'})
 
-        return {
-            'valid_files': valid_files,
-            'invalid_files': invalid_files
-        }
+        return {'valid_files': valid_files, 'invalid_files': invalid_files}
 
     def _get_file_info(self, file_path):
         """📄 Get detailed file information"""
@@ -433,6 +468,12 @@ class WelcomeScreenUpload:
         # Add file items
         for i, file_info in enumerate(self.uploaded_files['source']):
             self._create_file_list_item(self.file_list_frame, file_info, i)
+
+        # Nach UI-Update Button-State synchronisieren
+        try:
+            self._refresh_upload_button_state()
+        except Exception:
+            pass
 
     def _create_file_list_item(self, parent, file_info, index):
         """📄 Create file list item"""
@@ -487,6 +528,15 @@ class WelcomeScreenUpload:
             'total_size_mb': total_size_mb
         })
 
+    def _refresh_upload_button_state(self):
+        """🔄 Enable/Disable Upload-Button abhängig von vorhandenen Dateien."""
+        try:
+            state = "normal" if self.uploaded_files['source'] else "disabled"
+            if self.upload_button:
+                self.upload_button.configure(state=state)
+        except Exception:
+            pass
+
     # ===============================
     # UPLOAD PROCESS METHODS
     # ===============================
@@ -494,20 +544,29 @@ class WelcomeScreenUpload:
     def _start_upload(self):
         """🚀 Start upload process"""
         if not self.uploaded_files['source']:
-            self.parent.show_toast("Keine Dateien ausgewählt", "warning")
+            if getattr(self.parent, 'toast_manager', None):
+                self.parent.toast_manager.show_warning("Keine Dateien ausgewählt")
+            else:
+                self.parent.toast_show("Keine Dateien ausgewählt", "warning")
             return
 
         # Check if customer is selected
         current_customer = self.parent.get_current_customer()
         if not current_customer:
-            self.parent.show_toast("Bitte wählen Sie zuerst einen Kunden aus", "warning")
+            if getattr(self.parent, 'toast_manager', None):
+                self.parent.toast_manager.show_warning("Bitte wählen Sie zuerst einen Kunden aus")
+            else:
+                self.parent.toast_show("Bitte wählen Sie zuerst einen Kunden aus", "warning")
             return
 
         try:
             self._process_upload()
         except Exception as e:
             print(f"❌ Upload start error: {e}")
-            self.parent.show_toast("Fehler beim Starten des Uploads", "error")
+            if getattr(self.parent, 'toast_manager', None):
+                self.parent.toast_manager.show_error("Fehler beim Starten des Uploads")
+            else:
+                self.parent.toast_show("Fehler beim Starten des Uploads", "error")
 
     def _process_upload(self):
         """⚡ Process the actual upload"""
@@ -542,8 +601,11 @@ class WelcomeScreenUpload:
         project_name = f"{customer_name}_{timestamp}"
         project_path = Path(self.parent.projects_base_path) / customer_name / project_name
 
-        # Create directory structure
-        for folder in self.parent.project_structure:
+        # Create directory structure mit robustem Fallback
+        structure = getattr(self.parent, 'project_structure', ["01_Ausgangstext"])
+        if not structure:
+            structure = ["01_Ausgangstext"]
+        for folder in structure:
             folder_path = project_path / folder
             folder_path.mkdir(parents=True, exist_ok=True)
 
@@ -636,10 +698,16 @@ class WelcomeScreenUpload:
             self.upload_button.configure(state="normal", text="Upload starten")
 
             # Show completion message
-            if failed_count == 0:
-                self.parent.show_toast(f"Upload erfolgreich! {success_count} Dateien hochgeladen", "success")
+            if getattr(self.parent, 'toast_manager', None):
+                if failed_count == 0:
+                    self.parent.toast_manager.show_success(f"Upload erfolgreich! {success_count} Dateien hochgeladen")
+                else:
+                    self.parent.toast_manager.show_warning(f"Upload teilweise erfolgreich: {success_count}/{success_count + failed_count} Dateien")
             else:
-                self.parent.show_toast(f"Upload teilweise erfolgreich: {success_count}/{success_count + failed_count} Dateien", "warning")
+                if failed_count == 0:
+                    self.parent.toast_show(f"Upload erfolgreich! {success_count} Dateien hochgeladen", "success")
+                else:
+                    self.parent.toast_show(f"Upload teilweise erfolgreich: {success_count}/{success_count + failed_count} Dateien", "warning")
 
             # Reset upload state
             self._reset_upload_state()
@@ -661,7 +729,10 @@ class WelcomeScreenUpload:
             self.upload_button.configure(state="normal", text="Upload starten")
 
             # Show error message
-            self.parent.show_toast(f"Upload fehlgeschlagen: {error_message}", "error")
+            if getattr(self.parent, 'toast_manager', None):
+                self.parent.toast_manager.show_error(f"Upload fehlgeschlagen: {error_message}")
+            else:
+                self.parent.toast_show(f"Upload fehlgeschlagen: {error_message}", "error")
 
             print(f"❌ Upload failed: {error_message}")
 
@@ -674,6 +745,10 @@ class WelcomeScreenUpload:
         # Keep files for potential retry, but reset progress
         self.progress_bar.set(0)
         self.progress_label.configure(text="Bereit für Upload")
+        try:
+            self._refresh_upload_button_state()
+        except Exception:
+            pass
 
     # ===============================
     # FILE MANAGEMENT METHODS
@@ -687,7 +762,14 @@ class WelcomeScreenUpload:
                 self._update_file_list_display()
                 self._update_upload_stats()
 
-                self.parent.show_toast(f"Datei entfernt: {removed_file['name']}", "info")
+                if getattr(self.parent, 'toast_manager', None):
+                    self.parent.toast_manager.show_info(f"Datei entfernt: {removed_file['name']}")
+                else:
+                    self.parent.toast_show(f"Datei entfernt: {removed_file['name']}", "info")
+                try:
+                    self._refresh_upload_button_state()
+                except Exception:
+                    pass
         except Exception as e:
             print(f"❌ File removal error: {e}")
 
@@ -700,7 +782,14 @@ class WelcomeScreenUpload:
             self._update_upload_stats()
 
             if count > 0:
-                self.parent.show_toast(f"{count} Datei(en) entfernt", "info")
+                if getattr(self.parent, 'toast_manager', None):
+                    self.parent.toast_manager.show_info(f"{count} Datei(en) entfernt")
+                else:
+                    self.parent.toast_show(f"{count} Datei(en) entfernt", "info")
+            try:
+                self._refresh_upload_button_state()
+            except Exception:
+                pass
         except Exception as e:
             print(f"❌ Clear files error: {e}")
 

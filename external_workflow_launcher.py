@@ -61,7 +61,7 @@ class WorkflowLauncher:
         modules_to_check = [
             "ki_module.py",
             "comprehensive_quality_orchestrator.py",
-            "improved_report_step3d1.py",
+            # Entfernt: ehemaliger Prototyp improved_report_step3d1.py (umbenannt / nicht mehr vorhanden)
             "analyze_functions.py",
             "amazon_components.py"
         ]

@@ -1,0 +1,17 @@
+{
+    "customers": [
+        {
+            "name": "Test Customer",
+            "created_at": "2025-08-18T12:00:30",
+            "last_activity": null,
+            "last_activity_type": null
+        },
+        {
+            "name": "Test GUI Kunde",
+            "created_at": "2025-08-18T12:18:21",
+            "last_activity": null,
+            "last_activity_type": null
+        }
+    ],
+    "last_updated": "2025-08-18T12:18:21"
+}

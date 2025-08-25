@@ -7,20 +7,36 @@ Enhanced progress bars and upload handling
 
 # Import system
 import os
+import logging
 # import sys  # FIXME: Invalid syntax fixed
 import tkinter as tk
 import customtkinter as ctk
 
-# Force light mode
+# Design-System Farbzugriff mit sicherem Fallback (transparent Token Nutzung)
+try:
+    from design_system import get_color as design_get_color  # bevorzugter zentraler Zugriff
+except Exception:  # Fallback falls Design System nicht verfügbar ist
+    def design_get_color(name: str, fallback: str = 'transparent'):
+        if name == 'transparent':
+            return 'transparent'
+        # Minimaler Fallback – weitere Farben bleiben durch bestehende Klassen gemappt
+        return fallback
+
+# Logging Setup (lokal falls globales Logging nicht importiert wurde)
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(levelname)s %(name)s: %(message)s')
+
+# Force light mode (nur light erlaubt)
 ctk.set_appearance_mode("light")
 
 # Anti-dark mode setup
 try:
     from aggressive_anti_dark_mode import apply_aggressive_light_mode_patches, get_safe_aggressive_color
     apply_aggressive_light_mode_patches()
-    print("✅ Aggressive Anti-Dark-Mode aktiviert")
+    logger.info("Aggressive Anti-Dark-Mode aktiviert")
 except ImportError:
-    print("⚠️ Aggressive Anti-Dark-Mode nicht verfügbar - verwende Fallback")
+    logger.warning("Aggressive Anti-Dark-Mode nicht verfügbar - verwende Fallback")
     os.environ['CUSTOMTKINTER_APPEARANCE_MODE'] = 'light'
 
 def get_safe_aggressive_color(color_name, fallback=None):
@@ -79,7 +95,7 @@ class ModernProgressBar:
             'surface': '#FFFFFF',
             'text_primary': '#374151',
             'text_secondary': '#6B7280',
-            'primary': '#2563EB',
+            'primary': '#1F4E79',  # vereinheitlichtes Brand-Blau
             'background': '#F8FAFC'
         }
         return colors.get(color_name, '#FFFFFF')
@@ -119,7 +135,7 @@ class ProgressIndicator(ctk.CTkFrame):
     """Beautiful Progress Indicator with Premium Animations & Styling"""
     
     def __init__(self, parent, **kwargs):
-        super().__init__(parent, fg_color="transparent", **kwargs)
+        super().__init__(parent, fg_color=design_get_color('transparent'), **kwargs)
         
         self.grid_columnconfigure(1, weight=1)
         
@@ -135,18 +151,18 @@ class ProgressIndicator(ctk.CTkFrame):
         self.progress_bar.set(0)
         
         # Beautiful status container with enhanced layout
-        status_frame = ctk.CTkFrame(self, fg_color="transparent")
+        status_frame = ctk.CTkFrame(self, fg_color=design_get_color('transparent'))
         status_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
         status_frame.grid_columnconfigure(1, weight=1)
-        
-        # Premium status icon with animation support  
+
+        # Premium status icon with animation support
         self.status_icon = ctk.CTkLabel(
             status_frame,
             text="●",
             font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold")
         )
         self.status_icon.grid(row=0, column=0, padx=(0, 8), sticky="w")
-        
+
         # Beautiful status text with premium typography
         self.status_label = ctk.CTkLabel(
             status_frame,
@@ -156,7 +172,7 @@ class ProgressIndicator(ctk.CTkFrame):
             anchor="w"
         )
         self.status_label.grid(row=0, column=1, sticky="w")
-        
+
         # Beautiful percentage label with enhanced styling
         self.percentage_label = ctk.CTkLabel(
             status_frame,
@@ -169,7 +185,7 @@ class ProgressIndicator(ctk.CTkFrame):
     def get_ui_color(self, color_name):
         """Basic color mapping"""
         colors = {
-            'primary': '#2563EB',
+            'primary': '#1F4E79',  # vereinheitlichtes Brand-Blau
             'neutral_200': '#E5E7EB',
             'text_primary': '#374151',
             'text_secondary': '#6B7280',
@@ -260,7 +276,7 @@ class DragDropFrame(ctk.CTkFrame):
             self.drop_target_register('DND_Files')
             self.dnd_bind('<<Drop>>', self.on_drop)
         except Exception as e:
-            print(f"TkinterDnD not available: {e}")
+            logger.debug("TkinterDnD not available: %s", e)
     
     def on_click(self, event):
         """Handle click event"""
@@ -269,7 +285,7 @@ class DragDropFrame(ctk.CTkFrame):
     
     def on_enter(self, event):
         """Visual feedback on mouse enter"""
-        self.configure(border_color='#2563EB')
+        self.configure(border_color='#1F4E79')
         self.is_drag_active = True
     
     def on_leave(self, event):
@@ -321,14 +337,11 @@ class FileUploadCard(DragDropFrame):
     
     def setup_upload_area(self):
         """Setup beautiful upload area with modern drag & drop design"""
-        # Main container with premium styling
-        container = ctk.CTkFrame(
-            self,
-            fg_color="transparent"
-        )
+        # Container
+        container = ctk.CTkFrame(self, fg_color=design_get_color('transparent'))
         container.pack(expand=True, fill="both", padx=24, pady=24)
-        
-        # Beautiful upload card with gradient effect
+
+        # Upload card
         upload_card = ctk.CTkFrame(
             container,
             fg_color='#F8FAFC',
@@ -338,21 +351,19 @@ class FileUploadCard(DragDropFrame):
             height=300
         )
         upload_card.pack(expand=True, fill="both")
-        
-        # Content container with perfect centering
-        content_frame = ctk.CTkFrame(upload_card, fg_color="transparent")
+
+        # Center content
+        content_frame = ctk.CTkFrame(upload_card, fg_color=design_get_color('transparent'))
         content_frame.place(relx=0.5, rely=0.5, anchor="center")
-        
-        # Upload icon - simplified Unicode
+
         upload_icon = ctk.CTkLabel(
             content_frame,
             text="📁",
             font=ctk.CTkFont(family="Segoe UI", size=48),
-            text_color='#2563EB'
+            text_color='#1F4E79'
         )
         upload_icon.pack()
-        
-        # Premium main text with modern typography
+
         main_text = ctk.CTkLabel(
             content_frame,
             text="📄 Datei hier ablegen oder klicken zum Durchsuchen",
@@ -360,8 +371,7 @@ class FileUploadCard(DragDropFrame):
             text_color='#374151'
         )
         main_text.pack(pady=(16, 8))
-        
-        # Elegant subtitle with helpful information
+
         subtitle_text = ctk.CTkLabel(
             content_frame,
             text="Ziehen & Ablegen oder Klicken für Dateiauswahl",
@@ -369,8 +379,7 @@ class FileUploadCard(DragDropFrame):
             text_color='#6B7280'
         )
         subtitle_text.pack(pady=(0, 16))
-        
-        # Beautiful supported formats section
+
         formats_frame = ctk.CTkFrame(
             content_frame,
             fg_color='#F3F4F6',
@@ -378,7 +387,7 @@ class FileUploadCard(DragDropFrame):
             height=60
         )
         formats_frame.pack(fill="x", pady=16)
-        
+
         formats_title = ctk.CTkLabel(
             formats_frame,
             text="Unterstützte Formate:",
@@ -386,37 +395,31 @@ class FileUploadCard(DragDropFrame):
             text_color='#374151'
         )
         formats_title.pack(pady=(8, 4))
-        
-        # Premium format badges
-        formats_container = ctk.CTkFrame(formats_frame, fg_color="transparent")
+
+        formats_container = ctk.CTkFrame(formats_frame, fg_color=design_get_color('transparent'))
         formats_container.pack()
-        
-        formats = [
+
+        for fmt in [
             {"name": "PDF", "color": '#DC2626'},
-            {"name": "DOCX", "color": '#2563EB'},
+            {"name": "DOCX", "color": '#1F4E79'},
             {"name": "TXT", "color": '#059669'},
             {"name": "DOC", "color": '#D97706'}
-        ]
-        
-        for i, fmt in enumerate(formats):
-            format_badge = ctk.CTkFrame(
+        ]:
+            badge = ctk.CTkFrame(
                 formats_container,
                 fg_color=fmt["color"],
                 corner_radius=8,
                 width=80,
                 height=32
             )
-            format_badge.pack(side="left", padx=4)
-            
-            badge_label = ctk.CTkLabel(
-                format_badge,
+            badge.pack(side="left", padx=4)
+            ctk.CTkLabel(
+                badge,
                 text=fmt['name'],
                 font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
                 text_color="white"
-            )
-            badge_label.place(relx=0.5, rely=0.5, anchor="center")
-        
-        # Beautiful file size info
+            ).place(relx=0.5, rely=0.5, anchor="center")
+
         size_info = ctk.CTkLabel(
             content_frame,
             text="📊 Maximale Dateigröße: 100 MB",
@@ -461,7 +464,7 @@ class FileUploadCard(DragDropFrame):
                     self._animate_upload_success()
                     self.upload_callback(file_path)
         except Exception as e:
-            print(f"Upload error: {e}")
+            logger.error("Upload error: %s", e, exc_info=True)
     
     def _animate_upload_success(self):
         """Beautiful upload success animation"""
@@ -475,7 +478,7 @@ class FileUploadCard(DragDropFrame):
                 border_width=2
             ))
         except Exception as e:
-            print(f"Animation error: {e}")
+            logger.error("Animation error: %s", e, exc_info=True)
     
     def set_file_selected(self, filename: str):
         """Beautiful visual feedback when file is selected"""
@@ -490,7 +493,7 @@ class FileUploadCard(DragDropFrame):
             # Add success checkmark icon
             self._show_success_indicator(filename)
         except Exception as e:
-            print(f"File selection feedback error: {e}")
+            logger.error("File selection feedback error: %s", e, exc_info=True)
     
     def _show_success_indicator(self, filename: str):
         """Show beautiful success indicator"""
@@ -505,7 +508,7 @@ class FileUploadCard(DragDropFrame):
             success_frame.place(relx=0.5, rely=0.1, anchor="center")
             
             # Success content
-            success_content = ctk.CTkFrame(success_frame, fg_color="transparent")
+            success_content = ctk.CTkFrame(success_frame, fg_color=design_get_color('transparent'))
             success_content.pack(expand=True, fill="both", padx=16, pady=8)
             
             # Success icon
@@ -529,7 +532,7 @@ class FileUploadCard(DragDropFrame):
             # Auto-hide success indicator
             self.after(3000, lambda: success_frame.destroy() if success_frame.winfo_exists() else None)
         except Exception as e:
-            print(f"Success indicator error: {e}")
+            logger.error("Success indicator error: %s", e, exc_info=True)
 
 # =========================== MAIN APPLICATION CLASS ===========================
 
@@ -538,12 +541,12 @@ class UITheme:
     @staticmethod
     def get_color(color_name, fallback='#FFFFFF'):
         color_map = {
-            'primary': '#2563EB',
+            'primary': '#1F4E79',  # vereinheitlichtes Brand-Blau
             'secondary': '#64748B',
             'success': '#059669',
             'warning': '#D97706',
             'danger': '#DC2626',
-            'info': '#0284C7',
+            'info': '#1F4E79',  # Info mapped to primary
             'text_primary': '#1F2937',
             'background': '#FFFFFF',
             'surface': '#F8FAFC'

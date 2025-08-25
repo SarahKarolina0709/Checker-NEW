@@ -225,6 +225,29 @@ class QualityCheckerLauncher:
         if CONFIG_AVAILABLE:
             print(f"Bevorzugtes System: {self.preferred_system}")
         print("\nVerfügbare Systeme werden automatisch erkannt und priorisiert.")
+        print("\nZusatz: Mit --menu klassisches Auswahlmenü ohne technische Details.")
+
+    # ---------------------- NEUES MENÜ (Quick Start konsolidiert) ----------------------
+    def menu_mode(self) -> bool:
+        """Einfaches, textbasiertes Auswahlmenü (ersetzt quick_start.py)."""
+        while True:
+            print("\n" + "="*60)
+            print("TRANSLATION QUALITY CHECKER - MENÜ")
+            print("="*60)
+            print("\nWähle eine Anwendung:")
+            print("1. Quality GUI Hauptanwendung")
+            print("2. Welcome Screen")
+            print("3. Modulare GUI")
+            print("4. Legacy GUI")
+            print("0. Beenden")
+            choice = input("Auswahl (0-4): ").strip()
+            if choice == '0':
+                print("Beende Menü.")
+                return True
+            mapping = {'1': 'main', '2': 'welcome', '3': 'modular', '4': 'legacy'}
+            if choice in mapping:
+                return self.launch_system(mode=mapping[choice])
+            print("Ungültige Auswahl.")
 
 def start_quality_checker():
     """🚀 Legacy function wrapper for compatibility"""
@@ -273,6 +296,8 @@ if __name__ == "__main__":
         elif arg in ["-h", "--help"]:
             launcher.show_help()
             success = True
+        elif arg in ["--menu"]:
+            success = launcher.menu_mode()
         else:
             print(f"❓ Unbekannte Option: {arg}")
             launcher.show_help()

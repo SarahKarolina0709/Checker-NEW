@@ -292,7 +292,7 @@ class UploadManager:
                 # Fuzzy-Match gefunden - in Headless-Mode automatisch übernehmen
                 if self._is_headless():
                     return matched_customer
-                # Sonst Benutzer fragen
+                # Benutzer synchron fragen (Rollback von non-blocking, da aufrufende Pipeline unmittelbares Ergebnis benötigt)
                 result = messagebox.askyesno(
                     "Ähnlicher Kunde gefunden",
                     f"Ähnlicher Kunde gefunden: '{matched_customer}'\n\nSoll dieser verwendet werden?",
@@ -301,7 +301,6 @@ class UploadManager:
                 if result:
                     return matched_customer
                 else:
-                    # Benutzer möchte neuen Kunden anlegen
                     return self._create_new_customer(customer_input)
             else:
                 # Exakter Match
@@ -318,6 +317,7 @@ class UploadManager:
         if self._is_headless():
             create_new = True
         else:
+            # Synchronous Dialog (Rollback von non-blocking wegen benötigtem unmittelbarem Rückgabewert)
             create_new = messagebox.askyesno(
                 "Neuer Kunde",
                 f"Kunde '{customer_name}' existiert nicht.\n\nSoll ein neuer Kunde erstellt werden?",
@@ -348,7 +348,7 @@ class UploadManager:
         return None
 
     def _save_file_to_customer(self, file_path: str, customer_name: str, workflow: str) -> Optional[Dict[str, Any]]:
-        """Speichert eine Datei im Kundenordner mit Datumsorganisation."""
+        """Speichert eine Datei im Kundenordner mit neuer Projekt-Struktur."""
         if KundenManager is None or self.kunden_manager is None:
             raise RuntimeError("KundenManager nicht verfügbar – UploadManager benötigt eine gültige Instanz.")
         try:
@@ -356,21 +356,32 @@ class UploadManager:
             if not os.path.exists(self.kunden_manager.kunden_ordner(customer_name)):
                 self.kunden_manager.erstelle_kundenstruktur(customer_name)
 
-            # Datums-basierte Ordnerstruktur
+            # Heutiges Datum als Projekt-ID
             heute = datetime.date.today().isoformat()
+            
+            # Suche existierendes Projekt für heute oder erstelle neues
+            existing_projects = self.kunden_manager.liste_kundenprojekte(customer_name)
+            today_project = None
+            for project_id in existing_projects:
+                if project_id.startswith(heute):
+                    today_project = project_id
+                    break
+            
+            if not today_project:
+                # Erstelle neues Projekt für heute
+                projekt_path, today_project = self.kunden_manager.erstelle_projekt_ordner(customer_name, datum=heute)
+            
+            # Workflow-Ordner in Projekt (nummeriert nach Mapping)
+            workflow_ordner = self.kunden_manager.get_projekt_workflow_ordner(customer_name, today_project, workflow)
 
-            # Zielordner bestimmen
-            workflow_ordner = self.kunden_manager.get_ordner_fuer_workflow(customer_name, workflow)
-            datums_ordner = os.path.join(workflow_ordner, heute)
-
-            # Ordner erstellen
-            os.makedirs(datums_ordner, exist_ok=True)
+            # Ordner sicherstellen
+            os.makedirs(workflow_ordner, exist_ok=True)
 
             # Dateiname und kollisionsfreier Zielpfad
             original_filename = os.path.basename(file_path)
-            ziel_pfad = self._get_unique_target(datums_ordner, original_filename)
+            ziel_pfad = self._get_unique_target(workflow_ordner, original_filename)
 
-            # Datei kopieren (nicht verschieben, falls Original erhalten bleiben soll)
+            # Datei kopieren
             shutil.copy2(file_path, ziel_pfad)
 
             # Relative Pfad für Anzeige
@@ -384,6 +395,7 @@ class UploadManager:
                 'customer': customer_name,
                 'workflow': workflow,
                 'date': heute,
+                'project_id': today_project,
                 'size': os.path.getsize(file_path) if os.path.exists(file_path) else 0
             }
 

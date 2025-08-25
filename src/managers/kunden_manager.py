@@ -35,7 +35,16 @@ class KundenManager:
 
     def __init__(self, base_dir: str = "Checker_Projekte"):
         self.base_dir = base_dir
+        # Logische Workflow-Namen (intern/UI)
         self.workflows = ["Ausgangstexte", "Angebot", "Pruefung", "Finalisierung"]
+        # Physische Ordnernamen (nummeriert) – Zielstruktur gemäß Vorgabe
+        # Mapping nur hier zentral pflegen; Migration: falls alter (unnummerierter) Ordner existiert, wird er weiter genutzt
+        self.workflow_folder_map = {
+            "Ausgangstexte": "01_Ausgangstext",
+            "Angebot": "02_Angebot",
+            "Pruefung": "03_Prüfung",  # Umlaut wie in gewünschter Struktur
+            "Finalisierung": "04_Finalisierung",
+        }
         os.makedirs(self.base_dir, exist_ok=True)
         # Konsistenter Logger (keine globale Konfiguration, NullHandler verhindert Warnungen)
         if not hasattr(self, 'logger') or self.logger is None:
@@ -276,8 +285,9 @@ class KundenManager:
         os.makedirs(projekt_pfad, exist_ok=True)
 
         for workflow in self.workflows:
-            workflow_pfad = os.path.join(projekt_pfad, workflow)
-            os.makedirs(workflow_pfad, exist_ok=True)
+                phys = self.workflow_folder_map.get(workflow, workflow)
+                workflow_pfad = os.path.join(projekt_pfad, phys)
+                os.makedirs(workflow_pfad, exist_ok=True)
 
         return projekt_pfad, project_id
 
@@ -289,7 +299,13 @@ class KundenManager:
     def get_projekt_workflow_ordner(self, kundenname: str, projekt_id: str, workflow: str) -> str:
         """Gibt den Pfad zu einem Workflow-Ordner innerhalb eines Projekts zurück"""
         projekt_pfad = self.get_projekt_pfad(kundenname, projekt_id)
-        return os.path.join(projekt_pfad, workflow)
+        phys = self.workflow_folder_map.get(workflow, workflow)
+        # Falls Alt-Ordner (unnummeriert) existiert, bevorzuge diesen (Migration tolerant)
+        alt_path = os.path.join(projekt_pfad, workflow)
+        phys_path = os.path.join(projekt_pfad, phys)
+        if os.path.isdir(alt_path) and not os.path.isdir(phys_path):
+            return alt_path
+        return phys_path
 
     def liste_kundenprojekte(self, kundenname: str) -> List[str]:
         """Listet alle Projekte eines Kunden auf"""
@@ -641,6 +657,69 @@ class KundenManager:
                 return json.load(f)
         except Exception:
             return None
+
+# KUNDEN HINZUFÜGEN / ENTFERNEN
+    def add_customer(self, customer_name: str) -> Tuple[bool, str, List[Dict[str, Any]]]:
+        """
+        Fügt einen neuen Kunden hinzu und erstellt dessen Ordnerstruktur.
+        
+        Returns:
+            (success: bool, message: str, similar_customers: List[Dict[str, Any]])
+        """
+        try:
+            if not customer_name or not customer_name.strip():
+                return False, "Bitte geben Sie einen Kundennamen ein", []
+            
+            # Bereinige den Kundennamen
+            name = customer_name.strip()
+            sanitized_name = self._sanitize_name(name)
+            
+            # Prüfe ob Kunde bereits existiert
+            exists, matched_name, score = self.customer_exists(name)
+            if exists:
+                return False, f"Kunde '{name}' existiert bereits", []
+            
+            # Ähnliche Kunden suchen
+            similar_customers = []
+            kunden = self.alle_kunden()
+            for kunde in kunden:
+                score = fuzz.ratio(sanitized_name.lower(), kunde.lower())
+                if score >= 80 and sanitized_name.lower() != kunde.lower():
+                    similar_customers.append({
+                        'name': kunde,
+                        'score': score,
+                        'reason': self._get_similarity_reason(sanitized_name, kunde, score)
+                    })
+            
+            # Bei ähnlichen Kunden Warnung zurückgeben
+            if similar_customers:
+                return False, "Ähnlicher Kunde gefunden", similar_customers[:3]
+            
+            # Kundenordner anlegen
+            try:
+                kunden_pfad = self.erstelle_kundenstruktur(sanitized_name)
+                self.logger.info(f"Kundenordner angelegt: {kunden_pfad}")
+                return True, f"Kunde '{name}' erfolgreich hinzugefügt", []
+            except Exception as e:
+                self.logger.error(f"Fehler beim Anlegen des Kundenordners: {e}")
+                return False, f"Fehler beim Anlegen des Kundenordners: {str(e)}", []
+                
+        except Exception as e:
+            self.logger.error(f"Fehler beim Hinzufügen des Kunden: {e}")
+            return False, f"Fehler beim Hinzufügen des Kunden: {str(e)}", []
+
+    def _get_similarity_reason(self, new_name: str, existing_name: str, score: int) -> str:
+        """Gibt den Grund für die Ähnlichkeit zurück"""
+        if new_name.lower() == existing_name.lower():
+            return "Exakte Übereinstimmung (unterschiedliche Groß-/Kleinschreibung)"
+        elif existing_name.lower().startswith(new_name.lower()[:3]) or new_name.lower().startswith(existing_name.lower()[:3]):
+            return "Ähnlicher Anfang"
+        elif new_name.lower() in existing_name.lower() or existing_name.lower() in new_name.lower():
+            return "Enthält Teilstring"
+        elif score >= 85:
+            return "Sehr ähnlich"
+        else:
+            return "Ähnlich"
 
 # Beispiel-Nutzung:
 if __name__ == "__main__":

@@ -40,6 +40,10 @@ except Exception:
     ActionsSection = None
 import json
 import logging
+from typing import Optional
+from src.utils.ui_helpers import UIHelpers
+from src.ui import MenuSystem
+from src.utils.file_operations import FileOperations
 import subprocess
 import calendar
 import time
@@ -51,7 +55,13 @@ from modern_ui_components import ModernUIComponents
 import shutil
 
 # ✅ ASYNC FILE OPERATIONS - Verhindert UI-Blockierung
-from async_file_operations import copy_files_async, move_files_async, analyze_files_async, cleanup_async_operations
+from async_file_operations import (
+    copy_files_async,
+    move_files_async,
+    analyze_files_async,
+    cleanup_async_operations,
+    cancel_async_task,
+)
 
 # ✅ CORE MANAGER (neue zentrale Manager für Kunden & Upload)
 try:
@@ -73,6 +83,7 @@ except ImportError:
     UIManager = None
 import tkinter as tk
 from tkinter import dnd
+from enum import Enum
 
 # 🚨 KRITISCHE LIGHT MODE ERZWINGUNG - SOFORT BEIM IMPORT!
 ctk.set_appearance_mode("light")
@@ -112,6 +123,8 @@ class WelcomeScreen(ctk.CTkFrame):
 
         # KONFIGURATION – früh laden, damit Manager den korrekten Pfad nutzen
         self.config_file = "checker_config.json"
+        # Globale Typografie-Skalierung (in Stufen, z. B. -2..+3); 0 = Standard
+        self.typography_scale = 0
         self._load_configuration()
         # Pfad robust auflösen und ggf. aus globaler config.json übernehmen
         try:
@@ -127,18 +140,34 @@ class WelcomeScreen(ctk.CTkFrame):
         # 🎨 DESIGN SYSTEM ANWENDEN - Hintergrund korrekt setzen
         self.configure(fg_color=self.get_color("background"))
 
+        # UI-Feature-Flags
+        # Onboarding-Banner (3-Schritte-Leiste) auf Wunsch ausblenden
+        # Hinweis: Alle Funktionen bleiben über die Sektionen erreichbar
+        self.enable_onboarding_banner = False
+
         # ✅ BUSINESS LOGIC SEPARATION: Initialize managers
         if CustomerManager and UIManager:
             self.customer_manager = CustomerManager(
                 customers_file="customers.json",
                 projects_base_path=self.projects_base_path,
             )
-            self.ui_manager = UIManager(self.customer_manager)
+            # IMPORTANT: pass the WelcomeScreen as host, and the business manager separately
+            self.ui_manager = UIManager(host=self, customer_manager=self.customer_manager)
         else:
             # Fallback to old system
             self.customer_manager = None
             self.ui_manager = None
             print("⚠️ Using fallback mode: Managers not available")
+
+        # Zentralisierte Systeme: Menüs und Dateioperationen
+        try:
+            self.menu_system = MenuSystem(self)
+        except Exception:
+            self.menu_system = None
+        try:
+            self.file_ops = FileOperations(app_instance=self)
+        except Exception:
+            self.file_ops = None
 
         # ✅ ZENTRALE CORE-MANAGER INITIALISIEREN (immer versuchen)
         self.kunden_manager = None
@@ -174,7 +203,6 @@ class WelcomeScreen(ctk.CTkFrame):
             "03_Prüfung",
             "04_Finalisierung",
         ]
-
         # 🆕 KONFIGURATION – bereits oben geladen
 
         # 🚀 NEUE VERBESSERUNGEN
@@ -184,6 +212,25 @@ class WelcomeScreen(ctk.CTkFrame):
         self.auto_save_job = None
         self.animation_widgets = []
         self.toast_container = None
+
+        # 🔎 Suche: Initialzustand und QoL-Flags
+        # - auto_select_single_hit: Bei genau einem Treffer nach kurzer Verzögerung automatisch auswählen
+        # - auto_select_min_chars: Mindestanzahl Zeichen im Suchfeld für Auto-Select
+        self.search_active = False
+        self.filtered_customers = []
+        self._search_result_widgets = []
+        self._search_selected_index = -1
+        self.auto_select_single_hit = True
+        # Upload-Auswahl: klar zwischen Manager- und Legacy-Flow trennen
+        self.use_upload_manager = True
+        # Dynamische Upload-Schritte (Name + Startfortschritt in Prozent)
+        self.upload_steps = [
+            {"name": "Validierung", "progress": 10},
+            {"name": "Projektstruktur", "progress": 20},
+            {"name": "Dateien kopieren", "progress": 40},
+            {"name": "Abschluss", "progress": 95},
+        ]
+        self.auto_select_min_chars = 2
 
         # 🎨 LOGO MANAGEMENT
         self.logo_path = os.path.join(os.path.dirname(__file__), "Checker Logo Transparent.png")
@@ -229,6 +276,9 @@ class WelcomeScreen(ctk.CTkFrame):
         self._setup_hover_effects()
         self._start_statistics_updater()
 
+        # Kalender-Pfade Cache: wird nach Uploads invalidiert
+        self._calendar_customer_paths_cache = None
+
     # ---------------------------------------------------------------------
     # 🔧 HELFER: Upload-UI anhand UploadManager aktualisieren
     def _refresh_upload_ui_from_manager(self):
@@ -256,12 +306,20 @@ class WelcomeScreen(ctk.CTkFrame):
                 else:
                     self.file_list_label.configure(text=f"{count} Dateien ausgewählt", text_color=self.get_color('success'))
 
-            # Upload-Button aktivieren/deaktivieren
+            # Upload-Button aktivieren/deaktivieren (inkl. Blau/Dunkelblau Styling)
             if hasattr(self, 'upload_btn') and self.upload_btn:
                 try:
-                    self.upload_btn.configure(state=("normal" if count > 0 else "disabled"))
+                    enabled = count > 0
+                    self.upload_btn.configure(state=("normal" if enabled else "disabled"))
+                    # Blau aktiv, dunkler Blau inaktiv
+                    self._apply_primary_button_state(self.upload_btn, enabled)
                 except Exception:
                     pass
+            # Empty-State synchronisieren
+            try:
+                self._refresh_upload_empty_state()
+            except Exception:
+                pass
         except Exception as _ui_err:
             print(f"⚠️ Upload UI refresh error: {_ui_err}")
 
@@ -274,84 +332,27 @@ class WelcomeScreen(ctk.CTkFrame):
                 color = self.design_system['colors'].get(color_name)
                 if color:
                     return color
-            
-            # Zweite Ebene: Universal Fallback System
+            # Zweite Ebene: Zentrales DesignSystem
+            try:
+                from design_system import DesignSystem as _DS
+                _c = _DS.get_color(color_name)
+                if _c:
+                    return _c
+            except Exception:
+                pass
+
+            # Dritte Ebene: Universal Fallback System (kein Hex-Literal hier)
             try:
                 from universal_light_mode_fallback import get_safe_color
-                return get_safe_color(color_name, '#FFFFFF')  # LIGHT FALLBACK
-            except ImportError:
+                return get_safe_color(color_name, 'white')  # LIGHT FALLBACK ohne Hex-Literal
+            except Exception:
                 pass
-            
-            # Dritte Ebene: Built-in fallback colors für wichtige UI-Elemente
-            fallback_colors = {
-                # Primary colors
-                'primary': '#1F4E79',
-                'primary_light': '#F0F7FF',
-                'secondary': '#6C757D',
-                'secondary_hover': '#5A6268',
-                
-                # Semantic colors
-                'success': '#2E8B57',
-                'success_hover': '#256B43',
-                'success_light': '#F0FDF4',
-                'warning': '#F2994A',
-                'warning_hover': '#E08B3E',
-                'warning_light': '#FFFBEB',
-                'error': '#DC2626',
-                'error_hover': '#B91C1C',
-                'error_light': '#FEF2F2',
-                'info': '#2563EB',
-                
-                # Surface colors
-                'surface': '#FFFFFF',
-                'surface_light': '#F9FAFB',
-                'surface_border': '#E5E7EB',
-                'background': '#F8FAFC',
-                'border': '#E0E0E0',
-                
-                # Text colors
-                'text_primary': '#374151',
-                'text_secondary': '#6B7280',
-                'white': '#FFFFFF',
-                
-                # Input colors
-                'input_border': '#D1D5DB',
-                'input_bg': '#FFFFFF',
-                
-                # Upload-specific colors
-                'upload_bg': '#F8FAFC',
-                'upload_border': '#D1D5DB',
-                'upload_icon': '#6B7280',
-                'upload_text': '#374151',
-                'upload_hint': '#9CA3AF',
-                
-                # Gray scale colors
-                'gray_50': '#F9FAFB',
-                'gray_100': '#F3F4F6',
-                'gray_200': '#E5E7EB',
-                'gray_300': '#D1D5DB',
-                'gray_400': '#9CA3AF',
-                'gray_500': '#6B7280',
-                'gray_600': '#4B5563',
-                'gray_700': '#374151',
-                'gray_800': '#1F2937',
-                'gray_900': '#111827',
-                
-                # Anthracite theme
-                'anthracite_700': '#374151',
-                'anthracite_600': '#4B5563',
-                'anthracite_800': '#1F2937'
-            }
-            
-            color = fallback_colors.get(color_name)
-            if color:
-                return color
             
         except Exception as e:
             print(f"⚠️ Color fallback for '{color_name}': {e}")
         
         # Final fallback
-        return '#FFFFFF'  # FINAL LIGHT FALLBACK
+        return 'white'  # FINAL LIGHT FALLBACK ohne Hex-Literal
     
     def get_spacing(self, spacing_name):
         """🛡️ ULTRA-SICHERE Spacing-Zugriff - Verhindert alle Type-Errors"""
@@ -376,6 +377,39 @@ class WelcomeScreen(ctk.CTkFrame):
         }
         
         return ultra_safe_spacing.get(spacing_name, 16)
+
+    # --- TYPOGRAPHY SCALE HELPERS -------------------------------------------------
+    def _get_typography_scale(self) -> int:
+        """Liest die globale Typografie-Skalierung sicher aus self.typography_scale.
+
+        Erlaubte Werte: -3..+3. 0 bedeutet: keine Anpassung.
+        """
+        try:
+            val = getattr(self, 'typography_scale', 0)
+            if isinstance(val, bool):
+                return 0
+            if isinstance(val, (int, float, str)):
+                try:
+                    ival = int(float(val))
+                    # clamp
+                    return max(-3, min(3, ival))
+                except Exception:
+                    return 0
+            return 0
+        except Exception:
+            return 0
+
+    def _apply_scale_to_size(self, base_size: int) -> int:
+        """Skaliert eine Fontgröße in ganzen Stufen. Jede Stufe = +1/-1 px.
+
+        Beispiel: base 14, scale +2 -> 16. Clamped minimal 8, maximal 64.
+        """
+        try:
+            scale = self._get_typography_scale()
+            new_size = int(base_size) + int(scale)
+            return max(8, min(64, new_size))
+        except Exception:
+            return base_size
     
     def get_component_value(self, component_path):
         """🛡️ SICHERE COMPONENT-VALUE-ZUGRIFF - Verhindert Type-Errors"""
@@ -458,30 +492,37 @@ class WelcomeScreen(ctk.CTkFrame):
             
             font_data = optimized_fonts.get(typography_name)
             if font_data:
-                return font_data
+                fam, size, weight = font_data
+                return (fam, self._apply_scale_to_size(size), weight)
             
             # Fallback auf Design-System - SICHERE TYPPRÜFUNG
             try:
                 design_font = self.design_system['typography'].get(typography_name)
                 if design_font and isinstance(design_font, tuple) and len(design_font) == 3:
-                    return design_font
+                    fam, size, weight = design_font
+                    try:
+                        size = int(size)
+                    except Exception:
+                        size = 14
+                    return (fam, self._apply_scale_to_size(size), weight)
                 elif hasattr(design_font, 'family') and hasattr(design_font, 'size') and hasattr(design_font, 'weight'):
                     # CTkFont-Objekt zu Tuple konvertieren
-                    return (design_font.family, design_font.size, design_font.weight)
+                    return (design_font.family, self._apply_scale_to_size(getattr(design_font, 'size', 14)), design_font.weight)
             except:
                 pass
             
             # Sicherer Fallback
-            return ('Segoe UI', 14, 'normal')
+            return ('Segoe UI', self._apply_scale_to_size(14), 'normal')
             
         except Exception as e:
             print(f"⚠️ Typography fallback for '{typography_name}': {e}")
-            return ('Segoe UI', 14, 'normal')  # Sicherer Fallback
+            return ('Segoe UI', self._apply_scale_to_size(14), 'normal')  # Sicherer Fallback
     
     def get_font(self, font_type):
         """Alias für get_typography für bessere API"""
         font_family, size, weight = self.get_typography(font_type)
-        return ctk.CTkFont(family=font_family, size=size, weight=weight)
+        # Einheitlich über semantische Tokens, keine direkten size-Literale an Aufruferstellen
+        return ctk.CTkFont(family=font_family, size=int(size), weight=weight)
     
     def _get_safe_icon(self, icon_name, fallback=''):
         """Sicherer Icon-Zugriff: No-Icons-Policy erzwingt leere Rückgabe für UI-Texte"""
@@ -563,6 +604,8 @@ class WelcomeScreen(ctk.CTkFrame):
             menu_content = self._setup_menu_content_frame(menu_container)
             self._setup_menu_buttons_section(menu_content)
             self._setup_menu_status_section(menu_content)
+            # Tastaturkürzel für schnellen Zugriff
+            self._setup_menu_shortcuts()
             
         except Exception as e:
             print(f"Menu bar creation error: {e}")
@@ -570,12 +613,20 @@ class WelcomeScreen(ctk.CTkFrame):
     def _setup_menu_container(self):
         """📦 Container: Menu bar container creation and positioning"""
         # Menüleisten-Container (GEWÜNSCHTES DESIGN BEIBEHALTEN)
-        menu_container = ctk.CTkFrame(self, 
-                                    height=30, 
-                                    fg_color=self.get_color('anthracite_700'),  # Dunkleres Blau für Menü (GEWÜNSCHTES DESIGN)
-                                    corner_radius=self.get_component_value('borders.radius_none'))
+        menu_container = ctk.CTkFrame(
+            self,
+            height=36,
+            fg_color=self.get_color('primary'),  # Blau (Design-System Primary)
+            corner_radius=self.get_component_value('borders.radius_none')
+        )
         menu_container.grid(row=0, column=0, sticky="ew")
         menu_container.pack_propagate(False)
+        # Subtile untere Trennlinie für sauberen Übergang zum Header
+        try:
+            divider = ctk.CTkFrame(menu_container, fg_color=self.get_color('surface_border'), height=1)
+            divider.pack(side='bottom', fill='x')
+        except Exception:
+            pass
         
         return menu_container
 
@@ -592,1083 +643,838 @@ class WelcomeScreen(ctk.CTkFrame):
         menu_buttons = ctk.CTkFrame(menu_content, fg_color="transparent")
         menu_buttons.pack(side="left", fill="y")
         
-        # Datei-Menü - Design-System-optimiert
-        file_menu_btn = ctk.CTkButton(
-            menu_buttons,
-            text="Datei",
-            font=ctk.CTkFont(*self.get_typography('button')),
-            fg_color="transparent",
-            hover_color=self.get_color('anthracite_600'),
-            text_color=self.get_color('white'),
-            height=self.get_component_value('heights.button_sm'),
-            corner_radius=self.get_component_value('borders.radius_sm'),
-            command=self._show_file_menu
-        )
-        file_menu_btn.pack(side="left", padx=(0, self.get_spacing('xs')))
+        # Einheitliche Button-Erzeugung (lokaler Helper)
+        def _topbar_btn(parent, text, cmd):
+            btn = ctk.CTkButton(
+                parent,
+                text=text,
+                font=self.get_font('menu'),
+                fg_color="transparent",
+                hover_color=self.get_color('primary_hover'),
+                text_color=self.get_color('white'),
+                height=self.get_component_value('heights.button_sm'),
+                corner_radius=self.get_component_value('borders.radius_sm'),
+                command=cmd
+            )
+            return btn
 
-        # Einstellungen-Menü - Design-System-optimiert
-        settings_menu_btn = ctk.CTkButton(
-            menu_buttons,
-            text="Einstellungen",
-            font=ctk.CTkFont(*self.get_typography("button")),
-            fg_color="transparent",
-            hover_color=self.get_color('anthracite_600'),
-            text_color=self.get_color('white'),
-            height=self.get_component_value('heights.button_sm'),
-            corner_radius=self.get_component_value('borders.radius_sm'),
-            command=self._show_settings_menu
-        )
-        settings_menu_btn.pack(side="left", padx=self.get_spacing('xs'))
-
-        # Hilfe-Menü - Design-System-optimiert
-        help_menu_btn = ctk.CTkButton(
-            menu_buttons,
-            text="Hilfe",
-            font=ctk.CTkFont(*self.get_typography("button")),
-            fg_color="transparent",
-            hover_color=self.get_color('anthracite_600'),
-            text_color=self.get_color('white'),
-            height=self.get_component_value('heights.button_sm'),
-            corner_radius=self.get_component_value('borders.radius_sm'),
-            command=self._show_help_menu
-        )
-        help_menu_btn.pack(side="left", padx=self.get_spacing('xs'))
+        _topbar_btn(menu_buttons, "Datei", self._show_file_menu).pack(side="left", padx=(0, self.get_spacing('sm')))
+        _topbar_btn(menu_buttons, "Einstellungen", self._show_settings_menu).pack(side="left", padx=self.get_spacing('sm'))
+        _topbar_btn(menu_buttons, "Hilfe", self._show_help_menu).pack(side="left", padx=self.get_spacing('sm'))
 
     def _setup_menu_status_section(self, menu_content):
         """✅ Status Section: Status indicator on the right side"""
-        # Status-Info (rechts) - VERGRÖSSERTE SCHRIFT für bessere Lesbarkeit
+        # Status-Info (rechts) – bessere Lesbarkeit auf dunklem Hintergrund
         status_info = ctk.CTkLabel(
             menu_content,
             text="System bereit",
-            font=ctk.CTkFont(*self.get_typography("small")),  # Zentralisierte Font-Definition
-            text_color=self.get_color('success')
+            font=self.get_font('small'),
+            text_color=self.get_color('white')
         )
-        status_info.pack(side="right", pady=self.get_spacing('xs'))
+        status_info.pack(side="right", pady=self.get_spacing('xs'), padx=self.get_spacing('xs'))
+
+    def _setup_menu_shortcuts(self):
+        """Alt-Kürzel für das Menüband (barrierefrei, ohne UI-Icons)."""
+        try:
+            toplevel = self.winfo_toplevel()
+            # Datei: Alt+D
+            toplevel.bind_all('<Alt-d>', lambda e: self._show_file_menu(), add="+")
+            toplevel.bind_all('<Alt-D>', lambda e: self._show_file_menu(), add="+")
+            # Einstellungen: Alt+E
+            toplevel.bind_all('<Alt-e>', lambda e: self._show_settings_menu(), add="+")
+            toplevel.bind_all('<Alt-E>', lambda e: self._show_settings_menu(), add="+")
+            # Hilfe: Alt+H
+            toplevel.bind_all('<Alt-h>', lambda e: self._show_help_menu(), add="+")
+            toplevel.bind_all('<Alt-H>', lambda e: self._show_help_menu(), add="+")
+        except Exception:
+            return
+        
     
     def _create_professional_header(self):
-        """Create professional header with Checker styling"""
+        """🎯 HEADER ORCHESTRATOR - Modular optimiert für professionelles Design"""
         try:
-            header_frame = ctk.CTkFrame(
-                self,
-                height=110,
-                fg_color=self.get_color('anthracite_700'),  # Einheitliches Anthrazit
-                border_width=0,
-                corner_radius=self.get_component_value('borders.radius_none')
-            )
-            header_frame.grid(row=1, column=0, sticky='ew')  # Geändert von row=0 zu row=1
-            header_frame.grid_propagate(False)
-            
-            # Left side: Logo and title
-            left_header = ctk.CTkFrame(header_frame, fg_color='transparent')
-            left_header.pack(side='left', fill='y', padx=self.get_spacing('lg'))
-            
-            # Logo (if available) - vertikal zentriert
-            if hasattr(self, 'logo_path') and os.path.exists(self.logo_path):
-                try:
-                    logo_image = Image.open(self.logo_path)
-                    logo_image = logo_image.resize((80, 80), Image.Resampling.LANCZOS)  # Größeres Logo - vergrößert von 48x48 auf 80x80
-                    logo_ctk = ctk.CTkImage(light_image=logo_image, size=(80, 80))
-                    
-                    logo_label = ctk.CTkLabel(left_header, image=logo_ctk, text="")
-                    logo_label.pack(side='left', anchor='center')  # Vertikal zentriert ohne extra pady
-                except Exception as e:
-                    print(f"Logo loading error: {e}")
-            
-            # Title container - vertikal zentriert
-            title_container = ctk.CTkFrame(left_header, fg_color='transparent')
-            title_container.pack(side='left', padx=(self.get_spacing('md'), 0), anchor='center')
-            
-            # Main title with consistent typography - VERGRÖSSERTE SCHRIFT und vertikal zentriert
-            title_label = ctk.CTkLabel(
-                title_container,
-                text="Professional Checker • Enterprise Translation Quality Suite",
-                font=ctk.CTkFont(*self.get_typography('title')),  # ✅ ZENTRALE FONT-DEFINITION - size 26
-                text_color=self.get_color('white')
-            )
-            title_label.pack(anchor='center')  # Vertikal und horizontal zentriert
-            
-            # Right side: Status indicators
-            right_header = ctk.CTkFrame(header_frame, fg_color='transparent')
-            right_header.pack(side='right', fill='y', padx=self.get_spacing('lg'))
-            
-            # Status container
-            status_container = ctk.CTkFrame(right_header, fg_color='transparent')
-            # Vertikal zentriert ohne zusätzliches Padding
-            status_container.pack(side='right', fill='y', pady=0)
-            
-            # Customer status with professioneller Farbpalette - VERGRÖSSERTE SCHRIFT
-            self.header_customer_status = ctk.CTkLabel(
-                status_container,
-                text="Kein Kunde",
-                font=ctk.CTkFont(*self.get_typography('body_bold')),  # ✅ ZENTRALE FONT-DEFINITION - size 14
-                text_color=self.get_color('white'),
-                fg_color=self.get_color('secondary'),  # ✅ ZENTRALE FARBE statt hardcoded
-                corner_radius=self.get_component_value('borders.radius_sm'),
-                padx=self.get_spacing('button_gap'), pady=self.get_spacing('xs'),
-                width=120,  # ✅ FESTE BREITE um weißes Feld zu vermeiden
-                anchor="center"  # ✅ ZENTRIERTE AUSRICHTUNG
-            )
-            self.header_customer_status.pack(side='right', padx=(0, self.get_spacing('sm')))
-            
-            # Files count mit professioneller Primärfarbe - VERGRÖSSERTE SCHRIFT
-            self.header_files_count = ctk.CTkLabel(
-                status_container,
-                text="0 Dateien",
-                font=ctk.CTkFont(*self.get_typography("body")),  # Zentralisierte Font-Definition
-                text_color=self.get_color('white'),
-                fg_color=self.get_color('primary'),  # ✅ ZENTRALE FARBE statt hardcoded
-                corner_radius=self.get_component_value('borders.radius_sm'),
-                padx=self.get_spacing('button_gap'), pady=self.get_spacing('xs'),
-                width=100,  # ✅ FESTE BREITE um Layout-Probleme zu vermeiden
-                anchor="center"  # ✅ ZENTRIERTE AUSRICHTUNG
-            )
-            self.header_files_count.pack(side='right')
+            # Header Modular Architecture
+            header_container = self._setup_header_container()
+            self._setup_header_left_section(header_container)
+            self._setup_header_right_section(header_container)
             
         except Exception as e:
             print(f"Header creation error: {e}")
+
+    def _setup_header_container(self):
+        """📦 CONTAINER SETUP - Header-Container Erstellung und Positionierung"""
+        header_frame = ctk.CTkFrame(
+            self,
+            height=96,
+            fg_color=self.get_color('primary'),
+            border_width=0,
+            corner_radius=self.get_component_value('borders.radius_none')
+        )
+        header_frame.grid(row=1, column=0, sticky='ew')
+        header_frame.grid_propagate(False)
+        # Subtile untere Trennlinie zum Inhaltsbereich
+        try:
+            divider = ctk.CTkFrame(header_frame, fg_color=self.get_color('surface_border'), height=1)
+            divider.pack(side='bottom', fill='x')
+        except Exception:
+            pass
+        return header_frame
+
+    def _setup_header_left_section(self, header_frame):
+        """🖼️ LEFT SECTION - Logo und Titel"""
+        left_header = ctk.CTkFrame(header_frame, fg_color='transparent')
+        left_header.pack(side='left', fill='y', padx=self.get_spacing('lg'))
+
+        # Logo (verkleinert auf 48x48 für besseres Design) – zentral über Helper mit Cache
+        try:
+            logo_ctk = self._get_logo_image((48, 48))
+            if logo_ctk:
+                logo_label = ctk.CTkLabel(left_header, image=logo_ctk, text="")
+                logo_label.pack(side='left', anchor='center', padx=(0, self.get_spacing('md')))
+            else:
+                # Fallback: Text-Label (No-Icons-Policy bleibt gewahrt)
+                fallback_label = ctk.CTkLabel(left_header, text="Checker", font=self.get_font('label'))
+                fallback_label.pack(side='left', anchor='center', padx=(0, self.get_spacing('md')))
+        except Exception as e:
+            if getattr(self, 'logger', None):
+                self.logger.warning(f"Logo konnte nicht geladen werden: {e}")
+            else:
+                print(f"Logo loading error: {e}")
+
+        # Titel (vereinfacht für klares Design)
+        title_label = ctk.CTkLabel(
+            left_header,
+            text="Checker Pro",
+            font=self.get_font('title'),
+            text_color=self.get_color('white')
+        )
+        title_label.pack(side='left', anchor='center')
+
+    def _setup_header_right_section(self, header_frame):
+        """📊 RIGHT SECTION - Status-Indikatoren"""
+        right_header = ctk.CTkFrame(header_frame, fg_color='transparent')
+        right_header.pack(side='right', fill='y', padx=self.get_spacing('lg'))
+
+        # Status-Container
+        status_container = ctk.CTkFrame(right_header, fg_color='transparent')
+        status_container.pack(side='right', fill='y', expand=True, anchor='e')
+
+        # Kunden-Status & Datei-Anzahl – professionellere neutrale Badges (kein Gelb mehr bei "Kein Kunde")
+        # Helper für konsistente Badge-Erstellung
+        def _create_badge(parent, text: str, variant: str = 'neutral'):
+            try:
+                radius = self.get_component_value('borders.radius_sm')
+                pad_x = self.get_spacing('md')
+                pad_y = self.get_spacing('xs')
+                font = self.get_font('body')
+                if variant == 'neutral':  # Kein Kunde / leerer Zustand
+                    return ctk.CTkLabel(
+                        parent,
+                        text=text,
+                        font=font,
+                        text_color=self.get_color('gray_500'),
+                        fg_color=self.get_color('gray_100'),
+                        corner_radius=radius,
+                        padx=pad_x,
+                        pady=pad_y,
+                    )
+                elif variant == 'files':  # Datei-Zähler (primär dunkel für Kontrast)
+                    return ctk.CTkLabel(
+                        parent,
+                        text=text,
+                        font=font,
+                        text_color=self.get_color('white'),
+                        fg_color=self.get_color('primary_dark'),
+                        corner_radius=radius,
+                        padx=pad_x,
+                        pady=pad_y,
+                    )
+                elif variant == 'customer_active':  # Aktiv ausgewählter Kunde (grün bleibt für Erfolg, könnte später auf primary umgestellt werden)
+                    return ctk.CTkLabel(
+                        parent,
+                        text=text,
+                        font=font,
+                        text_color=self.get_color('white'),
+                        fg_color=self.get_color('success'),
+                        corner_radius=radius,
+                        padx=pad_x,
+                        pady=pad_y,
+                    )
+                else:
+                    return ctk.CTkLabel(parent, text=text)
+            except Exception:
+                return ctk.CTkLabel(parent, text=text)
+
+        # Reihenfolge: Dateien | Kunde  (Cancel-Button bleibt getrennt rechts außen für klare Trennung)
+        self.header_files_count = _create_badge(status_container, "0 Dateien", 'files')
+        self.header_files_count.pack(side='right')
+        try:
+            self._attach_tooltip(self.header_files_count, "Aktuelle Anzahl geladener Dateien")
+        except Exception:
+            pass
+
+        self.header_customer_status = _create_badge(status_container, "Kein Kunde", 'neutral')
+        self.header_customer_status.pack(side='right', padx=(self.get_spacing('sm'), 0))
+        try:
+            self._attach_tooltip(self.header_customer_status, "Aktueller Kunde (leer, falls keiner gewählt)")
+        except Exception:
+            pass
+
+        # Aktualisieren-Button (leichtgewichtig – nur UI/Status Refresh)
+        try:
+            self.refresh_btn = ctk.CTkButton(
+                right_header,
+                text="Aktualisieren",
+                command=self._header_refresh_clicked,
+                font=self.get_font('button'),
+                fg_color=self.get_color('white'),
+                text_color=self.get_color('gray_600'),
+                hover_color=self.get_color('surface_hover'),
+                border_width=1,
+                border_color=self.get_color('surface_border'),
+                corner_radius=self.get_component_value('borders.radius_sm'),
+                height=self.get_component_value('heights.button_sm')
+            )
+            self.refresh_btn.pack(side='right', padx=(self.get_spacing('sm'), 0))
+            self._attach_tooltip(self.refresh_btn, "Status & Mini‑Kalender neu laden")
+        except Exception:
+            pass
+        
+        # Abbrechen (Best-Effort) – für lange Vorgänge, zunächst deaktiviert
+        try:
+            self.cancel_btn = ctk.CTkButton(
+                right_header,
+                text="Abbrechen",
+                command=self._cancel_current_operation,
+                font=self.get_font('button'),
+                fg_color=self.get_color('white'),
+                text_color=self.get_color('gray_500'),
+                hover_color=self.get_color('surface_hover'),
+                border_width=1,
+                border_color=self.get_color('surface_border'),
+                corner_radius=self.get_component_value('borders.radius_sm'),
+                height=self.get_component_value('heights.button_sm')
+            )
+            self.cancel_btn.pack(side='right', padx=(self.get_spacing('sm'), 0))
+            self.cancel_btn.configure(state="disabled")
+            self._attach_tooltip(self.cancel_btn, "Laufende Operation abbrechen (Best‑Effort)")
+        except Exception:
+            pass
+
+    def _cancel_current_operation(self):
+        """Bricht die aktuelle Async-Operation bestmöglich ab (task-basiert)."""
+        try:
+            task_id = getattr(self, "_current_task_id", None)
+            if task_id:
+                ok = cancel_async_task(task_id)
+                if ok:
+                    self.toast_show("Abbruch angefordert", "warning")
+                else:
+                    self.toast_show("Abbruch nicht möglich", "error")
+            else:
+                # Fallback: keine Task-ID bekannt -> nur Cleanup signalisieren
+                cleanup_async_operations()
+                self.toast_show("Abbruch angefordert", "warning")
+            try:
+                self.cancel_btn.configure(state="disabled")
+                # Spiegelen den Zustand auf den lokalen Upload-Cancel-Button
+                if hasattr(self, 'upload_cancel_btn') and self.upload_cancel_btn:
+                    self.upload_cancel_btn.configure(state="disabled")
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"Cancel operation error: {e}")
+            self.toast_show("Abbruch nicht möglich", "error")
+
+    def _enable_cancel(self, task_id: str):
+        """Aktiviert den Abbrechen-Button und merkt sich die Task-ID."""
+        try:
+            self._current_task_id = task_id
+            if hasattr(self, 'cancel_btn') and self.cancel_btn:
+                self.cancel_btn.configure(state="normal")
+            if hasattr(self, 'upload_cancel_btn') and self.upload_cancel_btn:
+                self.upload_cancel_btn.configure(state="normal")
+        except Exception:
+            pass
+
+    # --------------------------------------------
+    # Header Refresh (leichte UI-Aktualisierung)
+    # --------------------------------------------
+    def _header_refresh_clicked(self):
+        """Aktualisiert Header-Pills & Mini-Kalender ohne schwere Re-Scans."""
+        try:
+            # Reapply state (setzt Texte & Farben konsistent)
+            self._apply_current_state()
+            # Mini-Kalender refresh falls vorhanden
+            try:
+                self._refresh_actions_calendar()
+            except Exception:
+                pass
+            # Kurzes Feedback
+            try:
+                self.toast_show("Aktualisiert", "info")
+            except Exception:
+                pass
+        except Exception as e:
+            print(f"Header refresh error: {e}")
+
+    def _disable_cancel(self):
+        """Deaktiviert den Abbrechen-Button und löscht die Task-ID."""
+        try:
+            self._current_task_id = None
+            if hasattr(self, 'cancel_btn') and self.cancel_btn:
+                self.cancel_btn.configure(state="disabled")
+            if hasattr(self, 'upload_cancel_btn') and self.upload_cancel_btn:
+                self.upload_cancel_btn.configure(state="disabled")
+        except Exception:
+            pass
     
     def _create_main_sections(self):
-        """PERFEKT GLEICHMÄSSIGES 3-SPALTEN LAYOUT mit sichtbarer, vertikaler Scrollbar"""
-        # Scrollbarer Hauptcontainer (sichtbare Scrollbar, wenn Inhalt höher als Fenster)
-        main_container = ctk.CTkScrollableFrame(
-            self,
-            fg_color="transparent",
-            scrollbar_fg_color=self.get_color('surface_border'),
-            scrollbar_button_color=self.get_color('gray_400'),
-            scrollbar_button_hover_color=self.get_color('gray_500'),
-        )
-        main_container.grid(row=2, column=0, sticky="nsew", padx=self.get_spacing('xl'), pady=self.get_spacing('xl'))
-        
-        # Grid-Konfiguration innerhalb des scrollbaren Containers
-        main_container.grid_columnconfigure(0, weight=1, minsize=300)    # Customer
-        main_container.grid_columnconfigure(1, weight=1, minsize=300)    # Upload
-        main_container.grid_columnconfigure(2, weight=1, minsize=300)    # Actions
-        # Die innere Zeile trägt die Cards; Minhöhe sorgt für konsistente Optik
-        main_container.grid_rowconfigure(0, weight=1, minsize=600)
-        
-        # Cards platzieren (sektioniert, rückwärtskompatibel)
+        """Erstellt Onboarding-Banner und darunter die drei Hauptsektionen (Kunde, Upload, Aktionen)."""
+        # Hauptcontainer für Onboarding + Sektionen
+        main_container = ctk.CTkFrame(self, fg_color="transparent")
+        main_container.grid(row=2, column=0, sticky="nsew", padx=self.get_spacing('lg'), pady=self.get_spacing('lg'))
+        main_container.grid_columnconfigure((0, 1, 2), weight=1, uniform="main_sections")
+
+        # Layout abhängig davon, ob das Onboarding-Banner gezeigt wird
+        if getattr(self, 'enable_onboarding_banner', False):
+            # Row 0: Onboarding (fix), Row 1: Sektionen (expand)
+            main_container.grid_rowconfigure(0, weight=0)
+            main_container.grid_rowconfigure(1, weight=1)
+            # 0) Onboarding-Schritt-Banner
+            self._create_onboarding_banner(main_container)
+            sections_row = 1
+        else:
+            # Kein Onboarding – Sektionen nehmen die erste Zeile vollständig ein
+            main_container.grid_rowconfigure(0, weight=1)
+            sections_row = 0
+
+        # Container für Sektionen (Layout bleibt sauber getrennt)
+        sections_container = ctk.CTkFrame(main_container, fg_color="transparent")
+        sections_container.grid(row=sections_row, column=0, columnspan=3, sticky="nsew")
+        sections_container.grid_columnconfigure((0, 1, 2), weight=1, uniform="main_sections_body")
+        sections_container.grid_rowconfigure(0, weight=1)
+
+        # Sektionen erstellen (Fallback-kompatibel)
         self._sections = getattr(self, "_sections", {})
 
-        if CustomerSection is not None:
-            self._sections["customer"] = CustomerSection(self, main_container, 0)
+        if CustomerSection:
+            self._sections["customer"] = CustomerSection(self, sections_container, 0)
         else:
-            self._create_simple_customer_card(main_container, 0)
+            self._create_simple_customer_card(sections_container, 0)
 
-        if UploadSection is not None:
-            self._sections["upload"] = UploadSection(self, main_container, 1)
+        if UploadSection:
+            self._sections["upload"] = UploadSection(self, sections_container, 1)
         else:
-            self._create_simple_upload_card(main_container, 1)
+            self._create_simple_upload_card(sections_container, 1)
 
-        # Actions Section
-        if ActionsSection is not None:
-            self._sections["actions"] = ActionsSection(self, main_container, 2)
+        if ActionsSection:
+            self._sections["actions"] = ActionsSection(self, sections_container, 2)
         else:
-            self._create_simple_actions_card(main_container, 2)
+            self._create_simple_actions_card(sections_container, 2)
+
+        # Barrierefreiheit: Fokus-Ring aktivieren und Standardgrößen anwenden
+        self._enable_focus_ring(sections_container)
+        self._apply_standard_button_sizes(sections_container)
+
+        # Onboarding-State periodisch aktualisieren (leichtgewichtig)
+        self._schedule_onboarding_state_refresh()
+
+    # ---- Accessibility & Tooltips -------------------------------------------------
+    def _attach_tooltip(self, widget, text: str, delay: int = 500):
+        """Fügt (falls verfügbar) einen Tooltip hinzu – No-Icons, reine Text-Hilfe."""
+        try:
+            from CTkToolTip import CTkToolTip  # type: ignore
+            CTkToolTip(widget, message=text, delay=delay)
+        except Exception:
+            return
+
+    def _enable_focus_ring(self, root_widget):
+        """Sichtbare Fokus-Hervorhebung für Buttons/Inputs – barrierefrei."""
+        focus_color = self.get_color('primary')
+        blur_color = self.get_color('input_border')
+
+        def _walk(w):
+            try:
+                if isinstance(w, (ctk.CTkEntry, ctk.CTkButton)):
+                    try:
+                        w.bind('<FocusIn>', lambda e, ww=w: ww.configure(border_color=focus_color), add="+")
+                        w.bind('<FocusOut>', lambda e, ww=w: ww.configure(border_color=blur_color), add="+")
+                    except Exception:
+                        pass
+                for child in w.winfo_children():
+                    _walk(child)
+            except Exception:
+                return
+
+        _walk(root_widget)
+
+    # ---- Onboarding‑Banner ---------------------------------------------------------
+    def _create_onboarding_banner(self, parent):
+        """Obere Leiste mit 3 Schritten: Kunde wählen/neu, Dateien auswählen, Check starten."""
+        banner = ctk.CTkFrame(
+            parent,
+            fg_color=self.get_color('surface'),
+            border_width=1,
+            border_color=self.get_color('surface_border'),
+            corner_radius=self.get_component_value('borders.radius_md')
+        )
+        banner.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, self.get_spacing('md')))
+
+        content = ctk.CTkFrame(banner, fg_color="transparent")
+        content.pack(fill="x", padx=self.get_spacing('lg'), pady=self.get_spacing('sm'))
+
+        for i in range(3):
+            content.grid_columnconfigure(i, weight=1, uniform="onboarding_columns")
+
+        # Schritt 1 – Kunde
+        step1 = ctk.CTkFrame(content, fg_color="transparent")
+        step1.grid(row=0, column=0, sticky="ew", padx=(0, self.get_spacing('sm')))
+        step1_label = ctk.CTkLabel(step1, text="1. Kunde", font=self.get_font('caption'), text_color=self.get_color('gray_600'))
+        step1_label.pack(anchor="w")
+        self._onb_btn1 = ctk.CTkButton(
+            step1,
+            text="Kunde wählen/neu",
+            command=lambda: (self.customer_entry.focus_set() if hasattr(self, 'customer_entry') else None),
+            font=self.get_font('button'),
+            fg_color=self.get_color('white'),
+            text_color=self.get_color('primary'),
+            hover_color=self.get_color('surface_hover'),
+            border_width=1,
+            border_color=self.get_color('surface_border'),
+            corner_radius=self.get_component_value('borders.radius_sm'),
+            height=self.get_component_value('heights.button_md')
+        )
+        self._onb_btn1.pack(fill="x")
+        self._attach_tooltip(self._onb_btn1, "Tipp: Ctrl+N")
+
+        # Schritt 2 – Dateien
+        step2 = ctk.CTkFrame(content, fg_color="transparent")
+        step2.grid(row=0, column=1, sticky="ew", padx=(self.get_spacing('sm'), self.get_spacing('sm')))
+        step2_label = ctk.CTkLabel(step2, text="2. Dateien", font=self.get_font('caption'), text_color=self.get_color('gray_600'))
+        step2_label.pack(anchor="w")
+        self._onb_btn2 = ctk.CTkButton(
+            step2,
+            text="Dateien auswählen",
+            command=self._ctrl_o_browse_guard if hasattr(self, '_ctrl_o_browse_guard') else self._browse_files,
+            font=self.get_font('button'),
+            fg_color=self.get_color('white'),
+            text_color=self.get_color('primary'),
+            hover_color=self.get_color('surface_hover'),
+            border_width=1,
+            border_color=self.get_color('surface_border'),
+            corner_radius=self.get_component_value('borders.radius_sm'),
+            height=self.get_component_value('heights.button_md')
+        )
+        self._onb_btn2.pack(fill="x")
+        self._attach_tooltip(self._onb_btn2, "Tipp: Ctrl+O")
+
+        # Schritt 3 – Prüfung
+        step3 = ctk.CTkFrame(content, fg_color="transparent")
+        step3.grid(row=0, column=2, sticky="ew", padx=(self.get_spacing('sm'), 0))
+        step3_label = ctk.CTkLabel(step3, text="3. Prüfung", font=self.get_font('caption'), text_color=self.get_color('gray_600'))
+        step3_label.pack(anchor="w")
+        self._onb_btn3 = ctk.CTkButton(
+            step3,
+            text="Qualitätsprüfung starten",
+            command=self._start_quality_check,
+            font=self.get_font('button'),
+            fg_color=self.get_color('primary_dark'),
+            hover_color=self.get_color('primary'),
+            text_color=self.get_color('white'),
+            corner_radius=self.get_component_value('borders.radius_sm'),
+            height=self.get_component_value('heights.button_md')
+        )
+        self._onb_btn3.pack(fill="x")
+        self._attach_tooltip(self._onb_btn3, "Tipp: Enter")
+
+        # Initialer State
+        self._update_onboarding_state()
+
+    def _has_customer_selected(self) -> bool:
+        try:
+            return bool(getattr(self, 'current_customer', None))
+        except Exception:
+            return False
+
+    def _has_files_selected(self) -> bool:
+        try:
+            files = getattr(self, 'uploaded_files', [])
+            return bool(files and len(files) > 0)
+        except Exception:
+            return False
+
+    def _update_onboarding_state(self):
+        """Aktualisiert Enablement der Onboarding‑Buttons anhand des aktuellen Zustands."""
+        try:
+            has_customer = self._has_customer_selected()
+            has_files = self._has_files_selected()
+            # Schritt 1: immer aktiv
+            if hasattr(self, '_onb_btn1') and self._onb_btn1:
+                self._onb_btn1.configure(state="normal")
+            # Schritt 2: erst nach Kunde aktiv
+            if hasattr(self, '_onb_btn2') and self._onb_btn2:
+                self._onb_btn2.configure(state=("normal" if has_customer else "disabled"))
+            # Schritt 3: erst nach Dateien aktiv
+            if hasattr(self, '_onb_btn3') and self._onb_btn3:
+                self._onb_btn3.configure(state=("normal" if (has_customer and has_files) else "disabled"))
+        except Exception:
+            pass
+
+    def _schedule_onboarding_state_refresh(self):
+        """Leichtgewichtige, periodische Aktualisierung der Onboarding‑States."""
+        try:
+            self._update_onboarding_state()
+            self.after(1500, self._schedule_onboarding_state_refresh)
+        except Exception:
+            return
+
+    def _apply_standard_button_sizes(self, root_widget):
+        """Setzt für alle CTkButtons unterhalb von root_widget eine einheitliche Höhe und Mindestbreite."""
+        try:
+            std_height = self.get_component_value('heights.button_md')
+            min_width = self.get_component_value('buttons.min_width_md')
+            std_radius = self.get_component_value('borders.radius_md')
+        except Exception:
+            # Fallback-Werte, falls Design-System accessor nicht verfügbar ist
+            std_height, min_width, std_radius = 38, 140, 8
+
+        def _walk(widget):
+            try:
+                # CTkButton vereinheitlichen
+                if isinstance(widget, ctk.CTkButton):
+                    # Höhe setzen
+                    try:
+                        widget.configure(height=std_height, corner_radius=std_radius)
+                    except Exception:
+                        pass
+                    # Mindestbreite nur setzen, wenn der Button nicht per Grid mit 'ew' expandiert
+                    try:
+                        manager = widget.winfo_manager()
+                        enforce_width = True
+                        if manager == 'grid':
+                            try:
+                                info = widget.grid_info()
+                                sticky = str(info.get('sticky', ''))
+                                if 'w' in sticky and 'e' in sticky:
+                                    enforce_width = False  # Button darf horizontal expandieren
+                            except Exception:
+                                pass
+                        if enforce_width:
+                            current_width = 0
+                            try:
+                                current_width = int(widget.cget('width') or 0)
+                            except Exception:
+                                current_width = 0
+                            if current_width <= 0 or current_width < min_width:
+                                widget.configure(width=min_width)
+                    except Exception:
+                        pass
+                # Kinder rekursiv besuchen
+                for child in widget.winfo_children():
+                    _walk(child)
+            except Exception:
+                return
+
+        _walk(root_widget)
     
     # ===== LEGACY FALLBACK BUILDERS: CUSTOMER =====
     def _create_simple_customer_card(self, parent, column):
-        """🎯 CUSTOMER CARD ORCHESTRATOR - Modular optimiert für bessere Wartbarkeit
-
-        Fallback only: Bevorzugt wird die CustomerSection. Diese Methode bleibt
-        für Kompatibilität erhalten und wird durch einen Guard vor Doppelaufbau
-        geschützt.
-        """
-        # Legacy-Schutz: Falls die Section bereits aktiv ist, nicht doppelt aufbauen
+        """Erstellt die Kunden-Karte mit professionellem Design."""
+        card = self._create_content_card(parent, column, "Kundenmanagement")
+        
+        # Neuer Kunde
+        ctk.CTkLabel(card, text="Neuer Kunde:", font=self.get_font('label')).pack(anchor="w", pady=(0, self.get_spacing('sm')))
+        self.customer_entry = ctk.CTkEntry(card, placeholder_text="Firmenname eingeben...")
+        self.customer_entry.pack(fill="x", pady=(0, self.get_spacing('md')))
+        # Enter-Taste: Direkt Qualitätsprüfung starten (sofern Voraussetzungen erfüllt)
         try:
-            if hasattr(self, "_sections") and isinstance(self._sections, dict) and self._sections.get("customer") is not None:
-                return
+            self.customer_entry.bind('<Return>', lambda e: self._start_quality_check())
         except Exception:
             pass
-        # Container Setup - Single Responsibility
-        card, content = self._setup_customer_card_container(parent, column)
+        ctk.CTkButton(card, text="Kunde hinzufügen", command=self._add_customer).pack(fill="x", pady=(0, self.get_spacing('lg')))
+
+        # Aktueller Kunde
+        ctk.CTkLabel(card, text="Aktueller Kunde:", font=self.get_font('label')).pack(anchor="w", pady=(0, self.get_spacing('sm')))
+        self.current_customer_label = ctk.CTkLabel(card, text="Kein Kunde ausgewählt", fg_color=self.get_color('gray_100'), corner_radius=self.get_component_value('borders.radius_sm'), height=40)
+        self.current_customer_label.pack(fill="x", pady=(0, self.get_spacing('lg')))
+
+        # Empty State für Kunde (sichtbar, wenn kein Kunde gesetzt ist)
+        try:
+            self.customer_empty_state = ctk.CTkFrame(card, fg_color=self.get_color('surface'))
+            self.customer_empty_state.pack(fill="x", pady=(0, self.get_spacing('lg')))
+            inner = ctk.CTkFrame(self.customer_empty_state, fg_color="transparent")
+            inner.pack(fill="x", padx=self.get_spacing('md'), pady=self.get_spacing('md'))
+            ctk.CTkLabel(inner,
+                         text="Noch kein Kunde ausgewählt. Lege jetzt einen Kunden an oder wähle einen bestehenden.",
+                         font=self.get_font('body'),
+                         text_color=self.get_color('gray_600'),
+                         wraplength=480,
+                         justify="left").pack(anchor="w", pady=(0, self.get_spacing('sm')))
+            self.customer_empty_btn = ctk.CTkButton(
+                inner,
+                text="Kunden anlegen",
+                command=(lambda: (self.customer_entry.focus_set() if hasattr(self, 'customer_entry') else None)),
+                font=self.get_font('button'),
+                fg_color=self.get_color('primary'),
+                hover_color=self.get_color('primary_hover'),
+                text_color=self.get_color('white'),
+                height=self.get_component_value('heights.button_md'),
+                corner_radius=self.get_component_value('borders.radius_sm')
+            )
+            self.customer_empty_btn.pack(anchor="w")
+            self._attach_tooltip(self.customer_empty_btn, "Tipp: Ctrl+N")
+        except Exception:
+            self.customer_empty_state = None
+
+        # Kunde suchen
+        ctk.CTkLabel(card, text="Kunde suchen:", font=self.get_font('label')).pack(anchor="w", pady=(0, self.get_spacing('sm')))
+        self.customer_search_entry = ctk.CTkEntry(card, placeholder_text="Suchen...")
+        self.customer_search_entry.pack(fill="x", pady=(0, self.get_spacing('md')))
+        # Suche: Tastatur- und Fokus-Handler
+        try:
+            self.customer_search_entry.bind('<KeyRelease>', self._on_customer_search_keyrelease)
+            self.customer_search_entry.bind('<FocusIn>', self._on_search_focus_in)
+            self.customer_search_entry.bind('<FocusOut>', self._on_search_focus_out)
+            # Keyboard-Navigation für Dropdown
+            self.customer_search_entry.bind('<Down>', self._on_search_key_down)
+            self.customer_search_entry.bind('<Up>', self._on_search_key_up)
+            self.customer_search_entry.bind('<Return>', self._on_search_key_return)
+        except Exception:
+            pass
         
-        # Header Setup - Single Responsibility  
-        self._setup_customer_card_header(content)
+        # Aktionen
+        action_frame = ctk.CTkFrame(card, fg_color="transparent")
+        action_frame.pack(fill="x", pady=(self.get_spacing('lg'), 0))
+        action_frame.grid_columnconfigure((0, 1), weight=1)
+
+        # Primäre Aktion: Auswahl bestätigen
+        ctk.CTkButton(
+            action_frame,
+            text="Auswählen",
+            command=self._select_customer,
+            fg_color=self.get_color('primary'),
+            hover_color=self.get_color('primary_hover'),
+            text_color=self.get_color('white'),
+            corner_radius=self.get_component_value('borders.radius_sm')
+        ).grid(row=0, column=0, sticky="ew", padx=(0, self.get_spacing('sm')))
+
+        # Sekundäre Aktion: Neue Suche (statt Entfernen)
+        ctk.CTkButton(
+            action_frame,
+            text="Neue Suche",
+            command=self._clear_customer_selection,
+            fg_color=self.get_color('white'),
+            text_color=self.get_color('primary'),
+            hover_color=self.get_color('surface_hover'),
+            border_width=1,
+            border_color=self.get_color('surface_border'),
+            corner_radius=self.get_component_value('borders.radius_sm')
+        ).grid(row=0, column=1, sticky="ew", padx=(self.get_spacing('sm'), 0))
         
-        # Input Section - Single Responsibility
-        self._setup_customer_input_section(content)
-        
-        # Status Display - Single Responsibility
-        self._setup_customer_status_section(content)
-        
-        # Search Functionality - Single Responsibility
-        self._setup_customer_search_section(content)
-        
-        # Action Buttons - Single Responsibility
-        self._setup_customer_actions_section(content)
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_customer_card_container(self, parent, column):
-        """📦 CONTAINER SETUP - Modern Customer Card mit verbessertem Design"""
-        # Modern Card mit subtilen Design-Verbesserungen
+        ctk.CTkButton(card, text="Kalender", command=self._show_professional_calendar).pack(fill="x", pady=(self.get_spacing('md'), 0))
+
+    def _create_content_card(self, parent, column, title_text):
+        """Erstellt eine Standard-Inhaltskarte mit Titel."""
         card = ctk.CTkFrame(
             parent,
             fg_color=self.get_color('surface'),
-            corner_radius=self.get_component_value('borders.radius_md'),
+            corner_radius=self.get_component_value('borders.radius_lg'),
             border_width=1,
             border_color=self.get_color('surface_border')
         )
-        card.grid(row=0, column=column, sticky="nsew", padx=self.get_spacing('sm'), pady=0)
+        card.grid(row=0, column=column, sticky="nsew", padx=self.get_spacing('md'), pady=self.get_spacing('md'))
+        card.grid_propagate(False)
+        
         content = ctk.CTkFrame(card, fg_color="transparent")
-        content.pack(
-            fill="both", expand=True,
-            padx=self.get_spacing('card_padding'),
-            pady=self.get_spacing('card_padding')
-        )
-        return card, content
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_customer_card_header(self, content):
-        """📋 HEADER SETUP - Titel und Trennlinie für Customer Card"""
-        # Titel mit einheitlicher Hierarchie
-        title = ctk.CTkLabel(
-            content,
-            text="Kundenmanagement",
-            font=ctk.CTkFont(*self.get_typography("subheading")),
-            text_color=self.get_color('primary')
-        )
-        title.pack(pady=(0, self.get_spacing('md')), fill="x")
-        # Trennlinie unter dem Titel
-        separator = ctk.CTkFrame(
-            content,
-            height=2,
-            fg_color=self.get_color('border'),
-            corner_radius=self.get_component_value('borders.radius_hairline'),
-        )
-        separator.pack(fill="x", pady=(0, self.get_spacing('lg')))
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_customer_input_section(self, content):
-        """✏️ INPUT SETUP - Eingabefeld und Add-Button für neue Kunden"""
-        # Input-Sektion mit verbesserter Struktur
-        input_section = ctk.CTkFrame(content, fg_color="transparent")
-        input_section.pack(fill="x", pady=(0, self.get_spacing('component_margin')))
+        content.pack(fill="both", expand=True, padx=self.get_spacing('lg'), pady=self.get_spacing('lg'))
 
-        input_label = ctk.CTkLabel(
-            input_section,
-            text="Neuer Kunde:",
-            font=ctk.CTkFont(*self.get_typography("small")),  # Zentralisierte Font-Definition
-            text_color=self.get_color('text_primary')
-        )
-        input_label.pack(anchor="w", pady=(0, self.get_spacing('sm')))
-
-        self.customer_entry = ctk.CTkEntry(
-            input_section,
-            placeholder_text="Firmenname eingeben...",
-            height=self.get_component_value('heights.button_md'),
-            font=ctk.CTkFont(*self.get_typography("body")),
-            fg_color=self.get_color('input_bg'),
-            placeholder_text_color=self.get_color('gray_400'),
-            border_width=2,
-            border_color=self.get_color('gray_400'),
-            corner_radius=self.get_component_value('borders.radius_md')
-        )
-        self.customer_entry.pack(fill="x", pady=(0, self.get_spacing('md')))
-        # Focus-Highlight für klare Umrandung
-        self.customer_entry.bind('<FocusIn>', self._on_customer_entry_focus_in)
-        self.customer_entry.bind('<FocusOut>', self._on_customer_entry_focus_out)
-        # Optional: leichte Hover-Markierung
-        self.customer_entry.bind('<Enter>', lambda e: self.customer_entry.configure(border_color=self.get_color('primary_hover')))
-        self.customer_entry.bind('<Leave>', lambda e: self.customer_entry.configure(border_color=self.get_color('gray_400')))
+        # Titel
+        title = ctk.CTkLabel(content, text=title_text, font=self.get_font('subheading'), text_color=self.get_color('primary'))
+        title.pack(pady=(0, self.get_spacing('lg')), fill="x")
         
-        # Haupt-CTA Button mit einheitlichem Design
-        add_btn = ctk.CTkButton(
-            input_section,
-            text="Kunde hinzufügen",
-            height=self.get_component_value('heights.button_md'),
-            font=ctk.CTkFont(*self.get_typography("button")),
-            fg_color=self.get_color('primary'),
-            hover_color=self.get_color('primary_hover'),
-            text_color=self.get_color('white'),
-            corner_radius=self.get_component_value('borders.radius_md'),
-            border_width=0,
-            command=self._add_customer,
-        )
-        add_btn.pack(fill="x", pady=(0, self.get_spacing('lg')))
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_customer_status_section(self, content):
-        """📊 STATUS SETUP - Anzeige des aktuell ausgewählten Kunden"""
-        # Status-Sektion mit verbesserter Visualisierung
-        status_section = ctk.CTkFrame(content, fg_color="transparent")
-        status_section.pack(fill="x", pady=(0, self.get_spacing('component_margin')))
-
-        current_label = ctk.CTkLabel(
-            status_section,
-            text="Aktueller Kunde:",
-            font=ctk.CTkFont(*self.get_typography("small")),
-            text_color=self.get_color('text_primary'),
-        )
-        current_label.pack(anchor="w", pady=(0, self.get_spacing('xs')))
-
-        # Status-Anzeige mit Card-Design
-        status_card = ctk.CTkFrame(
-            status_section,
-            fg_color=self.get_color('surface'),
-            border_width=1,
-            border_color=self.get_color('surface_border'),
-            corner_radius=self.get_component_value('borders.radius_md'),
-            height=self.get_component_value('heights.button_md'),
-        )
-        status_card.pack(fill="x", pady=(0, self.get_spacing('lg')))
-        status_card.pack_propagate(False)
-
-        self.current_customer_label = ctk.CTkLabel(
-            status_card,
-            text="Kein Kunde ausgewählt",
-            font=ctk.CTkFont(*self.get_typography("body")),
-            text_color=self.get_color('warning'),
-        )
-        self.current_customer_label.pack(expand=True)
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_customer_search_section(self, content):
-        """🔍 SEARCH SETUP - Live-Suche für bestehende Kunden"""
-        # Such-Sektion mit einheitlicher UX
-        search_section = ctk.CTkFrame(content, fg_color="transparent")
-        search_section.pack(fill="x", pady=(0, self.get_spacing('component_margin')))
-
-        search_label = ctk.CTkLabel(
-            search_section,
-            text="Kunde suchen:",
-            font=ctk.CTkFont(*self.get_typography("small")),
-            text_color=self.get_color('text_primary'),
-        )
-        search_label.pack(anchor="w", pady=(0, self.get_spacing('sm')))
-
-        # Such-Container mit modernem Design
-        search_container = ctk.CTkFrame(search_section, fg_color="transparent")
-        search_container.pack(fill="x", pady=(0, self.get_spacing('component_margin')))
-
-        # Such-Entry mit Live-Suche
-        self.customer_search_entry = ctk.CTkEntry(
-            search_container,
-            placeholder_text="Kundenname eingeben oder auswählen...",
-            height=self.get_component_value('heights.button_md'),
-            font=ctk.CTkFont(*self.get_typography("body")),
-            fg_color=self.get_color('input_bg'),
-            placeholder_text_color=self.get_color('gray_400'),
-            border_width=2,
-            border_color=self.get_color('gray_400'),
-            corner_radius=self.get_component_value('borders.radius_md'),
-        )
-        self.customer_search_entry.pack(fill="x", pady=(0, self.get_spacing('sm')))
-
-        # Debounced Suche: KeyRelease löst eine verzögerte Suche aus
-        self._search_after_id = None
-        self.customer_search_entry.bind('<KeyRelease>', self._on_customer_search_keyrelease)
-
-        # Bestehende Such-Handler beibehalten, plus Border-Highlight ergänzen
-        self.customer_search_entry.bind('<FocusIn>', self._on_search_focus_in)
-        self.customer_search_entry.bind('<FocusOut>', self._on_search_focus_out)
-        try:
-            self.customer_search_entry.bind('<FocusIn>', self._on_search_entry_focus_in_border, add="+")
-            self.customer_search_entry.bind('<FocusOut>', self._on_search_entry_focus_out_border, add="+")
-        except TypeError:
-            pass
-        # Tastatur-Navigation für Suchergebnisse: Up/Down/Enter
-        try:
-            self.customer_search_entry.bind('<Down>', self._on_search_key_down, add="+")
-            self.customer_search_entry.bind('<Up>', self._on_search_key_up, add="+")
-            self.customer_search_entry.bind('<Return>', self._on_search_key_return, add="+")
-        except Exception:
-            pass
-        # Hover-Feedback
-        self.customer_search_entry.bind(
-            '<Enter>',
-            lambda e: self.customer_search_entry.configure(border_color=self.get_color('primary_hover')),
-        )
-        self.customer_search_entry.bind(
-            '<Leave>',
-            lambda e: self.customer_search_entry.configure(border_color=self.get_color('gray_400')),
-        )
-
-        # Dropdown für gefilterte Ergebnisse (dynamisch)
-        self.customer_results_frame = ctk.CTkFrame(
-            search_container,
-            fg_color=self.get_color('surface'),
-            border_width=1,
-            border_color=self.get_color('surface_border'),
-            corner_radius=self.get_component_value('borders.radius_md'),
-            height=0,
-        )
-
-        # Such-Ergebnisse Container (scrollable)
-        self.search_results_container = None
-        self.search_active = False
-        self.filtered_customers = []
-        # Tastatur-Navigationsstatus
-        self._search_result_widgets = []
-        self._search_selected_index = -1
-        
-        # Ende Such-Setup
-        
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_customer_actions_section(self, content):
-        """🎛️ ACTIONS SETUP - Haupt- und Sekundär-Aktionen für Kundenverwaltung"""
-        # Action Buttons mit verbessertem Design und Icons
-        actions_section = ctk.CTkFrame(content, fg_color="transparent")
-        actions_section.pack(fill="x")
-
-        # Button-Grid mit GLEICHMÄSSIGER Anordnung - NUR 2 SPALTEN für Symmetrie
-        button_frame = ctk.CTkFrame(actions_section, fg_color="transparent")
-        button_frame.pack(fill="x", pady=(0, self.get_spacing('md')))
-        button_frame.grid_columnconfigure(0, weight=1)
-        button_frame.grid_columnconfigure(1, weight=1)  # NUR 2 SPALTEN wie andere Cards
-
-        select_btn = ctk.CTkButton(
-            button_frame,
-            text="Auswählen",
-            height=self.get_component_value('heights.button_sm'),
-            font=ctk.CTkFont(*self.get_typography("button")),
-            fg_color=self.get_color('primary'),
-            hover_color=self.get_color('primary_hover'),
-            text_color=self.get_color('white'),
-            corner_radius=self.get_component_value('borders.radius_sm'),
-            border_width=0,
-            command=self._select_customer,
-        )
-        select_btn.grid(row=0, column=0, sticky="ew", padx=(0, self.get_spacing('xs')))
-
-        remove_btn = ctk.CTkButton(
-            button_frame,
-            text="Entfernen",
-            height=self.get_component_value('heights.button_sm'),
-            font=ctk.CTkFont(*self.get_typography("button")),
-            fg_color=self.get_color('warning'),
-            hover_color=self.get_color('warning_hover'),
-            text_color=self.get_color('white'),
-            corner_radius=self.get_component_value('borders.radius_sm'),
-            border_width=0,
-            command=self._remove_customer,
-        )
-        remove_btn.grid(row=0, column=1, sticky="ew", padx=(self.get_spacing('xs'), 0))
-
-        # Sekundäre Aktionen mit einheitlichem Styling
-        secondary_frame = ctk.CTkFrame(actions_section, fg_color="transparent")
-        secondary_frame.pack(fill="x", pady=(self.get_spacing('sm'), 0))
-        secondary_frame.grid_columnconfigure(0, weight=1)
-        secondary_frame.grid_columnconfigure(1, weight=1)
-
-        # Ordner-Button als sekundäre Aktion
-        folder_btn = ctk.CTkButton(
-            secondary_frame,
-            text="Kundenordner öffnen",
-            height=self.get_component_value('heights.button_sm'),
-            font=ctk.CTkFont(*self.get_typography("button")),
-            fg_color=self.get_color('secondary'),
-            hover_color=self.get_color('secondary_hover'),
-            text_color=self.get_color('white'),
-            corner_radius=self.get_component_value('borders.radius_sm'),
-            border_width=0,
-            command=self._open_current_customer_folder,
-        )
-        folder_btn.grid(row=0, column=0, sticky="ew", padx=(0, self.get_spacing('xs')))
-
-        # Kalender Button als sekundäre Aktion
-        calendar_btn = ctk.CTkButton(
-            secondary_frame,
-            text="Kalender",
-            height=self.get_component_value('heights.button_sm'),
-            font=ctk.CTkFont(*self.get_typography("button")),
-            fg_color=self.get_color('secondary'),
-            hover_color=self.get_color('secondary_hover'),
-            text_color=self.get_color('white'),
-            corner_radius=self.get_component_value('borders.radius_sm'),
-            border_width=0,
-            command=self._show_calendar,
-        )
-        calendar_btn.grid(row=0, column=1, sticky="ew", padx=(self.get_spacing('xs'), 0))
-    
-    # ===== LEGACY FALLBACK BUILDERS: UPLOAD =====
+        return content    # ===== LEGACY FALLBACK BUILDERS: UPLOAD =====
     def _create_simple_upload_card(self, parent, column):
-        """🎯 UPLOAD CARD ORCHESTRATOR - Modular optimiert für bessere Wartbarkeit
+        """Erstellt die Upload-Karte mit professionellem Design."""
+        card = self._create_content_card(parent, column, "Upload")
 
-        Fallback only: Bevorzugt wird die UploadSection. Diese Methode bleibt
-        für Kompatibilität erhalten und wird durch einen Guard vor Doppelaufbau
-        geschützt.
-        """
-        # Legacy-Schutz: Falls die Section bereits aktiv ist, nicht doppelt aufbauen
-        try:
-            if hasattr(self, "_sections") and isinstance(self._sections, dict) and self._sections.get("upload") is not None:
-                return
-        except Exception:
-            pass
-        # Container Setup - Single Responsibility
-        card, content = self._setup_upload_card_container(parent, column)
-        
-        # Header Setup - Single Responsibility
-        self._setup_upload_card_header(content)
-        
-        # Drag & Drop Area - Single Responsibility
-        self._setup_upload_drag_drop_area(content)
-        
-        # Progress Section - Single Responsibility
-        self._setup_upload_progress_section(content)
-        
-        # File List Display - Single Responsibility
-        self._setup_upload_file_list_section(content)
-        
-        # Action Buttons - Single Responsibility
-        self._setup_upload_buttons_section(content)
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_upload_card_container(self, parent, column):
-        """📦 CONTAINER SETUP - Modern Upload Card mit verbessertem Design"""
-        # Modern Upload Card mit subtilen Design-Verbesserungen
-        card = ctk.CTkFrame(parent, 
-                           fg_color=self.get_color('surface'),
-                           corner_radius=self.get_component_value('borders.radius_md'),  # Zentralisierte Border-Radius
-                           border_width=1,
-                           border_color=self.get_color('surface_border'))
-        card.grid(row=0, column=column, sticky="nsew", 
-                 padx=self.get_spacing('sm'), pady=0)  # Zentralisierte Abstände
-        
-        # Card-Content mit optimiertem Padding
-        content = ctk.CTkFrame(card, fg_color="transparent")
-        content.pack(fill="both", expand=True, 
-                    padx=self.get_spacing('card_padding'), 
-                    pady=self.get_spacing('card_padding'))
-        
-        return card, content
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_upload_card_header(self, content):
-        """📋 HEADER SETUP - Titel und Trennlinie für Upload Card"""
-        # Titel mit einheitlicher Formatierung
-        title = ctk.CTkLabel(
-            content,
-            text="Upload",
-            font=ctk.CTkFont(*self.get_typography("subheading")),  # Zentralisierte Font-Definition
-            text_color=self.get_color('primary')
-        )
-        title.pack(pady=(0, self.get_spacing('sm')), fill="x")
-        
-        # Trennlinie unter dem Titel
-        separator = ctk.CTkFrame(
-            content,
-            height=2,
-            fg_color=self.get_color('border'),
-            corner_radius=self.get_component_value('borders.radius_hairline'),
-        )
-        separator.pack(fill="x", pady=(0, self.get_spacing('component_margin')))
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_upload_drag_drop_area(self, content):
-        """📁 DRAG & DROP SETUP - Modern Upload-Area mit verbessertem Design"""
-        # Modern Drag & Drop Area mit subtilen Design-Verbesserungen
-        upload_area = ctk.CTkFrame(content,
-                                 fg_color=self.get_color('upload_bg'),  # Spezielle Upload-Hintergrundfarbe
-                                 border_width=2,
-                                 border_color=self.get_color('upload_border'),  # Upload-spezifische Border-Farbe
-                                 corner_radius=self.get_component_value('borders.radius_md'),  # Zentralisierte Border-Radius
-                                 height=140)  # Optimale Höhe für Upload-Bereich
-        upload_area.pack(fill="x", pady=(0, self.get_spacing('component_margin')))  # Zentralisierte Abstände
+        # Drag & Drop Bereich
+        upload_area = ctk.CTkFrame(card, fg_color=self.get_color('gray_100'), border_width=2, border_color=self.get_color('gray_300'), corner_radius=self.get_component_value('borders.radius_lg'), height=150)
+        upload_area.pack(fill="x", pady=(0, self.get_spacing('lg')))
         upload_area.pack_propagate(False)
         
-        # Upload Area Content mit zentriertem Layout
         upload_content = ctk.CTkFrame(upload_area, fg_color="transparent")
-        upload_content.pack(expand=True, fill="both")
+        upload_content.pack(expand=True)
         
-        # Upload Titel (ohne Icons)
-        upload_icon = ctk.CTkLabel(
-            upload_content,
-            text="Upload",
-            font=ctk.CTkFont(*self.get_typography("subheading")),
-            text_color=self.get_color('upload_icon')
-        )
-        upload_icon.pack(pady=(self.get_spacing('lg'), self.get_spacing('sm')))  # Zentralisierte Abstände
-        
-        upload_text = ctk.CTkLabel(
-            upload_content, 
-            text="Dateien hierher ziehen oder klicken zum Durchsuchen",
-            font=ctk.CTkFont(*self.get_typography("body")),  # Verwende verfügbare Typography
-            text_color=self.get_color('upload_text')  # Upload-spezifische Text-Farbe
-        )
-        upload_text.pack(pady=(0, self.get_spacing('xs')))  # Zentralisierte Abstände
-        
-        format_text = ctk.CTkLabel(
-            upload_content, 
-            text="PDF • DOCX • TXT • XLSX",
-            font=ctk.CTkFont(*self.get_typography("caption")),  # Zentralisierte Font-Definition
-            text_color=self.get_color('upload_hint')  # Upload-spezifische Hint-Farbe
-        )
-        format_text.pack(pady=(0, self.get_spacing('md')))  # Zentralisierte Abstände
-        
-        # Hover-Effekte für Upload Area
-        def on_upload_enter(event):
-            upload_area.configure(border_color=self.get_color('primary'), fg_color=self.get_color('primary_light'))
-            upload_icon.configure(text_color=self.get_color('primary'))
-            upload_text.configure(text_color=self.get_color('primary'))
-            
-        def on_upload_leave(event):
-            upload_area.configure(border_color=self.get_color('border'), fg_color=self.get_color('surface'))
-            upload_icon.configure(text_color=self.get_color('text_secondary'))
-            upload_text.configure(text_color=self.get_color('text_primary'))
-        
-        # Make upload area clickable mit Hover-Effekten
-        def on_upload_click(event):
-            self._browse_files()
-        
-        # 🎯 DRAG & DROP EVENT HANDLERS - Professional drag and drop support
-        def on_drag_enter(event):
-            """Handle drag enter event"""
-            upload_area.configure(border_color=self.get_color('success'), fg_color=self.get_color('success_light'))
-            upload_text.configure(text="Dateien hier ablegen zum Upload")
-            
-        def on_drag_leave(event):
-            """Handle drag leave event"""
-            upload_area.configure(border_color=self.get_color('border'), fg_color=self.get_color('surface'))
-            upload_text.configure(text="Dateien hierher ziehen oder klicken zum Durchsuchen")
-            
-        def on_drag_over(event):
-            """Handle drag over event"""
-            return 'copy'  # Show copy cursor
-            
-        def on_file_drop(event):
-            """Handle file drop event"""
-            try:
-                # Extract file paths from drop event
-                if hasattr(event, 'data'):
-                    files = event.data.split()
-                    dropped_files = [f.strip('{}') for f in files if os.path.isfile(f.strip('{}'))]
-                    
-                    if dropped_files:
-                        # Process dropped files through validation
-                        validation_result = self._validate_selected_files(dropped_files)
-                        
-                        if validation_result['valid_files']:
-                            self.uploaded_files.extend(validation_result['valid_files'])
-                            self.selected_files = list(self.uploaded_files)
-                            
-                            self._update_file_list_display(validation_result)
-                            self._show_enhanced_toast(f"{len(validation_result['valid_files'])} Datei(en) per Drag & Drop hinzugefügt", "success")
-                        else:
-                            self._show_enhanced_toast("Keine gültigen Dateien in Drag & Drop gefunden", "warning")
-                    
-                # Reset visual state
-                on_upload_leave(None)
-                
-            except Exception as e:
-                print(f"❌ Drag & Drop error: {e}")
-                self._show_enhanced_toast("Fehler beim Drag & Drop", "error")
-        
-        # Store upload area reference for drag & drop setup
-        self.upload_area_widget = upload_area
-        
-        for widget in [upload_area, upload_content, upload_icon, upload_text, format_text]:
-            widget.bind("<Button-1>", on_upload_click)
-            widget.bind("<Enter>", on_upload_enter)
-            widget.bind("<Leave>", on_upload_leave)
-            widget.configure(cursor="hand2")
-            
-            # Additional drag & drop bindings
-            if self.drag_drop_enabled:
-                widget.bind("<<DragEnter>>", on_drag_enter)
-                widget.bind("<<DragLeave>>", on_drag_leave)
-                widget.bind("<<DragOver>>", on_drag_over)
-                widget.bind("<<Drop>>", on_file_drop)
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_upload_progress_section(self, content):
-        """📊 ENHANCED PROGRESS SETUP - Upload-Fortschritt mit Geschwindigkeit und ETA"""
-        # Progress Section mit modernem Design und erweiterten Metriken
-        progress_frame = ctk.CTkFrame(
-            content,
-            fg_color=self.get_color('background'),
-            corner_radius=self.get_component_value('borders.radius_lg'),
-            border_width=1,
-            border_color=self.get_color('border')
-        )
-        progress_frame.pack(fill="x", pady=(0, self.get_spacing('component_margin')))
+        ctk.CTkLabel(upload_content, text="Dateien hierher ziehen", font=self.get_font('subheading'), text_color=self.get_color('gray_500')).pack(pady=(self.get_spacing('md'), 0))
+        ctk.CTkLabel(upload_content, text="oder", font=self.get_font('body'), text_color=self.get_color('gray_500')).pack()
+        ctk.CTkButton(upload_content, text="Dateien durchsuchen", command=self._browse_files).pack(pady=(0, self.get_spacing('md')))
 
-        # Progress Content mit Padding
-        progress_content = ctk.CTkFrame(progress_frame, fg_color="transparent")
-        progress_content.pack(fill="x", padx=self.get_spacing('md'), pady=self.get_spacing('sm'))
-
-        # Progress Header mit Status-Icon und erweiterten Infos
-        progress_header = ctk.CTkFrame(progress_content, fg_color="transparent")
-        progress_header.pack(fill="x", pady=(0, self.get_spacing('sm')))
-
-        # Left side: Status Icon und Label
-        left_header = ctk.CTkFrame(progress_header, fg_color="transparent")
-        left_header.pack(side="left", fill="x", expand=True)
-
-        status_row = ctk.CTkFrame(left_header, fg_color="transparent")
-        status_row.pack(fill="x")
-
-        # Status Label (No-Icons-Policy)
-        self.progress_icon = ctk.CTkLabel(
-            status_row,
-            text="Status:",
-            font=ctk.CTkFont(*self.get_typography("label")),
-            text_color=self.get_color('success')
-        )
-        self.progress_icon.pack(side="left", padx=(0, self.get_spacing('xs')))
-
-        # Progress Label mit besserem Styling
-        self.progress_label = ctk.CTkLabel(
-            status_row,
-            text="Bereit für Upload",
-            font=ctk.CTkFont(*self.get_typography("small")),
-            text_color=self.get_color('success')
-        )
-        self.progress_label.pack(side="left")
-
-        # Right side: Upload Speed und ETA
-        right_header = ctk.CTkFrame(progress_header, fg_color="transparent")
-        right_header.pack(side="right")
-
-        # Upload Speed Label
-        self.upload_speed_label = ctk.CTkLabel(
-            right_header,
-            text="",
-            font=ctk.CTkFont(*self.get_typography("caption")),
-            text_color=self.get_color('text_secondary')
-        )
-        self.upload_speed_label.pack(side="right", padx=(self.get_spacing('xs'), 0))
-
-        # ETA Label
-        self.upload_eta_label = ctk.CTkLabel(
-            right_header,
-            text="",
-            font=ctk.CTkFont(*self.get_typography("caption")),
-            text_color=self.get_color('text_secondary')
-        )
-        self.upload_eta_label.pack(side="right")
-
-        # Progress Bar Container
-        progress_bar_container = ctk.CTkFrame(progress_content, fg_color="transparent")
-        progress_bar_container.pack(fill="x", pady=(0, self.get_spacing('xs')))
-
-        # Moderne Progress Bar
-        self.progress_bar = ctk.CTkProgressBar(
-            progress_bar_container,
-            height=8,
-            corner_radius=self.get_component_value('borders.radius_xs'),
-            progress_color=self.get_color('primary'),
-            fg_color=self.get_color('border'),
-            border_width=0
-        )
-        self.progress_bar.pack(fill="x")
-        self.progress_bar.set(0)
-
-        # Progress Details Row
-        details_row = ctk.CTkFrame(progress_content, fg_color="transparent")
-        details_row.pack(fill="x")
-
-        # Progress Percentage (left)
-        self.progress_percentage = ctk.CTkLabel(
-            details_row,
-            text="0%",
-            font=ctk.CTkFont(*self.get_typography("caption")),
-            text_color=self.get_color('text_secondary')
-        )
-        self.progress_percentage.pack(side="left")
-
-        # File Progress Info (center)
-        self.file_progress_label = ctk.CTkLabel(
-            details_row,
-            text="",
-            font=ctk.CTkFont(*self.get_typography("caption")),
-            text_color=self.get_color('text_secondary')
-        )
-        self.file_progress_label.pack()
-
-        # Data Transfer Info (right)
-        self.transfer_info_label = ctk.CTkLabel(
-            details_row,
-            text="",
-            font=ctk.CTkFont(*self.get_typography("caption")),
-            text_color=self.get_color('text_secondary')
-        )
-        self.transfer_info_label.pack(side="right")
-
-        # Initialize upload tracking variables
-        self.upload_start_time = None
-        self.upload_total_bytes = 0
-        self.upload_transferred_bytes = 0
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_upload_file_list_section(self, content):
-        """📄 FILE LIST SETUP - Anzeige der ausgewählten Dateien"""
-        # File List
-        list_label = ctk.CTkLabel(
-            content,
-            text="Ausgewählte Dateien:",
-            font=ctk.CTkFont(*self.get_typography("small")),  # Zentralisierte Font-Definition
-            text_color=self.get_color('text_secondary')
-        )
-        list_label.pack(anchor="w", pady=(0, self.get_spacing('xs')))
-        
-        self.file_list_label = ctk.CTkLabel(
-            content,
-            text="Keine Dateien ausgewählt",
-            font=ctk.CTkFont(*self.get_typography("small")),  # Zentralisierte Font-Definition
-            text_color=self.get_color('text_secondary')
-        )
+        # Dateiliste
+        self.file_list_label = ctk.CTkLabel(card, text="Keine Dateien ausgewählt", font=self.get_font('body'), text_color=self.get_color('gray_500'))
         self.file_list_label.pack(anchor="w", pady=(0, self.get_spacing('md')))
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_upload_buttons_section(self, content):
-        """🎛️ BUTTONS SETUP - Browse und Upload Action-Buttons"""
-        # Upload Buttons mit modernem Design und zentralisierten Abständen
-        button_frame = ctk.CTkFrame(content, fg_color="transparent")
-        button_frame.pack(fill="x", pady=(self.get_spacing('xs'), 0))  # Zentralisierte Abstände
-        button_frame.grid_columnconfigure(0, weight=1)
-        button_frame.grid_columnconfigure(1, weight=1)
 
-        # Browse-Button (sekundär)
-        browse_btn = ctk.CTkButton(
-            button_frame,
-            text="Dateien durchsuchen",
-            height=self.get_component_value('heights.button_md'),
-            font=ctk.CTkFont(*self.get_typography("button")),
-            fg_color=self.get_color('button_secondary'),
-            hover_color=self.get_color('button_secondary_hover'),
-            text_color=self.get_color('button_secondary_text'),
-            corner_radius=self.get_component_value('borders.radius_sm'),
-            border_width=0,
-            command=self._browse_files,
-        )
-        browse_btn.grid(row=0, column=0, sticky="ew", padx=(0, self.get_spacing('button_gap')))
-        self.browse_btn = browse_btn
-
-        self.upload_btn = ctk.CTkButton(
-            button_frame,
-            text="Upload starten",
-            height=self.get_component_value('heights.button_md'),
-            font=ctk.CTkFont(*self.get_typography("button")),
-            fg_color=self.get_color('button_primary'),
-            hover_color=self.get_color('button_primary_hover'),
-            text_color=self.get_color('button_primary_text'),
-            corner_radius=self.get_component_value('borders.radius_sm'),
-            border_width=0,
-            command=self._start_upload,
-        )
-        self.upload_btn.grid(row=0, column=1, sticky="ew", padx=(self.get_spacing('button_gap'), 0))
+        # Empty State für Upload (sichtbar wenn keine Dateien gewählt)
         try:
-            self.upload_btn.configure(state="disabled")
+            self.upload_empty_state = ctk.CTkFrame(card, fg_color=self.get_color('surface'))
+            self.upload_empty_state.pack(fill="x", pady=(0, self.get_spacing('lg')))
+            u_inner = ctk.CTkFrame(self.upload_empty_state, fg_color="transparent")
+            u_inner.pack(fill="x", padx=self.get_spacing('md'), pady=self.get_spacing('md'))
+            ctk.CTkLabel(u_inner,
+                         text="Noch keine Dateien ausgewählt. Wähle jetzt Dateien für den Upload aus.",
+                         font=self.get_font('body'),
+                         text_color=self.get_color('gray_600'),
+                         wraplength=480,
+                         justify="left").pack(anchor="w", pady=(0, self.get_spacing('sm')))
+            self.upload_empty_btn = ctk.CTkButton(
+                u_inner,
+                text="Dateien auswählen",
+                command=self._browse_files,
+                font=self.get_font('button'),
+                fg_color=self.get_color('white'),
+                text_color=self.get_color('primary'),
+                hover_color=self.get_color('surface_hover'),
+                border_width=1,
+                border_color=self.get_color('surface_border'),
+                height=self.get_component_value('heights.button_md'),
+                corner_radius=self.get_component_value('borders.radius_sm')
+            )
+            self.upload_empty_btn.pack(anchor="w")
+            self._attach_tooltip(self.upload_empty_btn, "Tipp: Ctrl+O")
+        except Exception:
+            self.upload_empty_state = None
+
+        # Fortschrittsbereich (sichtbar bei laufenden Operationen, sonst neutral)
+        try:
+            self.progress_container = ctk.CTkFrame(card, fg_color="transparent")
+            self.progress_container.pack(fill="x", pady=(0, self.get_spacing('md')))
+            # Obere Zeile: Status + ETA/Speed
+            top_row = ctk.CTkFrame(self.progress_container, fg_color="transparent")
+            top_row.pack(fill="x")
+            self.progress_label = ctk.CTkLabel(top_row, text="Bereit für Upload", font=self.get_font('body'), text_color=self.get_color('primary'))
+            self.progress_label.pack(side="left")
+            self.transfer_info_label = ctk.CTkLabel(top_row, text="0/0 MB", font=self.get_font('caption'), text_color=self.get_color('gray_500'))
+            self.transfer_info_label.pack(side="right")
+
+            # Untere Zeile: Progressbar + Prozent + lokaler Abbrechen-Button
+            bottom_row = ctk.CTkFrame(self.progress_container, fg_color="transparent")
+            bottom_row.pack(fill="x", pady=(self.get_spacing('xs'), 0))
+            self.progress_bar = ctk.CTkProgressBar(bottom_row, height=10, fg_color=self.get_color('surface_border'))
+            self.progress_bar.pack(side="left", fill="x", expand=True)
+            self.progress_bar.set(0)
+            self.progress_percentage = ctk.CTkLabel(bottom_row, text="0%", font=self.get_font('caption'), text_color=self.get_color('gray_500'))
+            self.progress_percentage.pack(side="left", padx=(self.get_spacing('sm'), 0))
+            if not hasattr(self, 'upload_progress'):
+                self.upload_progress = self.progress_bar
+            # Lokaler Cancel (spiegelt Header‑Cancel)
+            self.upload_cancel_btn = ctk.CTkButton(
+                bottom_row,
+                text="Abbrechen",
+                command=self._cancel_current_operation,
+                font=self.get_font('button'),
+                fg_color=self.get_color('white'),
+                text_color=self.get_color('primary'),
+                hover_color=self.get_color('surface_hover'),
+                border_width=1,
+                border_color=self.get_color('surface_border'),
+                corner_radius=self.get_component_value('borders.radius_sm'),
+                height=self.get_component_value('heights.button_sm'),
+                width=110
+            )
+            self.upload_cancel_btn.pack(side="right")
+            self.upload_cancel_btn.configure(state="disabled")
+            self._attach_tooltip(self.upload_cancel_btn, "Laufende Operation abbrechen (Best‑Effort)")
         except Exception:
             pass
 
-    # 🔧 ZENTRALER HELPER: Browse-Button Zustand/Style anwenden
+        # Upload Button
+        self.upload_btn = ctk.CTkButton(card, text="Upload starten", command=self._start_upload)
+        self.upload_btn.pack(fill="x", side="bottom")
+        self.upload_btn.configure(state="disabled")
+
+        # Initiale Sichtbarkeit der Empty States setzen
+        try:
+            self._refresh_customer_empty_state()
+            self._refresh_upload_empty_state()
+        except Exception:
+            pass
+
+    # 🔧 ZENTRALER HELPER: Einheitliche Button-Styles anwenden
+    def _apply_button_style(self, btn: ctk.CTkButton, enabled: bool, style: str = "primary"):
+        """Delegiert Button-Styling an zentrale UIHelpers.apply_button_style."""
+        try:
+            if not btn:
+                return
+            UIHelpers.apply_button_style(btn, style=style, enabled=enabled, ds=self)
+        except Exception:
+            try:
+                btn.configure(state=("normal" if enabled else "disabled"))
+            except Exception:
+                pass
+
+    # 🔧 ZENTRALER HELPER: Browse-Button Zustand/Style anwenden (delegiert)
     def _apply_browse_button_state(self, enabled: bool):
-        """Wendet Enabled/Disabled-State inkl. Design-System-Farben auf den Browse-Button an."""
         try:
             if not hasattr(self, 'browse_btn') or not self.browse_btn:
                 return
-            if enabled:
-                self.browse_btn.configure(
-                    state="normal",
-                    fg_color=self.get_color('button_secondary'),
-                    hover_color=self.get_color('button_secondary_hover'),
-                    text_color=self.get_color('button_secondary_text')
-                )
-            else:
-                self.browse_btn.configure(
-                    state="disabled",
-                    fg_color=self.get_color('button_disabled'),
-                    hover_color=self.get_color('button_disabled_hover'),
-                    text_color=self.get_color('button_disabled_text')
-                )
+            self._apply_button_style(self.browse_btn, enabled, style="primary")
+        except Exception:
+            pass
+
+    # 🔧 ZENTRALER HELPER: Primary-Button Zustand/Style anwenden (delegiert)
+    def _apply_primary_button_state(self, btn: ctk.CTkButton, enabled: bool):
+        try:
+            self._apply_button_style(btn, enabled, style="primary")
         except Exception:
             pass
     
     # ===== LEGACY FALLBACK BUILDERS: ACTIONS =====
     def _create_simple_actions_card(self, parent, column):
-        """🎯 ACTIONS CARD ORCHESTRATOR - Modular optimiert für bessere Wartbarkeit
+        """Erstellt die Aktions-Karte mit professionellem Design."""
+        card = self._create_content_card(parent, column, "Aktionen")
 
-        Fallback only: Bevorzugt wird die ActionsSection. Diese Methode bleibt
-        für Kompatibilität erhalten und wird durch einen Guard vor Doppelaufbau
-        geschützt.
-        """
-        # Legacy-Schutz: Falls die Section bereits aktiv ist, nicht doppelt aufbauen
-        try:
-            if hasattr(self, "_sections") and isinstance(self._sections, dict) and self._sections.get("actions") is not None:
-                return
-        except Exception:
-            pass
-        # Container Setup - Single Responsibility
-        card, content = self._setup_actions_card_container(parent, column)
-        
-        # Header Setup - Single Responsibility
-        self._setup_actions_card_header(content)
-        
-        # Workflow Display - Single Responsibility
-        self._setup_actions_workflow_section(content)
-        
-        # Main Action Button - Single Responsibility
-        self._setup_actions_main_button(content)
-        
-        # Status Display - Single Responsibility
-        self._setup_actions_status_section(content)
-        
-        # Quick Actions - Single Responsibility
-        self._setup_actions_buttons_section(content)
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_actions_card_container(self, parent, column):
-        """📦 CONTAINER SETUP - Modern Actions Card mit verbessertem Design"""
-        # Modern Actions Card mit subtilen Design-Verbesserungen
-        card = ctk.CTkFrame(parent, 
-                           fg_color=self.get_color('surface'),
-                           corner_radius=self.get_component_value('borders.radius_md'),  # Zentralisierte Border-Radius
-                           border_width=1,
-                           border_color=self.get_color('surface_border'))
-        card.grid(row=0, column=column, sticky="nsew", 
-                 padx=self.get_spacing('sm'), pady=0)  # Zentralisierte Abstände
-        
-        # Card-Content mit optimiertem Padding
-        content = ctk.CTkFrame(card, fg_color="transparent")
-        content.pack(fill="both", expand=True, 
-                    padx=self.get_spacing('card_padding'), 
-                    pady=self.get_spacing('card_padding'))
-        
-        return card, content
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_actions_card_header(self, content):
-        """📋 HEADER SETUP - Titel und Trennlinie für Actions Card"""
-        # Titel mit einheitlicher Formatierung
-        title = ctk.CTkLabel(
-            content,
-            text="Übersetzungsqualität Workflow",
-            font=ctk.CTkFont(*self.get_typography("subheading")),  # Zentralisierte Font-Definition
-            text_color=self.get_color('primary')
-        )
-        title.pack(pady=(0, self.get_spacing('sm')), fill="x")
-        
-        # Trennlinie unter dem Titel
-        separator = ctk.CTkFrame(
-            content,
-            height=2,
-            fg_color=self.get_color('border'),
-            corner_radius=self.get_component_value('borders.radius_hairline'),
-        )
-        separator.pack(fill="x", pady=(0, self.get_spacing('component_margin')))
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_actions_workflow_section(self, content):
-        """🔄 WORKFLOW SETUP - Workflow-Schritte und Beschreibung anzeigen"""
-        # Workflow Steps Display mit einheitlichem Styling
-        workflow_frame = ctk.CTkFrame(content,
-                                    fg_color=self.get_color('background'),
-                                    border_width=1,
-                                    border_color=self.get_color('input_border'),
-                                    corner_radius=self.get_component_value('borders.radius_md'))
-        workflow_frame.pack(fill="x", pady=(0, self.get_spacing('component_margin')))
-        
-        workflow_content = ctk.CTkFrame(workflow_frame, fg_color="transparent")
-        workflow_content.pack(fill="x", padx=self.get_spacing('md'), pady=self.get_spacing('md'))
-        
-        # Workflow Title
-        workflow_title = ctk.CTkLabel(
-            workflow_content,
-            text="Moderne Qualitätsanalyse",
-            font=ctk.CTkFont(*self.get_typography("body")),  # Zentralisierte Font-Definition
-            text_color=self.get_color('primary')
-        )
-        workflow_title.pack(pady=(0, self.get_spacing('sm')))
-        
-        # Workflow Steps mit konsistenter Typografie
-        steps = [
-            "1. Übersetzungsdateien hochladen",
-            "2. KI-gestützte Qualitätsprüfung", 
-            "3. Detaillierter Analysebericht",
-            "4. Ergebnisse exportieren"
-        ]
-        
-        for step in steps:
-            step_label = ctk.CTkLabel(workflow_content, text=step,
-                                    font=ctk.CTkFont(*self.get_typography("small")),  # Zentralisierte Font-Definition
-                                    text_color=self.get_color('text_secondary'))
-            step_label.pack(anchor="w", pady=self.get_spacing('xs'))
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_actions_main_button(self, content):
-        """🚀 MAIN BUTTON SETUP - Hauptaktion für Qualitätsanalyse"""
-        # Main Action Button mit einheitlicher Größe (Hauptbutton)
-        self.quality_gui_btn = ctk.CTkButton(
-            content,
-            text="Qualitätsanalyse öffnen",
-            height=self.get_component_value('heights.button_md'),
-            font=ctk.CTkFont(*self.get_typography("button")),  # Vereinheitlichte Button-Typografie
-            fg_color=self.get_color('primary'),
-            hover_color=self.get_color('primary_hover'),
-            text_color=self.get_color('white'),
-            corner_radius=self.get_component_value('borders.radius_md'),
-            border_width=0,
-            command=self._open_modern_quality_gui
-        )
-        self.quality_gui_btn.pack(fill="x", pady=(0, self.get_spacing('component_margin')))
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_actions_status_section(self, content):
-        """📊 STATUS SETUP - System-Status und Bereitschafts-Anzeige"""
-        # Status Display mit einheitlichem Styling
-        status_frame = ctk.CTkFrame(content, fg_color="transparent")
-        status_frame.pack(fill="x", pady=(0, self.get_spacing('component_margin')))
+        # Workflow-Beschreibung
+        ctk.CTkLabel(card, text="Workflow", font=self.get_font('label')).pack(anchor="w", pady=(0, self.get_spacing('sm')))
+        workflow_text = "1. Dateien hochladen\n2. Analyse starten\n3. Bericht exportieren"
+        ctk.CTkLabel(card, text=workflow_text, justify="left").pack(anchor="w", pady=(0, self.get_spacing('lg')))
 
-        status_label = ctk.CTkLabel(
-            status_frame,
-            text="Systemstatus:",
-            font=ctk.CTkFont(*self.get_typography("small")),  # Zentralisierte Font-Definition
-            text_color=self.get_color('text_secondary')
+        # Hauptaktion (vereinheitlichtes Button-Design)
+        self.quality_gui_btn = ModernUIComponents.create_professional_button(
+            card,
+            "Qualitätsanalyse öffnen",
+            self._open_modern_quality_gui,
+            self.design_system,
+            style="primary",
+            size="sm"
         )
-        status_label.pack(anchor="w", pady=(0, self.get_spacing('xs')))
+        self.quality_gui_btn.pack(fill="x", pady=(0, self.get_spacing('lg')))
 
-        self.status_display = ctk.CTkLabel(
-            status_frame,
-            text="Bereit für Qualitätsanalyse",
-            font=ctk.CTkFont(*self.get_typography("small")),  # Zentralisierte Font-Definition
-            text_color=self.get_color('success'),
-            fg_color=self.get_color('success_light'),
-            corner_radius=self.get_component_value('borders.radius_sm'),
-            padx=self.get_spacing('lg'),
-            pady=self.get_spacing('xs'),
-        )
-        self.status_display.pack(anchor="w")
-    
-    # Fallback only: Wird nur von Legacy-Buildern genutzt, Sections haben Vorrang
-    def _setup_actions_buttons_section(self, content):
-        """🎛️ BUTTONS SETUP - Sekundäre Action-Buttons (Einstellungen, Reset)"""
-        # Quick Actions mit konsistenten Farben - KALENDER ENTFERNT
-        actions_frame = ctk.CTkFrame(content, fg_color="transparent")
-        actions_frame.pack(fill="x")
-        actions_frame.grid_columnconfigure(0, weight=1)
-        actions_frame.grid_columnconfigure(1, weight=1)  # Nur noch 2 Spalten
-        
-        # Settings Button mit moderneren Proportionen
-        self.settings_btn = ctk.CTkButton(
-            actions_frame,
-            text="Einstellungen",
-            height=self.get_component_value('heights.button_md'),
-            font=ctk.CTkFont(*self.get_typography("button")),
-            fg_color=self.get_color('secondary'),
-            hover_color=self.get_color('secondary_hover'),
-            text_color=self.get_color('white'),
-            corner_radius=self.get_spacing('sm'),
-            command=self.open_settings,
-        )
-        self.settings_btn.grid(row=0, column=0, sticky="ew", padx=(0, self.get_spacing('button_gap')), pady=(0, 0))
+        # Status
+        ctk.CTkLabel(card, text="Status:", font=self.get_font('label')).pack(anchor="w", pady=(0, self.get_spacing('sm')))
+        self.status_display = ctk.CTkLabel(card, text="Bereit", fg_color=self.get_color('success_light'), text_color=self.get_color('success'), corner_radius=self.get_component_value('borders.radius_sm'), height=40)
+        self.status_display.pack(fill="x", pady=(0, self.get_spacing('lg')))
 
-        reset_btn = ctk.CTkButton(
-            actions_frame,
-            text="Workflow zurücksetzen",
-            height=self.get_component_value('heights.button_md'),
-            font=ctk.CTkFont(*self.get_typography("button")),
-            fg_color=self.get_color('secondary'),
-            hover_color=self.get_color('secondary_hover'),
-            text_color=self.get_color('white'),
-            corner_radius=self.get_spacing('sm'),
-            command=self._reset_application,
-        )
-        reset_btn.grid(row=0, column=1, sticky="ew", padx=(self.get_spacing('button_gap'), 0), pady=(0, 0))
+        # Weitere Aktionen
+        action_frame = ctk.CTkFrame(card, fg_color="transparent")
+        action_frame.pack(fill="x", side="bottom")
+        action_frame.grid_columnconfigure((0, 1), weight=1)
+
+    # Anforderung: Sekundäre Buttons (Einstellungen, Zurücksetzen) werden ausgeblendet/entfernt.
+    # Die zugrunde liegenden Funktionen bleiben verfügbar (Menüleiste/Shortcuts),
+    # aber die Buttons werden nicht mehr gerendert, um die UI zu vereinfachen.
 
     def _create_professional_footer(self):
-        """🎯 FOOTER ORCHESTRATOR - Stubbed to prevent duplicates"""
-        pass
+        """🎯 FOOTER ORCHESTRATOR - Erstellt einen professionellen Footer"""
+        try:
+            # Footer Modular Architecture
+            footer_container = self._setup_footer_container()
+            footer_content = self._setup_footer_content_frame(footer_container)
+            self._setup_footer_left_section(footer_content)
+            self._setup_footer_center_section(footer_content)
+            self._setup_footer_right_section(footer_content)
+            
+        except Exception as e:
+            print(f"Footer creation error: {e}")
 
     def _setup_footer_container(self):
         """📦 Container: Footer container creation and positioning"""
@@ -1699,7 +1505,7 @@ class WelcomeScreen(ctk.CTkFrame):
         copyright_label = ctk.CTkLabel(
             footer_content,
             text="© 2024 Professional Checker Suite - Enterprise Edition",
-            font=ctk.CTkFont(*self.get_typography("caption")),  # ✅ ZENTRALE FONT-DEFINITION
+            font=self.get_font('caption'),  # ✅ ZENTRALE FONT-DEFINITION
             text_color=self.get_color('gray_400')
         )
         copyright_label.pack(side="left")
@@ -1710,7 +1516,7 @@ class WelcomeScreen(ctk.CTkFrame):
         perf_label = ctk.CTkLabel(
             footer_content,
             text="High Performance • Secure • Reliable",
-            font=ctk.CTkFont(*self.get_typography("caption")),  # ✅ ZENTRALE FONT-DEFINITION
+            font=self.get_font('caption'),  # ✅ ZENTRALE FONT-DEFINITION
             text_color=self.get_color('success')
         )
         perf_label.pack()
@@ -1721,7 +1527,7 @@ class WelcomeScreen(ctk.CTkFrame):
         version_label = ctk.CTkLabel(
             footer_content,
             text="v2.4.8 Enterprise",
-            font=ctk.CTkFont(*self.get_typography("caption")),  # ✅ ZENTRALE FONT-DEFINITION
+            font=self.get_font('caption'),  # ✅ ZENTRALE FONT-DEFINITION
             text_color=self.get_color('gray_400')
         )
         version_label.pack(side="right")
@@ -1733,7 +1539,7 @@ class WelcomeScreen(ctk.CTkFrame):
     def start_analysis(self):
         """Start the quality analysis process"""
         try:
-            self._show_toast("Starting quality analysis...", "info", 3000)
+            self._show_enhanced_toast("Starting quality analysis...", "info", 3000)
             print("🎯 Quality analysis started")
         except Exception as e:
             print(f"Analysis start error: {e}")
@@ -1741,7 +1547,7 @@ class WelcomeScreen(ctk.CTkFrame):
     def export_results(self):
         """Export analysis results"""
         try:
-            self._show_toast("Exporting results...", "info", 3000)
+            self._show_enhanced_toast("Exporting results...", "info", 3000)
             print("Ergebnisse exportiert")
         except Exception as e:
             print(f"Export error: {e}")
@@ -1749,39 +1555,345 @@ class WelcomeScreen(ctk.CTkFrame):
     def open_settings(self):
         """Open settings dialog"""
         try:
-            self._show_toast("Opening settings...", "info", 3000)
+            self._show_enhanced_toast("Opening settings...", "info", 3000)
             print("⚙️ Settings opened")
         except Exception as e:
             print(f"Settings error: {e}")
 
     def _reset_application(self):
-        """Reset application state"""
+        """Reset application state: delegiert an Upload- und Customer-Reset."""
         try:
-            self._show_toast("Application reset...", "info", 3000)
-            print("🔄 Application reset")
+            self._reset_upload_state()
+            self._reset_customer_state()
+            self._show_enhanced_toast("Application reset...", "info", 3000)
+            self.logger.info("🔄 Application reset")
         except Exception as e:
-            print(f"Reset error: {e}")
+            self.logger.error(f"Reset error: {e}")
+
+    def _reset_upload_state(self):
+        """Nur Upload-bezogene UI/Zustände zurücksetzen."""
+        try:
+            # Clear uploads
+            try:
+                if hasattr(self, 'uploaded_files') and isinstance(self.uploaded_files, list):
+                    self.uploaded_files.clear()
+            except Exception:
+                pass
+
+            # Progress + labels
+            if hasattr(self, 'progress_bar'):
+                try:
+                    self.progress_bar.set(0)
+                except Exception:
+                    pass
+            if hasattr(self, 'progress_label'):
+                try:
+                    self.progress_label.configure(text="Bereit für Upload", text_color=self.get_color('primary'))
+                except Exception:
+                    pass
+            for lbl_name, text in [
+                ('upload_speed_label', ''),
+                ('upload_eta_label', ''),
+                ('file_progress_label', ''),
+            ]:
+                if hasattr(self, lbl_name):
+                    try:
+                        getattr(self, lbl_name).configure(text=text)
+                    except Exception:
+                        pass
+            if hasattr(self, 'transfer_info_label'):
+                try:
+                    self.transfer_info_label.configure(text="0/0 MB")
+                except Exception:
+                    pass
+
+            # Buttons
+            if hasattr(self, 'upload_btn') and self.upload_btn:
+                try:
+                    self.upload_btn.configure(state="disabled")
+                    self._apply_primary_button_state(self.upload_btn, False)
+                except Exception:
+                    pass
+            self._apply_browse_button_state(True)
+
+            # Totals
+            self.upload_start_time = None
+            self.upload_total_bytes = 0
+            self.upload_transferred_bytes = 0
+            if hasattr(self, 'current_upload_task'):
+                self.current_upload_task = None
+
+            # Empty-State Sichtbarkeit aktualisieren
+            try:
+                self._refresh_upload_empty_state()
+            except Exception:
+                pass
+
+        except Exception as e:
+            self.logger.warning(f"Upload reset error: {e}")
+
+    def _reset_customer_state(self, with_files: bool = False):
+        """Zentraler Reset: Kundenselektion (und optional Dateien) zurücksetzen."""
+        try:
+            # Kunde zurücksetzen
+            self.current_customer = None
+            # Aktions-Buttons deaktivieren (Neue Suche & Kundenordner öffnen)
+            try:
+                self._apply_customer_action_button_styles(active=False)
+            except Exception:
+                pass
+            if hasattr(self, 'current_customer_label'):
+                try:
+                    self.current_customer_label.configure(
+                        text="Kein Kunde ausgewählt",
+                        text_color=self.get_color('anthracite_600')
+                    )
+                except Exception:
+                    pass
+            # Eingabefeld(e) leeren und Fokus setzen (neues Suchfeld bevorzugen)
+            search_reset_applied = False
+            if hasattr(self, 'customer_search_entry') and self.customer_search_entry:
+                try:
+                    self.customer_search_entry.delete(0, 'end')
+                    self.customer_search_entry.focus_set()
+                    search_reset_applied = True
+                except Exception:
+                    pass
+            # Legacy Feld fallback
+            if not search_reset_applied and hasattr(self, 'customer_entry') and self.customer_entry:
+                try:
+                    self.customer_entry.delete(0, 'end')
+                    self.customer_entry.focus_set()
+                except Exception:
+                    pass
+            # Vorherige Suchergebnisse ausblenden und Status zurücksetzen
+            try:
+                self._hide_search_results()
+                self.search_active = False
+                self.filtered_customers = []
+            except Exception:
+                pass
+            # Falls Kundenliste vorhanden: sofort erneut initiale Vorschläge anzeigen (erste X Kunden) für schnelleren Start
+            try:
+                base_list = []
+                if getattr(self, 'customers_data', None):
+                    # Normalisiere auf Namen
+                    for c in self.customers_data[:8]:
+                        if isinstance(c, str):
+                            base_list.append({'name': c, 'score': 0})
+                        elif isinstance(c, dict) and 'name' in c:
+                            base_list.append({'name': c['name'], 'score': 0})
+                if base_list:
+                    self._show_search_results(base_list)
+            except Exception:
+                pass
+            # Dropdown/Autocomplete aktualisieren
+            try:
+                if hasattr(self, '_update_customer_dropdown'):
+                    self._update_customer_dropdown()
+            except Exception:
+                pass
+            # Dateien optional leeren
+            if with_files:
+                try:
+                    self.uploaded_files = []
+                except Exception:
+                    pass
+                if hasattr(self, 'file_status'):
+                    try:
+                        self.file_status.configure(text="0 files selected")
+                    except Exception:
+                        pass
+                if hasattr(self, 'clear_files_btn'):
+                    try:
+                        self.clear_files_btn.pack_forget()
+                    except Exception:
+                        pass
+            # Empty-State Sichtbarkeit aktualisieren
+            try:
+                self._refresh_customer_empty_state()
+            except Exception:
+                pass
+        except Exception as e:
+            try:
+                self.logger.warning(f"Customer reset error: {e}")
+            except Exception:
+                print(f"Customer reset error: {e}")
+
+    # --- Customer Action Buttons Style Helper ---------------------------------
+    def _apply_customer_action_button_styles(self, active: bool):
+        """Einheitliche Styles für Kunden-Aktionsbuttons (Neue Suche / Kundenordner).
+
+        active=True  -> Primär-Blau + weiße Schrift
+        active=False -> Helles Primär (primary_light) + Primär-Text
+        """
+        try:
+            fg_color = self.get_color('primary') if active else self.get_color('primary_light')
+            hover_color = self.get_color('primary_hover') if active else self.get_color('primary_light')
+            text_color = self.get_color('white') if active else self.get_color('primary')
+            targets = []
+            if hasattr(self, 'remove_btn') and self.remove_btn:
+                targets.append(self.remove_btn)
+            if hasattr(self, 'folder_btn') and self.folder_btn:
+                targets.append(self.folder_btn)
+            for btn in targets:
+                try:
+                    btn.configure(
+                        state="normal" if active else "disabled",
+                        fg_color=fg_color,
+                        hover_color=hover_color,
+                        text_color=text_color
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    # ---- Empty-State Helper ------------------------------------------------------
+    def _refresh_customer_empty_state(self):
+        """Zeigt/Versteckt den Kunden-Empty-State abhängig vom aktuellen Kunden."""
+        try:
+            state = "normal" if not getattr(self, 'current_customer', None) else "disabled"
+            if hasattr(self, 'customer_empty_state') and self.customer_empty_state:
+                # pack_forget bei vorhandenem Kunden, ansonsten sicherstellen, dass gepackt ist
+                if state == "disabled":
+                    try:
+                        self.customer_empty_state.pack_forget()
+                    except Exception:
+                        pass
+                else:
+                    # Re-pack wenn nicht sichtbar
+                    try:
+                        if str(self.customer_empty_state.winfo_manager()) == '':
+                            self.customer_empty_state.pack(fill="x", pady=(0, self.get_spacing('lg')))
+                    except Exception:
+                        pass
+        except Exception:
+            return
+
+    def _refresh_upload_empty_state(self):
+        """Zeigt/Versteckt den Upload-Empty-State abhängig von ausgewählten Dateien."""
+        try:
+            files = getattr(self, 'uploaded_files', [])
+            empty = not bool(files)
+            if hasattr(self, 'upload_empty_state') and self.upload_empty_state:
+                if not empty:
+                    try:
+                        self.upload_empty_state.pack_forget()
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        if str(self.upload_empty_state.winfo_manager()) == '':
+                            self.upload_empty_state.pack(fill="x", pady=(0, self.get_spacing('lg')))
+                    except Exception:
+                        pass
+        except Exception:
+            return
 
     def _show_file_menu(self):
         """Show file menu"""
         try:
-            print("📁 File menu shown")
+            if hasattr(self, 'menu_system') and self.menu_system:
+                # Bevorzugt: CTk-Dialog gemäß Design-System
+                if hasattr(self.menu_system, 'show_file_menu_ctk'):
+                    self.menu_system.show_file_menu_ctk()
+                    return
+                # Fallback: klassisches Tk-Menü
+                if hasattr(self.menu_system, 'show_file_menu'):
+                    self.menu_system.show_file_menu()
+                    return
+            print("Datei-Menü geöffnet")
         except Exception as e:
             print(f"File menu error: {e}")
 
     def _show_settings_menu(self):
         """Show settings menu"""
         try:
-            print("⚙️ Settings menu shown")
+            if hasattr(self, 'menu_system') and self.menu_system:
+                if hasattr(self.menu_system, 'show_settings_ctk'):
+                    self.menu_system.show_settings_ctk()
+                    return
+                if hasattr(self.menu_system, 'show_tools_menu'):
+                    self.menu_system.show_tools_menu()
+                    return
+            print("Einstellungen geöffnet")
         except Exception as e:
             print(f"Settings menu error: {e}")
 
     def _show_help_menu(self):
         """Show help menu"""
         try:
-            print("❓ Help menu shown")
+            if hasattr(self, 'menu_system') and self.menu_system:
+                if hasattr(self.menu_system, 'show_help_ctk'):
+                    self.menu_system.show_help_ctk()
+                    return
+                if hasattr(self.menu_system, 'show_help_menu'):
+                    self.menu_system.show_help_menu()
+                    return
+            print("Hilfe-Menü geöffnet")
         except Exception as e:
             print(f"Help menu error: {e}")
+
+    # =============================================================================
+    # 📦 SMART CALENDAR LOADER (einheitlich) – lädt immer src/ui/smart_upload_calendar.py
+    # =============================================================================
+    def _load_smart_calendar_module(self):
+        """Lädt SmartUploadCalendar deterministisch per Dateipfad und loggt Quelle/Version.
+
+        Returns:
+            (SmartUploadCalendar class | None, info: dict)
+        """
+        try:
+            import importlib.util, hashlib, sys
+            base_dir = os.path.dirname(__file__)
+            cal_path = os.path.join(base_dir, 'src', 'ui', 'smart_upload_calendar.py')
+            info = {
+                'path': cal_path,
+                'exists': os.path.exists(cal_path),
+                'mtime': None,
+                'md5': None,
+            }
+
+            if not info['exists']:
+                self.logger.warning(f"SmartUploadCalendar not found at: {cal_path}")
+                return None, info
+
+            # Hash/mtime für Nachvollziehbarkeit
+            try:
+                info['mtime'] = os.path.getmtime(cal_path)
+                with open(cal_path, 'rb') as f:
+                    info['md5'] = hashlib.md5(f.read()).hexdigest()
+            except Exception as _ver_err:
+                self.logger.debug(f"Calendar file version info error: {_ver_err}")
+
+            # Sibling imports (calendar_extensions, kunden_utils) liegen im gleichen Ordner
+            ui_dir = os.path.dirname(cal_path)
+            added_to_syspath = False
+            if ui_dir and ui_dir not in sys.path:
+                sys.path.insert(0, ui_dir)
+                added_to_syspath = True
+
+            spec = importlib.util.spec_from_file_location("smart_upload_calendar", cal_path)
+            if not spec or not spec.loader:
+                self.logger.warning("Spec/Loader für SmartUploadCalendar nicht verfügbar")
+                return None, info
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            SmartUploadCalendar = getattr(module, 'SmartUploadCalendar', None)
+            if SmartUploadCalendar is None:
+                self.logger.warning("SmartUploadCalendar class nicht gefunden")
+                return None, info
+
+            self.logger.info(
+                "SmartUploadCalendar geladen — "
+                f"Quelle: {info['path']} | mtime: {info['mtime']} | md5: {info['md5']}"
+            )
+            return SmartUploadCalendar, info
+        except Exception as e:
+            self.logger.error(f"Smart calendar load error: {e}")
+            return None, {'path': None, 'exists': False, 'mtime': None, 'md5': None}
 
     def _show_tools(self):
         """Show tools menu"""
@@ -1815,6 +1927,145 @@ class WelcomeScreen(ctk.CTkFrame):
         except Exception as e:
             print(f"Settings error: {e}")
 
+    def _show_professional_calendar(self):
+        """🎯 PROFESSIONAL SMART CALENDAR - Optimiert für Business-Use"""
+        try:
+            self._show_enhanced_toast("Professioneller Kalender wird geöffnet...", "info")
+            
+            # Einheitlich laden
+            SmartUploadCalendar, info = self._load_smart_calendar_module()
+            calendar_available = SmartUploadCalendar is not None
+            
+            if not calendar_available:
+                self._show_enhanced_toast("Smart Calendar nicht verfügbar – Fallback aktiv", "warning")
+                self._show_simple_calendar_fallback()
+                return
+            
+            # Create professional calendar window
+            calendar_window = ctk.CTkToplevel(self)
+            calendar_window.title("Professional Upload Calendar - Checker Pro")
+            calendar_window.geometry("1400x900")
+            calendar_window.transient(self)
+            calendar_window.grab_set()
+            calendar_window.resizable(True, True)
+            
+            # Center dialog
+            self._center_dialog(calendar_window, 1400, 900)
+            
+            # Professional header
+            header_frame = ctk.CTkFrame(
+                calendar_window, 
+                fg_color=self.get_color('primary'),
+                corner_radius=0,
+                height=80
+            )
+            header_frame.pack(fill="x", side="top")
+            header_frame.pack_propagate(False)
+            
+            # Header content
+            header_content = ctk.CTkFrame(header_frame, fg_color="transparent")
+            header_content.pack(fill="both", expand=True, padx=30, pady=20)
+            
+            # Title
+            title_label = ctk.CTkLabel(
+                header_content,
+                text="Professional Upload Calendar",
+                font=self.get_font('heading'),
+                text_color=self.get_color('white')
+            )
+            title_label.pack(side="left")
+            
+            # Close button
+            close_btn = ctk.CTkButton(
+                header_content,
+                text="Schließen",
+                width=120,
+                height=32,
+                font=self.get_font('button'),
+                fg_color=self.get_color('white'),
+                text_color=self.get_color('primary'),
+                hover_color=self.get_color('gray_100'),
+                command=calendar_window.destroy
+            )
+            close_btn.pack(side="right")
+            
+            # Calendar container
+            calendar_container = ctk.CTkFrame(
+                calendar_window,
+                fg_color=self.get_color('surface'),
+                corner_radius=0
+            )
+            calendar_container.pack(fill="both", expand=True)
+            
+            # Initialize smart calendar with professional settings
+            try:
+                smart_calendar = SmartUploadCalendar(
+                    master=calendar_container,
+                    app=self,
+                    fg_color="transparent"
+                )
+                smart_calendar.pack(fill="both", expand=True, padx=30, pady=30)
+
+                # Reload calendar data
+                if hasattr(smart_calendar, 'reload'):
+                    smart_calendar.reload()
+
+                # Referenzen merken, um spätere Fokussierungen zu ermöglichen
+                self._calendar_window = calendar_window
+                self._smart_calendar = smart_calendar
+
+                self._show_enhanced_toast("Professional Calendar erfolgreich geladen", "success")
+                print("✅ Professional Smart Upload Calendar integrated successfully")
+
+            except Exception as calendar_error:
+                print(f"❌ Error initializing SmartUploadCalendar: {calendar_error}")
+                self._show_enhanced_toast(f"Kalender-Fehler: {str(calendar_error)}", "error")
+                
+                # Show error in calendar container
+                error_label = ctk.CTkLabel(
+                    calendar_container,
+                    text=f"Kalender-Initialisierung fehlgeschlagen:\n{str(calendar_error)}\n\nBitte prüfen Sie die Kalender-Abhängigkeiten.",
+                    font=self.get_font('body'),
+                    text_color=self.get_color('error'),
+                    wraplength=600
+                )
+                error_label.pack(expand=True)
+                
+        except Exception as e:
+            print(f"❌ Professional Calendar error: {e}")
+            self._show_enhanced_toast(f"Calendar error: {str(e)}", "error")
+            self._show_simple_calendar_fallback()
+
+    def _open_full_calendar_for_date(self, year: int, month: int, day: int):
+        """Öffnet den Professional Calendar und fokussiert das angegebene Datum.
+
+        - Erstellt das Fenster, wenn es noch nicht existiert.
+        - Stellt sicher, dass der Monat sichtbar ist und öffnet optional die Tagesdetails.
+        """
+        try:
+            # Falls bereits offen, in den Vordergrund holen
+            cal_window = getattr(self, "_calendar_window", None)
+            smart_cal = getattr(self, "_smart_calendar", None)
+
+            if cal_window and cal_window.winfo_exists() and smart_cal:
+                try:
+                    cal_window.lift()
+                    cal_window.focus_force()
+                except Exception:
+                    pass
+                # Datum fokussieren und Details öffnen
+                if hasattr(smart_cal, 'focus_date'):
+                    smart_cal.focus_date(year, month, day, open_details=True)
+                return
+
+            # Andernfalls neu öffnen und danach fokussieren
+            self._show_professional_calendar()
+            smart_cal = getattr(self, "_smart_calendar", None)
+            if smart_cal and hasattr(smart_cal, 'focus_date'):
+                smart_cal.focus_date(year, month, day, open_details=True)
+        except Exception as e:
+            print(f"_open_full_calendar_for_date error: {e}")
+
     def _show_calendar(self):
         """Show calendar"""
         try:
@@ -1833,6 +2084,8 @@ class WelcomeScreen(ctk.CTkFrame):
             # Pfad zur modern_translation_quality_gui.py
             script_path = os.path.join(os.path.dirname(__file__), "modern_translation_quality_gui.py")
             modular_path = os.path.join(os.path.dirname(__file__), "modern_translation_quality_gui_modular.py")
+            quality_main_path = os.path.join(os.path.dirname(__file__), "quality_gui_main_app.py")
+            simple_starter_path = os.path.join(os.path.dirname(__file__), "quality_gui_starter.py")
             
             if os.path.exists(script_path):
                 # Status aktualisieren
@@ -1846,11 +2099,15 @@ class WelcomeScreen(ctk.CTkFrame):
                     # GUI im separaten Prozess starten
                     subprocess.Popen(["python", script_path], cwd=os.path.dirname(__file__))
                     print("Moderne Translation Quality GUI gestartet")
+                    # Nach erfolgreichem Start Prüfungsseite öffnen (asynchron)
+                    self._schedule_pruefung_workflow_open()
                 except Exception as compile_err:
                     print(f"Legacy GUI Compile-Fehler, Fallback auf modulare Version: {compile_err}")
                     if os.path.exists(modular_path):
                         subprocess.Popen(["python", modular_path], cwd=os.path.dirname(__file__))
                         print("Modulare Translation Quality GUI gestartet (Fallback)")
+                        # Auch im Fallback anschließend Prüfungsseite versuchen
+                        self._schedule_pruefung_workflow_open()
                     else:
                         print("Modulare GUI-Datei für Fallback nicht gefunden")
                 
@@ -1859,7 +2116,7 @@ class WelcomeScreen(ctk.CTkFrame):
                 
             else:
                 print("modern_translation_quality_gui.py nicht gefunden")
-                # Versuche direkt die modulare GUI zu starten
+                # Versuche zuerst modulare oder neue Haupt-Quality-GUI zu starten
                 if os.path.exists(modular_path):
                     try:
                         subprocess.Popen(["python", modular_path], cwd=os.path.dirname(__file__))
@@ -1868,11 +2125,40 @@ class WelcomeScreen(ctk.CTkFrame):
                                                       text_color=self.get_color('warning'),
                                                       fg_color=self.get_color('warning_light'))
                         self.master.after(3000, self._reset_workflow_status)
+                        self._schedule_pruefung_workflow_open()
                     except Exception as mod_err:
                         print(f"Fehler beim Starten der Modular GUI: {mod_err}")
                         self.status_display.configure(text="GUI file not found", 
                                                       text_color=self.get_color('warning'),
                                                       fg_color=self.get_color('warning_light'))
+                elif os.path.exists(quality_main_path):
+                    try:
+                        subprocess.Popen(["python", quality_main_path], cwd=os.path.dirname(__file__))
+                        print("Quality Main App gestartet")
+                        self.status_display.configure(text="Quality GUI gestartet", 
+                                                      text_color=self.get_color('info'),
+                                                      fg_color=self.get_color('info_light'))
+                        self.master.after(2500, self._reset_workflow_status)
+                        self._schedule_pruefung_workflow_open()
+                    except Exception as qm_err:
+                        print(f"Fehler beim Starten der Quality Main App: {qm_err}")
+                        self.status_display.configure(text="Quality GUI Fehler", 
+                                                      text_color=self.get_color('error'),
+                                                      fg_color=self.get_color('error_light'))
+                elif os.path.exists(simple_starter_path):
+                    try:
+                        subprocess.Popen(["python", simple_starter_path], cwd=os.path.dirname(__file__))
+                        print("Simple Quality GUI Starter gestartet")
+                        self.status_display.configure(text="Simple Quality GUI gestartet", 
+                                                      text_color=self.get_color('info'),
+                                                      fg_color=self.get_color('info_light'))
+                        self.master.after(2500, self._reset_workflow_status)
+                        self._schedule_pruefung_workflow_open()
+                    except Exception as ss_err:
+                        print(f"Fehler beim Simple Starter: {ss_err}")
+                        self.status_display.configure(text="Quality GUI Fehler", 
+                                                      text_color=self.get_color('error'),
+                                                      fg_color=self.get_color('error_light'))
                 else:
                     self.status_display.configure(text="GUI file not found", 
                                                   text_color=self.get_color('warning'),  # Dezentes Orange
@@ -1883,6 +2169,46 @@ class WelcomeScreen(ctk.CTkFrame):
             self.status_display.configure(text="Error starting GUI", 
                                         text_color=self.get_color('warning'),  # Dezentes Orange
                                         fg_color=self.get_color('warning_light'))
+
+    def _schedule_pruefung_workflow_open(self):
+        """Planmäßiger (einmaliger) Versuch die Prüfungsseite nach Quality-Analyse zu öffnen.
+        - Verwendet vorhandene workflow_router falls verfügbar
+        - Fällt still zurück falls nicht vorhanden oder Modul fehlt
+        - Stellt sicher, dass nur ein Versuch pro Quality-Start erfolgt
+        """
+        try:
+            if getattr(self, '_pruefung_auto_open_triggered', False):
+                return
+            self._pruefung_auto_open_triggered = True
+
+            def _attempt():
+                try:
+                    # Preferred: vorhandener workflow_router
+                    if hasattr(self, 'workflow_router') and self.workflow_router:
+                        try:
+                            self.workflow_router.start_workflow('pruefung_workflow')
+                            print("Prüfungs-Workflow über workflow_router gestartet")
+                            return
+                        except Exception as wf_err:
+                            print(f"Workflow-Router Start fehlgeschlagen: {wf_err}")
+
+                    # Fallback: WorkflowFactory direkt nutzen (falls Modul existiert)
+                    try:
+                        from core.workflow_factory import WorkflowFactory, WorkflowType
+                        factory = WorkflowFactory.get_instance()
+                        # Minimaler Rückkehr-Callback
+                        back_cb = lambda: None
+                        factory.create_workflow(WorkflowType.PRUEFUNG, self.master, back_cb, project_data=None)
+                        print("Prüfungs-Workflow über WorkflowFactory instanziiert")
+                    except Exception as fac_err:
+                        print(f"WorkflowFactory Fallback fehlgeschlagen: {fac_err}")
+                except Exception as inner:
+                    print(f"Prüfungsseite Auto-Open Fehler: {inner}")
+
+            # Leichte Verzögerung damit Quality GUI Start nicht blockiert
+            self.master.after(1200, _attempt)
+        except Exception as e:
+            print(f"_schedule_pruefung_workflow_open Fehler: {e}")
     
     def _reset_workflow_status(self):
         """Setzt den Workflow-Status zurück"""
@@ -1947,14 +2273,14 @@ class WelcomeScreen(ctk.CTkFrame):
             # Warning header without icon (No-Icons-Policy)
             warning_label = ctk.CTkLabel(content_frame, 
                                        text="Achtung",
-                                       font=ctk.CTkFont(*self.get_typography("display")),
+                                       font=self.get_font('display'),
                                        text_color=self.get_color('warning'))
             warning_label.pack(pady=(0, self.get_spacing('sm')))
             
             # Confirmation message
             message_label = ctk.CTkLabel(content_frame,
                                        text=f"Möchten Sie den Kunden '{customer_name}' wirklich entfernen?\n\nDiese Aktion kann nicht rückgängig gemacht werden.",
-                                       font=ctk.CTkFont(*self.get_typography("body")),
+                                       font=self.get_font('body'),
                                        text_color=self.get_color('text_primary'),
                                        justify="center")
             message_label.pack(pady=(0, self.get_spacing('md')))
@@ -1969,7 +2295,7 @@ class WelcomeScreen(ctk.CTkFrame):
             cancel_btn = ctk.CTkButton(button_frame,
                                      text="Abbrechen",
                                      height=38,
-                                     font=ctk.CTkFont(*self.get_typography("button")),
+                                     font=self.get_font('button'),
                                      fg_color=self.get_color('secondary'),
                                      hover_color=self.get_color('secondary_hover'),
                                      text_color=self.get_color('white'),
@@ -1981,7 +2307,7 @@ class WelcomeScreen(ctk.CTkFrame):
             remove_btn = ctk.CTkButton(button_frame,
                                      text="Entfernen",
                                      height=38,
-                                     font=ctk.CTkFont(*self.get_typography("button")),
+                                     font=self.get_font('button'),
                                      fg_color=self.get_color('error'),
                                      hover_color=self.get_color('error_hover'),
                                      text_color=self.get_color('white'),
@@ -2161,6 +2487,32 @@ class WelcomeScreen(ctk.CTkFrame):
         try:
             if not self.customers_data:
                 return []
+            # Optional: schneller Pfad mit rapidfuzz für große Datenmengen
+            try:
+                if len(self.customers_data) > 10000:
+                    from rapidfuzz import process, fuzz
+                    names = []
+                    for c in self.customers_data:
+                        if isinstance(c, str):
+                            names.append(c)
+                        elif isinstance(c, dict):
+                            nm = c.get('name')
+                            if nm:
+                                names.append(str(nm))
+                    # Verwende extract mit TokenSortRatio für robuste Vergleiche
+                    results = process.extract(
+                        search_text,
+                        names,
+                        scorer=fuzz.WRatio,
+                        limit=50
+                    )
+                    normalized = [
+                        {'name': nm, 'score': int(score)} for nm, score, _ in results if int(score) >= 60
+                    ][:8]
+                    return normalized
+            except Exception:
+                # rapidfuzz nicht vorhanden oder Fehler → weiter mit langsamer Implementierung
+                pass
             
             # Alle Kandidaten scoren und später filtern
             all_candidates = []
@@ -2194,14 +2546,11 @@ class WelcomeScreen(ctk.CTkFrame):
                     'highlight': self._get_highlight_info(search_lower, customer_name)
                 })
 
-            # Primär mit Mindestscore filtern, sonst Fallback: beste ähnlichen Vorschläge zeigen
-            MIN_SCORE = 35
+            # Mindestscore: Nur relevante Treffer anzeigen (keine schwachen ~30% Vorschläge)
+            MIN_SCORE = 60
             matches = [m for m in all_candidates if m['score'] >= MIN_SCORE]
-            if not matches:
-                # Fallback: zeige Top 5 ähnliche Ergebnisse, auch wenn unter Mindestscore
-                matches = sorted(all_candidates, key=lambda x: x['score'], reverse=True)[:5]
-            else:
-                matches.sort(key=lambda x: x['score'], reverse=True)
+            # Sortiere absteigend nach Score
+            matches.sort(key=lambda x: x['score'], reverse=True)
 
             # Beschränke die Anzahl der sichtbaren Vorschläge
             normalized = []
@@ -2225,7 +2574,10 @@ class WelcomeScreen(ctk.CTkFrame):
             return normalized
             
         except Exception as e:
-            print(f"Fuzzy search error: {e}")
+            try:
+                self.logger.debug(f"Fuzzy search error: {e}")
+            except Exception:
+                pass
             return []
     
     def _calculate_fuzzy_score(self, search_term, customer_name):
@@ -2364,6 +2716,7 @@ class WelcomeScreen(ctk.CTkFrame):
         used = set()
         q = (query or '').strip()
         try:
+            THRESHOLD = 60  # Minimum akzeptierte Ähnlichkeit
             # 1) CoreKundenManager (wenn vorhanden)
             if hasattr(self, 'kunden_manager') and self.kunden_manager:
                 try:
@@ -2377,7 +2730,8 @@ class WelcomeScreen(ctk.CTkFrame):
                             continue
                         used.add(key)
                         score = int(m.get('score', 0)) if isinstance(m, dict) else 0
-                        results.append({'name': name, 'score': score})
+                        if score >= THRESHOLD:
+                            results.append({'name': name, 'score': score})
                 except Exception as _core_err:
                     print(f"Core search error: {_core_err}")
 
@@ -2406,7 +2760,8 @@ class WelcomeScreen(ctk.CTkFrame):
                 if key in used:
                     continue
                 used.add(key)
-                results.append({'name': nm, 'score': int(sc)})
+                if int(sc) >= THRESHOLD:
+                    results.append({'name': nm, 'score': int(sc)})
 
             # Final sort
             results.sort(key=lambda d: d.get('score', 0), reverse=True)
@@ -2513,13 +2868,34 @@ class WelcomeScreen(ctk.CTkFrame):
 
             print(f"🔍 Search results shown: {len(self._search_result_widgets)} widgets, search_active={self.search_active}")
 
+            # QoL: Bei genau einem Treffer optional automatisch auswählen
+            try:
+                current_text = (self.customer_search_entry.get() or '').strip()
+                if (
+                    self.auto_select_single_hit
+                    and len(self.filtered_customers) == 1
+                    and len(current_text) >= int(self.auto_select_min_chars or 0)
+                ):
+                    only = self.filtered_customers[0]
+                    # kleine Verzögerung, damit UI sichtbar bleibt
+                    self.master.after(120, lambda n=only: self._on_search_result_selected(n))
+                    print(f"✨ Auto-select single hit triggered for '{only}'")
+            except Exception as _auto_err:
+                try:
+                    self.logger.debug(f"Auto-select check error: {_auto_err}")
+                except Exception:
+                    pass
+
         except Exception as e:
-            print(f"Show search results error: {e}")
+            try:
+                self.logger.warning(f"Show search results error: {e}")
+            except Exception:
+                pass
             import traceback
             traceback.print_exc()
     
     def _create_search_result_item(self, customer, score, index):
-        """Create individual search result item"""
+        """Create individual search result item (Keyboard- & Maus-Sync)"""
         try:
             # Robuste Typprüfung für Kundendaten
             if isinstance(customer, str):
@@ -2543,7 +2919,13 @@ class WelcomeScreen(ctk.CTkFrame):
             )
             result_frame.pack(fill="x", pady=(0, self.get_spacing('xs')))
             result_frame.pack_propagate(False)
-            print(f"🔍 result_frame created and packed for '{customer_name}' with height: {self.get_component_value('heights.button_sm')}")
+            # Debug: Erstellung des Ergebnis-Frames
+            try:
+                self.logger.debug(
+                    f"SearchResultFrame created: '{customer_name}', h={self.get_component_value('heights.button_sm')}"
+                )
+            except Exception:
+                pass
             
             # Content frame
             content_frame = ctk.CTkFrame(result_frame, fg_color="transparent")
@@ -2558,16 +2940,19 @@ class WelcomeScreen(ctk.CTkFrame):
             name_label = ctk.CTkLabel(
                 content_frame,
                 text=customer_name,
-                font=ctk.CTkFont(*self.get_typography("body")),
+                font=ctk.CTkFont(*self.get_typography("caption")),  # Zentralisierte Font-Definition
                 text_color=self.get_color('text_primary'),
                 anchor="w"
             )
             name_label.pack(side="left", fill="x", expand=True)
-            print(f"🔍 name_label created and packed: '{customer_name}'")
+            try:
+                self.logger.debug(f"SearchResult name_label created: '{customer_name}'")
+            except Exception:
+                pass
             
-            # Score indicator (for debugging, can be removed)
+            # Score indicator (optional)
             score_text = ""
-            
+
             score_label = ctk.CTkLabel(
                 content_frame,
                 text=score_text,
@@ -2575,18 +2960,30 @@ class WelcomeScreen(ctk.CTkFrame):
                 text_color=self.get_color('text_secondary')
             )
             score_label.pack(side="right")
-            print(f"🔍 score_label created and packed: '{score_text}'")
+            try:
+                self.logger.debug(f"SearchResult score_label created: '{score_text}'")
+            except Exception:
+                pass
             
-            # Make clickable
+            # --- Events: Mausklick & Hover mit zentraler Auswahl-Logik koppeln ---
             def on_result_click(event, cust=customer):
                 self._select_search_result(cust)
-            
-            def on_result_enter(event):
-                result_frame.configure(fg_color=self.get_color('surface_hover'))
-                
+
+            def on_result_enter(event, idx=index):
+                # Hover übernimmt Tastaturauswahl → einheitliche Highlight-Logik
+                try:
+                    self._set_search_selection(idx)
+                except Exception:
+                    pass
+
             def on_result_leave(event):
-                result_frame.configure(fg_color=self.get_color('surface'))
-            
+                # Nur zurücksetzen, wenn die Maus wirklich nicht mehr über dem Bereich ist
+                try:
+                    if not self._is_pointer_over_results():
+                        self._update_search_highlight()
+                except Exception:
+                    pass
+
             # Bind events to all widgets in the result
             for widget in [result_frame, content_frame, name_label, score_label]:
                 widget.bind("<Button-1>", on_result_click)
@@ -2596,7 +2993,10 @@ class WelcomeScreen(ctk.CTkFrame):
             
             return result_frame
         except Exception as e:
-            print(f"Create search result item error: {e}")
+            try:
+                self.logger.warning(f"Create search result item error: {e}")
+            except Exception:
+                pass
             return None
     
     def _select_search_result(self, customer):
@@ -2628,10 +3028,16 @@ class WelcomeScreen(ctk.CTkFrame):
             # Select the customer
             self._on_customer_select(customer_name)
             
-            print(f"✅ Customer selected from search: {customer_name}")
+            try:
+                self.logger.info(f"Customer selected from search: {customer_name}")
+            except Exception:
+                pass
             
         except Exception as e:
-            print(f"Select search result error: {e}")
+            try:
+                self.logger.warning(f"Select search result error: {e}")
+            except Exception:
+                pass
     
     def _show_no_results(self):
         """Show 'no results found' message"""
@@ -2653,7 +3059,10 @@ class WelcomeScreen(ctk.CTkFrame):
             self.search_active = True
             
         except Exception as e:
-            print(f"Show no results error: {e}")
+            try:
+                self.logger.warning(f"Show no results error: {e}")
+            except Exception:
+                pass
     
     def _hide_search_results(self):
         """Hide search results dropdown"""
@@ -2674,7 +3083,10 @@ class WelcomeScreen(ctk.CTkFrame):
             self._search_selected_index = -1
             
         except Exception as e:
-            print(f"Hide search results error: {e}")
+            try:
+                self.logger.debug(f"Hide search results error: {e}")
+            except Exception:
+                pass
 
     # --- Tastatur-Navigation für Suchergebnisse -----------------------------
     def _on_search_key_down(self, event=None):
@@ -2687,7 +3099,10 @@ class WelcomeScreen(ctk.CTkFrame):
                 new_index = (self._search_selected_index + 1) % len(self._search_result_widgets)
             self._set_search_selection(new_index)
         except Exception as e:
-            print(f"Search key down error: {e}")
+            try:
+                self.logger.debug(f"Search key down error: {e}")
+            except Exception:
+                pass
 
     def _on_search_key_up(self, event=None):
         try:
@@ -2699,7 +3114,10 @@ class WelcomeScreen(ctk.CTkFrame):
                 new_index = (self._search_selected_index - 1) % len(self._search_result_widgets)
             self._set_search_selection(new_index)
         except Exception as e:
-            print(f"Search key up error: {e}")
+            try:
+                self.logger.debug(f"Search key up error: {e}")
+            except Exception:
+                pass
 
     def _on_search_key_return(self, event=None):
         try:
@@ -2709,7 +3127,10 @@ class WelcomeScreen(ctk.CTkFrame):
                 # Falls keine Auswahl – standardmäßig Suche auslösen
                 self._on_customer_search()
         except Exception as e:
-            print(f"Search key return error: {e}")
+            try:
+                self.logger.debug(f"Search key return error: {e}")
+            except Exception:
+                pass
 
     def _set_search_selection(self, index: int):
         try:
@@ -2718,17 +3139,71 @@ class WelcomeScreen(ctk.CTkFrame):
             self._search_selected_index = index
             self._update_search_highlight()
         except Exception as e:
-            print(f"Set search selection error: {e}")
+            try:
+                self.logger.debug(f"Set search selection error: {e}")
+            except Exception:
+                pass
+
+    def _get_search_highlight_colors(self):
+        """Zentrale Farbdefinitionen für die Kunden-Suchliste (Dropdown).
+        Gibt ein Dict mit Farben für ausgewählten vs. Standardzustand zurück.
+        """
+        try:
+            return {
+                'selected_bg': self.get_color('primary_light'),
+                'selected_border': self.get_color('primary'),
+                'selected_text': self.get_color('primary_dark') if hasattr(self, 'get_color') else '#1F4E79',
+                'default_bg': self.get_color('surface'),
+                'default_border': self.get_color('surface_border'),
+                'default_text': self.get_color('text_primary'),
+            }
+        except Exception:
+            # Fallbacks – Light Mode only
+            return {
+                'selected_bg': '#E6F0F7',
+                'selected_border': '#1F4E79',
+                'selected_text': '#1A3F65',
+                'default_bg': '#FFFFFF',
+                'default_border': '#E5E7EB',
+                'default_text': '#374151',
+            }
 
     def _update_search_highlight(self):
         try:
+            colors = self._get_search_highlight_colors()
+
+            def _apply_text_color(frame, selected: bool):
+                try:
+                    # Alle Labels im Frame (rekursiv) einfärben
+                    stack = [frame]
+                    while stack:
+                        w = stack.pop()
+                        try:
+                            # CTkLabel hat configure(text_color=...)
+                            if isinstance(w, ctk.CTkLabel):
+                                w.configure(text_color=colors['selected_text' if selected else 'default_text'])
+                        except Exception:
+                            pass
+                        try:
+                            for child in w.winfo_children():
+                                stack.append(child)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
             for i, widget in enumerate(self._search_result_widgets):
-                if i == self._search_selected_index:
-                    widget.configure(fg_color=self.get_color('primary_light'), border_color=self.get_color('primary'))
-                else:
-                    widget.configure(fg_color=self.get_color('surface'), border_color=self.get_color('surface_border'))
+                is_sel = (i == self._search_selected_index)
+                widget.configure(
+                    fg_color=colors['selected_bg' if is_sel else 'default_bg'],
+                    border_color=colors['selected_border' if is_sel else 'default_border']
+                )
+                _apply_text_color(widget, is_sel)
         except Exception as e:
-            print(f"Search highlight error: {e}")
+            try:
+                self.logger.debug(f"Search highlight error: {e}")
+            except Exception:
+                pass
 
     def _select_current_search_result(self):
         try:
@@ -2736,7 +3211,10 @@ class WelcomeScreen(ctk.CTkFrame):
                 name = self.filtered_customers[self._search_selected_index]
                 self._select_search_result(name)
         except Exception as e:
-            print(f"Select current search result error: {e}")
+            try:
+                self.logger.debug(f"Select current search result error: {e}")
+            except Exception:
+                pass
     
     def _on_search_focus_in(self, event=None):
         """Handle search entry focus in: zeige Vorschläge aus allen Quellen."""
@@ -2744,7 +3222,10 @@ class WelcomeScreen(ctk.CTkFrame):
             # Zeige alle Kunden wenn leer und Focus
             current_text = self.customer_search_entry.get().strip()
             all_names = self._get_all_customer_names()
-            print(f"🔍 Search focus in - Current text: '{current_text}', Available customers: {len(all_names)}")
+            try:
+                self.logger.debug(f"Search focus in: text='{current_text}', customers={len(all_names)}")
+            except Exception:
+                pass
 
             if not current_text and all_names:
                 # Zeige alle Kunden alphabetisch sortiert als Vorschläge
@@ -2754,11 +3235,17 @@ class WelcomeScreen(ctk.CTkFrame):
                     all_sorted = list(all_names)
 
                 matches = [{'name': nm, 'score': 85} for nm in all_sorted[:12]]
-                print(f"🔍 Showing {len(matches)} customer suggestions")
+                try:
+                    self.logger.debug(f"Showing {len(matches)} customer suggestions")
+                except Exception:
+                    pass
                 self._show_search_results(matches)
                 
         except Exception as e:
-            print(f"Search focus in error: {e}")
+            try:
+                self.logger.debug(f"Search focus in error: {e}")
+            except Exception:
+                pass
     
     def _on_search_focus_out(self, event=None):
         """Handle search entry focus out"""
@@ -2767,7 +3254,10 @@ class WelcomeScreen(ctk.CTkFrame):
             self.master.after(250, self._delayed_hide_results)
             
         except Exception as e:
-            print(f"Search focus out error: {e}")
+            try:
+                self.logger.debug(f"Search focus out error: {e}")
+            except Exception:
+                pass
     
     def _delayed_hide_results(self):
         """Hide results with delay to allow clicks"""
@@ -2779,7 +3269,10 @@ class WelcomeScreen(ctk.CTkFrame):
                 self._hide_search_results()
                 
         except Exception as e:
-            print(f"Delayed hide results error: {e}")
+            try:
+                self.logger.debug(f"Delayed hide results error: {e}")
+            except Exception:
+                pass
 
     def _is_pointer_over_results(self) -> bool:
         """Prüft, ob der Mauszeiger aktuell über dem Dropdown-/Ergebnisbereich ist."""
@@ -2842,6 +3335,8 @@ class WelcomeScreen(ctk.CTkFrame):
             if selection and selection != "Kunde auswählen..." and selection != "Keine Kunden verfügbar":
                 # Set current customer
                 self.current_customer = selection
+                # Einheitlich aktiv stylen
+                self._apply_customer_action_button_styles(active=True)
                 
                 # ✅ USE BUSINESS LOGIC MANAGER for project structure
                 if self.customer_manager:
@@ -2858,13 +3353,17 @@ class WelcomeScreen(ctk.CTkFrame):
                     self.ui_manager.update_search_entry(selection)
                     self.ui_manager.hide_search_results()
                     self.ui_manager.force_ui_update()
-                    self.ui_manager.show_toast(f"'{selection}' ist jetzt aktiver Kunde", "success")
+                    self.toast_show(f"'{selection}' ist jetzt aktiver Kunde", "success")
                 else:
                     # Fallback UI updates
                     self._update_customer_ui_legacy(selection)
                 
-                print(f"✅ Customer selected: {selection}")
-                print(f"🔍 DEBUG: Header status text: '{self.header_customer_status.cget('text') if hasattr(self, 'header_customer_status') else 'NOT FOUND'}'")  # DEBUG
+                try:
+                    self.logger.info(f"Customer selected: {selection}")
+                    dbg = self.header_customer_status.cget('text') if hasattr(self, 'header_customer_status') else 'NOT FOUND'
+                    self.logger.debug(f"Header status text: '{dbg}'")
+                except Exception:
+                    pass
                 
             else:
                 # No customer selected
@@ -2879,9 +3378,12 @@ class WelcomeScreen(ctk.CTkFrame):
                     self._clear_customer_ui_legacy()
                 
         except Exception as e:
-            print(f"Customer selection error: {e}")
+            try:
+                self.logger.warning(f"Customer selection error: {e}")
+            except Exception:
+                pass
             if self.ui_manager:
-                self.ui_manager.show_toast("❌ Fehler bei Kundenauswahl", "error")
+                self.toast_show("Fehler bei Kundenauswahl", "error")
             else:
                 self._show_enhanced_toast("Fehler bei Kundenauswahl", "error")
     
@@ -2898,12 +3400,16 @@ class WelcomeScreen(ctk.CTkFrame):
             
             # Update header status
             if hasattr(self, 'header_customer_status'):
-                display_name = customer_name if len(customer_name) <= 15 else customer_name[:12] + "..."
-                self.header_customer_status.configure(
-                    text=f"{display_name}",
-                    fg_color=self.get_color('success'),
-                    text_color="white"
-                )
+                display_name = customer_name if len(customer_name) <= 18 else customer_name[:15] + "..."
+                # Primärfarbe für aktiven Kunden – wirkt ruhiger/professioneller als Grün
+                try:
+                    self.header_customer_status.configure(
+                        text=f"{display_name}",
+                        fg_color=self.get_color('primary_dark'),
+                        text_color=self.get_color('white')
+                    )
+                except Exception:
+                    self.header_customer_status.configure(text=f"{display_name}")
                 self.header_customer_status.update_idletasks()
             
             # Update search entry
@@ -2935,11 +3441,15 @@ class WelcomeScreen(ctk.CTkFrame):
                 )
             
             if hasattr(self, 'header_customer_status'):
-                self.header_customer_status.configure(
-                    text="Kein Kunde",
-                    fg_color=self.get_color('secondary'),
-                    text_color="white"
-                )
+                # Neutraler, professioneller Stil statt sekundär / gelb
+                try:
+                    self.header_customer_status.configure(
+                        text="Kein Kunde",
+                        fg_color=self.get_color('gray_100'),
+                        text_color=self.get_color('gray_500')
+                    )
+                except Exception:
+                    self.header_customer_status.configure(text="Kein Kunde")
                 self.header_customer_status.update_idletasks()
                 
         except Exception as e:
@@ -2973,7 +3483,7 @@ class WelcomeScreen(ctk.CTkFrame):
                 # Search for similar customers
                 matches = self.customer_manager.search_customers(search_text, limit=5)
                 if matches:
-                    if len(matches) == 1:
+                    if getattr(self, 'auto_select_single_hit', False) and len(matches) == 1:
                         # Only one match - select it
                         customer_name = matches[0].get('name', str(matches[0]))
                         self._on_customer_select(customer_name)
@@ -3022,7 +3532,7 @@ class WelcomeScreen(ctk.CTkFrame):
                 best_match = matches[0]
 
                 # 1) Nur ein Treffer -> automatisch übernehmen
-                if len(matches) == 1:
+                if getattr(self, 'auto_select_single_hit', False) and len(matches) == 1:
                     customer_data = best_match.get('customer', best_match.get('name', best_match)) if isinstance(best_match, dict) else best_match
                     if isinstance(customer_data, dict):
                         customer_name = customer_data.get('name', str(customer_data))
@@ -3061,7 +3571,10 @@ class WelcomeScreen(ctk.CTkFrame):
                 self._show_enhanced_toast(f"Kunde '{search_text}' nicht gefunden", "error")
                 
         except Exception as e:
-            print(f"Legacy customer selection error: {e}")
+            try:
+                self.logger.warning(f"Legacy customer selection error: {e}")
+            except Exception:
+                pass
             self._show_enhanced_toast("Fehler bei der Kundenauswahl", "error")
     
     def _show_customer_selection_dialog(self, search_text, matches):
@@ -3127,7 +3640,7 @@ class WelcomeScreen(ctk.CTkFrame):
             cancel_btn = ctk.CTkButton(button_frame,
                                      text="Abbrechen",
                                      height=38,
-                                     font=ctk.CTkFont(*self.get_typography("small")),
+                                     font=ctk.CTkFont(*self.get_typography("body_bold")),
                                      fg_color=self.get_color('secondary'),
                                      hover_color=self.get_color('secondary_hover'),
                                      text_color=self.get_color('white'),
@@ -3139,7 +3652,7 @@ class WelcomeScreen(ctk.CTkFrame):
             new_btn = ctk.CTkButton(button_frame,
                                   text="Neuen Kunden erstellen",
                                   height=38,
-                                  font=ctk.CTkFont(*self.get_typography("small")),
+                                  font=ctk.CTkFont(*self.get_typography("body_bold")),
                                   fg_color=self.get_color('primary'),
                                   hover_color=self.get_color('primary_hover'),
                                   text_color=self.get_color('white'),
@@ -3206,40 +3719,28 @@ class WelcomeScreen(ctk.CTkFrame):
     def _reset_application(self):
         """Reset the application to initial state"""
         try:
-            # Clear uploaded files
-            self.uploaded_files.clear()
-            
-            # Reset customer selection
-            self.current_customer = None
-            if hasattr(self, 'current_customer_label'):
-                self.current_customer_label.configure(text="Kein Kunde ausgewählt", text_color=self.get_color('warning'))  # Dezentes Orange
-            
-            # Reset file list
-            if hasattr(self, 'file_list_label'):
-                self.file_list_label.configure(text="Keine Dateien ausgewählt")
-            
-            # Reset progress
-            if hasattr(self, 'progress_bar'):
-                self.progress_bar.set(0)
-            if hasattr(self, 'progress_label'):
-                self.progress_label.configure(text="Bereit für Upload")
-            
-            # Reset status
+            self._reset_upload_state()
+            self._reset_customer_state()
+            # Statusbereich und optionale Stats/UI
             if hasattr(self, 'status_display'):
-                self.status_display.configure(text="Bereit", text_color=self.get_color('success'), fg_color=self.get_color('success_light'))
-            
-            # Reset stats
+                try:
+                    self.status_display.configure(text="Bereit", text_color=self.get_color('success'), fg_color=self.get_color('success_light'))
+                except Exception:
+                    pass
             if hasattr(self, 'stats_label'):
-                self.stats_label.configure(text="Files: 0 | Processed: 0")
-            
-            # Reset export button
+                try:
+                    self.stats_label.configure(text="Files: 0 | Processed: 0")
+                except Exception:
+                    pass
             if hasattr(self, 'export_btn'):
-                self.export_btn.configure(state="disabled")
-            
-            print("Application reset completed")
+                try:
+                    self.export_btn.configure(state="disabled")
+                except Exception:
+                    pass
+            self.logger.info("Application reset completed")
             
         except Exception as e:
-            print(f"Reset error: {e}")
+            self.logger.error(f"Reset error: {e}")
     
     def _initialize_design_system(self):
         """Initialize the comprehensive design system with all colors centralized"""
@@ -3251,114 +3752,10 @@ class WelcomeScreen(ctk.CTkFrame):
         }
     
     def _get_color_palette(self):
-        """Get the complete color palette for the application"""
-        return {
-            # 🎨 PRIMARY COLORS - Professional Blue Theme
-            'primary': '#1F4E79',           # Main brand blue - buttons, headers
-            'primary_hover': '#1A3F65',     # Darker blue for hover states
-            'primary_light': '#F0F7FF',     # Very light blue for backgrounds
-            'primary_dark': '#1A3A5C',      # Darker variant for contrast
-            
-            # 🎨 SECONDARY COLORS - Professional Grays
-            'secondary': '#6C757D',         # Professional gray for secondary actions
-            'secondary_hover': '#5A6268',   # Darker gray for hover
-            'secondary_light': '#F8F9FA',   # Light gray backgrounds
-            'secondary_dark': '#495057',    # Dark gray for contrast
-            
-            # 🎨 NEUTRAL PALETTE - Foundation Colors
-            'white': '#FFFFFF',             # Pure white for cards, backgrounds
-            'gray_50': '#F8FAFC',          # Background color
-            'gray_100': '#F1F5F9',         # Light background sections
-            'gray_200': '#E5E7EB',         # Borders, separators
-            'gray_300': '#D1D5DB',         # Input borders
-            'gray_400': '#9CA3AF',         # Placeholder text
-            'gray_450': '#8F99A6',         # Slightly darker placeholder
-            'gray_500': '#6B7280',         # Secondary text
-            'gray_600': '#4B5563',         # Primary text (lighter)
-            'gray_700': '#374151',         # Primary text (standard)
-            'gray_800': '#1F2937',         # Dark text
-            'gray_900': '#111827',         # Darkest text
-            
-            # 🎨 SEMANTIC COLORS - Status & Feedback
-            'success': '#2E8B57',           # Success green
-            'success_hover': '#256B43',     # Darker success for hover
-            'success_light': '#ECFDF5',     # Light success background
-            'success_600': '#059669',       # Alternative success
-            'success_500': '#10B981',       # Alternative success lighter
-            
-            'warning': '#F2994A',           # Warning orange
-            'warning_hover': '#E08B3E',     # Darker warning for hover
-            'warning_light': '#FEF3C7',     # Light warning background
-            'warning_500': '#F59E0B',       # Alternative warning
-            
-            'error': '#DC2626',             # Error red
-            'error_hover': '#B91C1C',       # Darker error for hover
-            'error_light': '#FEF2F2',       # Light error background
-            'error_500': '#EF4444',         # Alternative error
-            
-            'info': '#2563EB',              # Info blue
-            'info_hover': '#1D4ED8',        # Darker info for hover
-            'info_light': '#EFF6FF',        # Light info background
-            
-            # 🎨 SURFACE COLORS - Cards & Containers (ENHANCED)
-            'surface': '#FFFFFF',           # Card surfaces
-            'surface_hover': '#F8FAFC',     # Hover state for surfaces
-            'surface_elevated': '#FFFFFF',  # Elevated cards (same as surface in light mode)
-            'surface_border': '#E5E7EB',    # Card borders
-            'surface_shadow': 'rgba(16, 24, 40, 0.05)',  # Subtle card shadows
-            'surface_shadow_hover': 'rgba(16, 24, 40, 0.10)', # Hover shadow
-            'surface_border_focus': '#1F4E79', # Focus border for cards
-            
-            # 🎨 ANTHRACITE THEME - Header & Dark Elements (DESIGN BEIBEHALTEN)
-            'anthracite_700': '#374151',    # Header background (GEWÜNSCHTES DUNKLES DESIGN)
-            'anthracite_600': '#4B5563',    # Lighter anthracite  
-            'anthracite_800': '#1F2937',    # Darker anthracite
-            
-            # 🎨 INTERACTIVE COLORS - Form Elements
-            'input_bg': '#FFFFFF',          # Input field backgrounds
-            'input_border': '#D1D5DB',      # Input field borders
-            'input_border_focus': '#1F4E79', # Focused input borders
-            'input_text': '#374151',        # Input text color
-            'input_placeholder': '#8F99A6', # Placeholder text (darker for readability)
-            
-            # 🎨 BUTTON COLORS - All Button States
-            'button_primary': '#1F4E79',    # Primary button background
-            'button_primary_hover': '#1A3F65', # Primary button hover
-            'button_primary_text': '#FFFFFF', # Primary button text
-            
-            'button_secondary': '#6C757D',  # Secondary button background  
-            'button_secondary_hover': '#5A6268', # Secondary button hover
-            'button_secondary_text': '#FFFFFF', # Secondary button text
-            
-            'button_warning': '#F2994A',    # Warning button background
-            'button_warning_hover': '#E08B3E', # Warning button hover
-            'button_warning_text': '#FFFFFF', # Warning button text
-            
-            # 🎨 UPLOAD AREA COLORS
-            'upload_bg': '#FAFBFC',         # Upload area background
-            'upload_border': '#CBD5E1',     # Upload area border
-            'upload_hover_bg': '#F0F7FF',   # Upload area hover background
-            'upload_hover_border': '#1F4E79', # Upload area hover border
-            'upload_icon': '#6B7280',       # Upload icon color
-            'upload_icon_hover': '#1F4E79', # Upload icon hover color
-            'upload_text': '#374151',       # Upload text color
-            'upload_text_hover': '#1F4E79', # Upload text hover color
-            'upload_hint': '#9CA3AF',       # Upload hint text
-            
-            # 🎨 PROGRESS COLORS
-            'progress_bg': '#E5E7EB',       # Progress bar background
-            'progress_fill': '#1F4E79',     # Progress bar fill
-            'progress_text': '#6B7280',     # Progress text
-            'progress_success': '#2E8B57',  # Success progress text
-            'progress_warning': '#F2994A',  # Warning progress text
-            'progress_error': '#DC2626',    # Error progress text
-            
-            # 🎨 SEMANTIC ALIASES - For better readability
-            'background': '#F8FAFC',        # Alias for gray_50
-            'border': '#E5E7EB',            # Alias for gray_200
-            'text_primary': '#374151',      # Alias for gray_700
-            'text_secondary': '#6B7280'     # Alias for gray_500
-        }
+        """Get the complete color palette for the application.
+        To comply with no-hex-in-UI policy, keep this empty and use central DesignSystem tokens.
+        """
+        return {}
     
     def _get_spacing_system(self):
         """Get the spacing system for consistent layout - ENHANCED"""
@@ -3407,7 +3804,7 @@ class WelcomeScreen(ctk.CTkFrame):
                 'project_manage': '',
                 'reports_view': '',
                 'settings_open': '',
-                'calendar_view': '📅',
+                # 'calendar_view': '📅',  # entfernt: kein Kalender-Button und No-Icons-Policy
                 'status_ready': '🟢',
                 'status_processing': '🟡',
                 'status_error': '🔴'
@@ -3460,68 +3857,6 @@ class WelcomeScreen(ctk.CTkFrame):
         except Exception as e:
             print(f"Error updating customer dropdown: {e}")
     
-    def _setup_keyboard_shortcuts(self):
-        """Setup keyboard shortcuts"""
-        try:
-            # Add keyboard shortcuts here if needed
-            pass
-        except Exception as e:
-            print(f"Error setting up keyboard shortcuts: {e}")
-    
-    def _setup_drag_and_drop(self):
-        """🎯 DRAG & DROP SYSTEM - Vollständige Implementation für professionelle UX"""
-        try:
-            import tkinter as tk
-            
-            # Get upload area widget reference
-            if hasattr(self, 'upload_area_widget'):
-                upload_area = self.upload_area_widget
-                
-                # Drag and Drop Event Bindings
-                upload_area.bind("<Button-1>", self._on_drag_click)
-                upload_area.bind("<B1-Motion>", self._on_drag_motion)
-                upload_area.bind("<ButtonRelease-1>", self._on_drag_release)
-                
-                # File drop events (Windows specific)
-                upload_area.bind("<Drop>", self._on_file_drop)
-                upload_area.bind("<DragEnter>", self._on_drag_enter)
-                upload_area.bind("<DragLeave>", self._on_drag_leave)
-                upload_area.bind("<DragOver>", self._on_drag_over)
-                
-                # Enable drag and drop for Windows
-                try:
-                    upload_area.drop_target_register('DND_Files')
-                    self.drag_drop_enabled = True
-                    print("Drag & Drop aktiviert")
-                except:
-                    print("Drag & Drop nicht verfügbar - Fallback auf Click-Upload")
-                    
-        except Exception as e:
-            print(f"Error setting up drag and drop: {e}")
-    
-    def _load_statistics(self):
-        """Load application statistics"""
-        try:
-            # Load stats from file or initialize defaults
-            pass
-        except Exception as e:
-            print(f"Error loading statistics: {e}")
-    
-    def _setup_hover_effects(self):
-        """Setup hover effects for UI elements"""
-        try:
-            # Add hover effects here if needed
-            pass
-        except Exception as e:
-            print(f"Error setting up hover effects: {e}")
-    
-    def _start_statistics_updater(self):
-        """Start periodic statistics updates"""
-        try:
-            # Start statistics update timer if needed
-            pass
-        except Exception as e:
-            print(f"Error starting statistics updater: {e}")
     
     def _update_progress_status(self, message, status_type="info", progress=None):
         """📊 ENHANCED PROGRESS STATUS - Update progress status with advanced metrics"""
@@ -3554,63 +3889,37 @@ class WelcomeScreen(ctk.CTkFrame):
                     if hasattr(self, 'progress_percentage'):
                         self.progress_percentage.configure(text=f"{int(progress)}%")
                 
-                # Calculate and update upload metrics during upload
+                # Calculate and update upload metrics during upload (optional lightweight)
                 if status_type == 'uploading' and progress is not None:
-                    self._update_upload_metrics(progress)
+                    try:
+                        if hasattr(self, 'upload_metrics') and self.upload_metrics and hasattr(self, 'upload_total_bytes') and self.upload_total_bytes > 0:
+                            transferred_bytes = (progress / 100.0) * self.upload_total_bytes
+                            speed_bps, eta_seconds = self.upload_metrics.update(int(transferred_bytes))
+                            if hasattr(self, 'upload_speed_label') and speed_bps is not None:
+                                if speed_bps > 1024 * 1024:
+                                    speed_text = f"{speed_bps / (1024 * 1024):.1f} MB/s"
+                                elif speed_bps > 1024:
+                                    speed_text = f"{speed_bps / 1024:.1f} KB/s"
+                                else:
+                                    speed_text = f"{speed_bps:.0f} B/s"
+                                self.upload_speed_label.configure(text=speed_text)
+                            if hasattr(self, 'upload_eta_label'):
+                                if eta_seconds is not None and progress < 100:
+                                    eta_text = f"{int(eta_seconds // 60)}m {int(eta_seconds % 60)}s" if eta_seconds > 60 else f"{int(eta_seconds)}s"
+                                else:
+                                    eta_text = ""
+                                self.upload_eta_label.configure(text=eta_text)
+                            if hasattr(self, 'transfer_info_label'):
+                                transferred_mb = transferred_bytes / (1024 * 1024)
+                                total_mb = self.upload_total_bytes / (1024 * 1024)
+                                self.transfer_info_label.configure(text=f"{transferred_mb:.1f}/{total_mb:.1f} MB")
+                    except Exception:
+                        pass
                 
         except Exception as e:
             print(f"Progress status update error: {e}")
     
-    def _update_upload_metrics(self, progress_percent):
-        """📈 UPLOAD METRICS - Calculate and display upload speed and ETA"""
-        try:
-            import time
-            
-            if not hasattr(self, 'upload_start_time') or self.upload_start_time is None:
-                self.upload_start_time = time.time()
-                return
-            
-            current_time = time.time()
-            elapsed_time = current_time - self.upload_start_time
-            
-            if elapsed_time > 0 and progress_percent > 0:
-                # Calculate upload speed
-                if hasattr(self, 'upload_total_bytes') and self.upload_total_bytes > 0:
-                    transferred_bytes = (progress_percent / 100) * self.upload_total_bytes
-                    speed_bps = transferred_bytes / elapsed_time  # Bytes per second
-                    
-                    # Format speed display
-                    if speed_bps > 1024 * 1024:  # MB/s
-                        speed_text = f"{speed_bps / (1024 * 1024):.1f} MB/s"
-                    elif speed_bps > 1024:  # KB/s
-                        speed_text = f"{speed_bps / 1024:.1f} KB/s"
-                    else:  # B/s
-                        speed_text = f"{speed_bps:.0f} B/s"
-                    
-                    if hasattr(self, 'upload_speed_label'):
-                        self.upload_speed_label.configure(text=f"{speed_text}")
-                    
-                    # Calculate ETA
-                    if progress_percent < 100 and speed_bps > 0:
-                        remaining_bytes = self.upload_total_bytes - transferred_bytes
-                        eta_seconds = remaining_bytes / speed_bps
-                        
-                        if eta_seconds > 60:
-                            eta_text = f"{int(eta_seconds // 60)}m {int(eta_seconds % 60)}s"
-                        else:
-                            eta_text = f"{int(eta_seconds)}s"
-                        
-                        if hasattr(self, 'upload_eta_label'):
-                            self.upload_eta_label.configure(text=eta_text)
-                    
-                    # Update transfer info
-                    if hasattr(self, 'transfer_info_label'):
-                        transferred_mb = transferred_bytes / (1024 * 1024)
-                        total_mb = self.upload_total_bytes / (1024 * 1024)
-                        self.transfer_info_label.configure(text=f"{transferred_mb:.1f}/{total_mb:.1f} MB")
-                
-        except Exception as e:
-            print(f"Upload metrics error: {e}")
+    # Removed legacy _update_upload_metrics in favor of UIHelpers.UploadMetrics usage
     
     def _calculate_total_upload_size(self, file_list):
         """📏 Calculate total size of files to upload"""
@@ -3634,17 +3943,7 @@ class WelcomeScreen(ctk.CTkFrame):
         except Exception as e:
             print(f"Error updating progress step: {e}")
     
-    def _load_recent_projects(self):
-        """Load recent projects from file"""
-        try:
-            if os.path.exists(self.recent_projects_file):
-                with open(self.recent_projects_file, 'r', encoding='utf-8') as f:
-                    self.recent_projects = json.load(f)
-            else:
-                self.recent_projects = []
-        except Exception as e:
-            print(f"Error loading recent projects: {e}")
-            self.recent_projects = []
+    # (konsolidiert) doppelte _load_recent_projects entfernt – zentrale Implementierung weiter unten aktiv
 
 
     
@@ -3737,7 +4036,7 @@ class WelcomeScreen(ctk.CTkFrame):
         actions_header = ctk.CTkLabel(
             parent,
             text="Schnellaktionen",
-            font=ctk.CTkFont(*self.get_typography('heading_sm')),  # Korrekte Verwendung der get_typography Methode
+            font=ctk.CTkFont(*self.get_typography('subheading')),  # Verwendung erlaubter Typografie (statt heading_sm)
             text_color=self.get_color('text_primary')
         )
         actions_header.pack(pady=(self.get_spacing('xl'), self.get_spacing('lg')))  # Korrekte Verwendung der get_spacing Methode
@@ -3764,22 +4063,22 @@ class WelcomeScreen(ctk.CTkFrame):
         
         # Secondary Actions (3 buttons side by side) mit optimierten Abständen
         secondary_frame = ctk.CTkFrame(actions_frame, fg_color="transparent")
-        secondary_frame.pack(fill="x", pady=(0, 0))  # Entferne conflicting padding da oben schon gesetzt
+        secondary_frame.pack(fill="x", pady=(0, 0))
         secondary_frame.grid_columnconfigure(0, weight=1)
         secondary_frame.grid_columnconfigure(1, weight=1)
         secondary_frame.grid_columnconfigure(2, weight=1)
-        
-        # Calendar Button mit konsistentem Icon (links)
+
+        # Kalender Button mit konsistentem Design (links)
         calendar_btn = ModernUIComponents.create_professional_button(
             secondary_frame,
             "Kalender",
-            self._show_calendar,
+            self._show_professional_calendar,
             self.design_system,
             style="secondary"
         )
-        calendar_btn.grid(row=0, column=0, sticky="ew", padx=(0, self.get_spacing('sm')))  # Korrekte Verwendung der get_spacing Methode
-        
-        # Reports Button mit konsistentem Icon (mitte)
+        calendar_btn.grid(row=0, column=0, sticky="ew", padx=(0, self.get_spacing('sm')))
+
+        # Reports Button (mitte)
         reports_btn = ModernUIComponents.create_professional_button(
             secondary_frame,
             "Reports",
@@ -3787,9 +4086,9 @@ class WelcomeScreen(ctk.CTkFrame):
             self.design_system,
             style="secondary"
         )
-        reports_btn.grid(row=0, column=1, sticky="ew", padx=(self.get_spacing('sm')//2, self.get_spacing('sm')//2))  # Korrekte Verwendung der get_spacing Methode
+        reports_btn.grid(row=0, column=1, sticky="ew", padx=(self.get_spacing('sm')//2, self.get_spacing('sm')//2))
         
-        # Settings Button mit konsistentem Icon (rechts)
+        # Settings Button (rechts)
         settings_btn = ModernUIComponents.create_professional_button(
             secondary_frame,
             "Settings",
@@ -3797,7 +4096,7 @@ class WelcomeScreen(ctk.CTkFrame):
             self.design_system,
             style="secondary"
         )
-        settings_btn.grid(row=0, column=2, sticky="ew", padx=(self.get_spacing('sm'), 0))  # Korrekte Verwendung der get_spacing Methode
+        settings_btn.grid(row=0, column=2, sticky="ew", padx=(self.get_spacing('sm'), 0))
 
     # =============================================================================
     # 🎯 MODERN UI EVENT HANDLERS
@@ -3806,10 +4105,15 @@ class WelcomeScreen(ctk.CTkFrame):
     def _browse_files(self):
         """📁 Datei-Auswahl über UploadManager (mit UI-Updates)."""
         try:
-            # Upload blockieren, wenn bereits aktiv
+            # Upload blockieren, wenn bereits aktiv – mit Stale-Guard
             if getattr(self, 'upload_in_progress', False):
-                self._show_enhanced_toast("Upload läuft – bitte warten", "info", 2500)
-                return
+                # Wenn kein aktiver Task vorhanden ist, handelt es sich vermutlich um einen hängenden Status → resetten
+                if not getattr(self, 'current_upload_task', None):
+                    self.upload_in_progress = False
+                    self._apply_browse_button_state(True)
+                else:
+                    self._show_enhanced_toast("Upload läuft – bitte warten", "info", 2500)
+                    return
             if not self.current_customer:
                 self._show_enhanced_toast("Bitte wählen Sie zuerst einen Kunden aus", "warning")
                 return
@@ -3847,6 +4151,10 @@ class WelcomeScreen(ctk.CTkFrame):
                     self.uploaded_files.extend(validation_result['valid_files'])
                     self.selected_files = list(self.uploaded_files)
                     self._update_file_list_display(validation_result)
+                    try:
+                        self._refresh_upload_empty_state()
+                    except Exception:
+                        pass
                     self._show_validation_summary(validation_result)
                     if hasattr(self, '_update_progress_status'):
                         self._update_progress_status("Dateien validiert - Bereit für Upload", "ready")
@@ -3984,12 +4292,20 @@ class WelcomeScreen(ctk.CTkFrame):
                 # Enable upload button when we have valid files
                 if hasattr(self, 'upload_btn'):
                     self.upload_btn.configure(state="normal")
+                    try:
+                        self._apply_primary_button_state(self.upload_btn, True)
+                    except Exception:
+                        pass
                     
             else:
                 self.file_list_label.configure(text="Keine gültigen Dateien", text_color=self.get_color('error'))
                 # Disable upload button when no valid files
                 if hasattr(self, 'upload_btn'):
                     self.upload_btn.configure(state="disabled")
+                    try:
+                        self._apply_primary_button_state(self.upload_btn, False)
+                    except Exception:
+                        pass
                 
         except Exception as e:
             print(f"❌ File list display error: {e}")
@@ -4062,12 +4378,18 @@ class WelcomeScreen(ctk.CTkFrame):
                 self._apply_browse_button_state(True)
                 if hasattr(self, 'upload_btn') and self.upload_btn:
                     self.upload_btn.configure(state="normal")
+                    try:
+                        self._apply_primary_button_state(self.upload_btn, True)
+                    except Exception:
+                        pass
                 return
 
-            # Es werden die Dateien im UploadManager verwendet
-            if self.upload_manager and self.upload_manager.uploaded_files:
+            # Klarer Schalter: Manager-Workflow bevorzugen?
+            if getattr(self, 'use_upload_manager', False) and self.upload_manager and self.upload_manager.uploaded_files:
                 if hasattr(self, '_update_progress_status'):
-                    self._update_progress_status("Upload startet...", "validating", 10)
+                    # Schritt 1 – Validierung laut steps_config
+                    first = self.upload_steps[0] if self.upload_steps else {"name": "Upload", "progress": 10}
+                    self._update_progress_status(f"{first['name']}...", "validating", first['progress'])
                     if hasattr(self, '_update_progress_step'):
                         self._update_progress_step(1, "processing")
 
@@ -4077,6 +4399,7 @@ class WelcomeScreen(ctk.CTkFrame):
                 # UI-Updates je nach Ergebnis
                 if result.get('success'):
                     if hasattr(self, '_update_progress_status'):
+                        last = self.upload_steps[-1] if self.upload_steps else {"progress": 95}
                         self._update_progress_status("Upload abgeschlossen", "ready", 100)
                         if hasattr(self, '_update_progress_step'):
                             self._update_progress_step(1, "completed")
@@ -4084,17 +4407,39 @@ class WelcomeScreen(ctk.CTkFrame):
                     self._show_enhanced_toast("Upload erfolgreich", "success")
                     # Manager hat processed_files gepflegt – UI aktualisieren
                     self._refresh_upload_ui_from_manager()
+                    # WICHTIG: Upload sauber abschließen und UI wieder freigeben
+                    self.upload_in_progress = False
+                    self._apply_browse_button_state(True)
+                    try:
+                        if hasattr(self, 'upload_btn') and self.upload_btn:
+                            # Enable abhängig von verbleibenden Dateien im Manager
+                            enabled = bool(getattr(self.upload_manager, 'uploaded_files', []))
+                            self.upload_btn.configure(state=("normal" if enabled else "disabled"))
+                            self._apply_primary_button_state(self.upload_btn, enabled)
+                    except Exception:
+                        pass
                 else:
                     if hasattr(self, '_update_progress_status'):
                         self._update_progress_status("Upload fehlgeschlagen", "error")
                     msg = result.get('error') or "Fehler beim Upload"
                     self._show_enhanced_toast(msg, "error")
-
+                    # Fehlerfall: Upload-Flag zurücksetzen und Browsen wieder erlauben
+                    self.upload_in_progress = False
+                    self._apply_browse_button_state(True)
+                    try:
+                        if hasattr(self, 'upload_btn') and self.upload_btn:
+                            # Wenn noch Dateien ausgewählt sind, erneuten Versuch erlauben
+                            enabled = bool(getattr(self.upload_manager, 'uploaded_files', []))
+                            self.upload_btn.configure(state=("normal" if enabled else "disabled"))
+                            self._apply_primary_button_state(self.upload_btn, enabled)
+                    except Exception:
+                        pass
             else:
-                # Fallback: Legacy-Prozess wenn Manager fehlt
+                # Fallback: Legacy-Prozess
                 if hasattr(self, 'selected_files') and self.selected_files:
                     if hasattr(self, '_update_progress_status'):
-                        self._update_progress_status("Upload startet...", "validating", 10)
+                        first = self.upload_steps[0] if self.upload_steps else {"name": "Upload", "progress": 10}
+                        self._update_progress_status(f"{first['name']}...", "validating", first['progress'])
                         if hasattr(self, '_update_progress_step'):
                             self._update_progress_step(1, "processing")
                     self.master.after(100, self._process_customer_upload)
@@ -4106,6 +4451,10 @@ class WelcomeScreen(ctk.CTkFrame):
                     self._apply_browse_button_state(True)
                     if hasattr(self, 'upload_btn') and self.upload_btn:
                         self.upload_btn.configure(state="normal")
+                        try:
+                            self._apply_primary_button_state(self.upload_btn, True)
+                        except Exception:
+                            pass
                     return
 
         except Exception as e:
@@ -4117,29 +4466,55 @@ class WelcomeScreen(ctk.CTkFrame):
     def _process_customer_upload(self):
         """🚀 ENHANCED UPLOAD PROCESSOR - Optimierte Batch-Verarbeitung mit Metriken"""
         try:
-            # STATUS UPDATE: Ordnerstruktur erstellen
-            self._update_progress_status("Projektstruktur erstellen...", "processing", 20)
+            # STATUS UPDATE: Schritte aus Konfiguration
+            step_structure = None
+            for step in self.upload_steps:
+                if step.get('name', '').lower().startswith('projektstruktur'):
+                    step_structure = step
+                    break
+            self._update_progress_status(step_structure['name'] if step_structure else "Projektstruktur",
+                                          "processing",
+                                          step_structure['progress'] if step_structure else 20)
             
             # Create customer project structure with today's date
             today = datetime.now().strftime("%Y-%m-%d")
             
-            # Customer base path
-            customer_path = os.path.join(self.projects_base_path, self.current_customer)
-            
-            # Today's project path
-            project_path = os.path.join(customer_path, today)
-            
-            # Create project structure if not exists
-            for folder in self.project_structure:
-                folder_path = os.path.join(project_path, folder)
-                os.makedirs(folder_path, exist_ok=True)
-            
+            # Ensure customer project structure via centralized FileOps if available
+            if hasattr(self, 'file_ops') and self.file_ops and hasattr(self.file_ops, 'ensure_structure'):
+                project_path = self.file_ops.ensure_structure(
+                    base_path=self.projects_base_path,
+                    customer_name=self.current_customer,
+                    workflow_folders=self.project_structure,
+                    use_date_folder=True,
+                ) or os.path.join(self.projects_base_path, self.current_customer, today)
+            else:
+                # Fallback: simple path join (legacy behavior)
+                customer_path = os.path.join(self.projects_base_path, self.current_customer)
+                project_path = os.path.join(customer_path, today)
+                for folder in self.project_structure:
+                    folder_path = os.path.join(project_path, folder)
+                    os.makedirs(folder_path, exist_ok=True)
+
+            # Neu erstelltes Projekt sofort im Mini‑Kalender sichtbar machen
+            try:
+                self._refresh_mini_calendar_for_project(project_path)
+            except Exception:
+                pass
+
             # Upload to "01_Ausgangstext" folder (primary input folder)
-            upload_folder = os.path.join(project_path, "01_Ausgangstext")
+            if hasattr(self, 'file_ops') and self.file_ops and hasattr(self.file_ops, 'sanitize_and_join'):
+                upload_folder = self.file_ops.sanitize_and_join(project_path, "01_Ausgangstext")
+            else:
+                upload_folder = os.path.join(project_path, "01_Ausgangstext")
             
             # 📊 CALCULATE TOTAL UPLOAD SIZE for progress tracking
             self.upload_total_bytes = self._calculate_total_upload_size(self.selected_files)
             self.upload_start_time = time.time()
+            try:
+                # Initialize lightweight metrics helper
+                self.upload_metrics = UIHelpers.UploadMetrics(self.upload_total_bytes)
+            except Exception:
+                self.upload_metrics = None
             
             # STATUS UPDATE: Upload-Metriken initialisieren
             file_count = len(self.selected_files)
@@ -4152,7 +4527,14 @@ class WelcomeScreen(ctk.CTkFrame):
                 self.transfer_info_label.configure(text=f"0/{size_mb:.1f} MB")
             
             # STATUS UPDATE: Dateien kopieren
-            self._update_progress_status("Dateien kopieren...", "uploading", 40)
+            step_copy = None
+            for step in self.upload_steps:
+                if step.get('name', '').lower().startswith('dateien kopieren'):
+                    step_copy = step
+                    break
+            self._update_progress_status(step_copy['name'] if step_copy else "Dateien kopieren",
+                                          "uploading",
+                                          step_copy['progress'] if step_copy else 40)
             self._update_progress_step(1, "completed")
             self._update_progress_step(2, "processing")
             
@@ -4168,8 +4550,37 @@ class WelcomeScreen(ctk.CTkFrame):
                     if hasattr(self, 'file_progress_label'):
                         self.file_progress_label.configure(text=f"{completed}/{total} Datei(en)")
                     
-                    # Update upload metrics
-                    self._update_upload_metrics(percentage)
+                    # Update upload metrics (speed/ETA/transfer)
+                    try:
+                        if self.upload_metrics and self.upload_total_bytes > 0:
+                            transferred_bytes = (percentage / 100.0) * self.upload_total_bytes
+                            speed_bps, eta_seconds = self.upload_metrics.update(int(transferred_bytes))
+                            # Speed label
+                            if hasattr(self, 'upload_speed_label'):
+                                if speed_bps > 1024 * 1024:
+                                    speed_text = f"{speed_bps / (1024 * 1024):.1f} MB/s"
+                                elif speed_bps > 1024:
+                                    speed_text = f"{speed_bps / 1024:.1f} KB/s"
+                                else:
+                                    speed_text = f"{speed_bps:.0f} B/s"
+                                self.upload_speed_label.configure(text=speed_text)
+                            # ETA label
+                            if hasattr(self, 'upload_eta_label'):
+                                if eta_seconds is not None and percentage < 100:
+                                    if eta_seconds > 60:
+                                        eta_text = f"{int(eta_seconds // 60)}m {int(eta_seconds % 60)}s"
+                                    else:
+                                        eta_text = f"{int(eta_seconds)}s"
+                                else:
+                                    eta_text = ""
+                                self.upload_eta_label.configure(text=eta_text)
+                            # Transfer label
+                            if hasattr(self, 'transfer_info_label'):
+                                transferred_mb = transferred_bytes / (1024 * 1024)
+                                total_mb = self.upload_total_bytes / (1024 * 1024)
+                                self.transfer_info_label.configure(text=f"{transferred_mb:.1f}/{total_mb:.1f} MB")
+                    except Exception:
+                        pass
                     
                 except Exception as e:
                     print(f"Progress callback error: {e}")
@@ -4184,7 +4595,14 @@ class WelcomeScreen(ctk.CTkFrame):
                         self.upload_eta_label.configure(text="")
                     
                     # STATUS UPDATE: Upload abschließen
-                    self._update_progress_status("Upload abschließen...", "processing", 95)
+                    step_finish = None
+                    for step in self.upload_steps:
+                        if step.get('name', '').lower().startswith('abschluss'):
+                            step_finish = step
+                            break
+                    self._update_progress_status(step_finish['name'] if step_finish else "Abschluss...",
+                                                  "processing",
+                                                  step_finish['progress'] if step_finish else 95)
                     self._update_progress_step(2, "completed")
                     self._update_progress_step(3, "processing")
                     
@@ -4192,15 +4610,24 @@ class WelcomeScreen(ctk.CTkFrame):
                     self.master.after(500, lambda: self._complete_enhanced_upload(success_files, failed_files, project_path))
                     
                 except Exception as e:
-                    print(f"Completion callback error: {e}")
+                    try:
+                        self.logger.warning(f"Completion callback error: {e}")
+                    except Exception:
+                        pass
             
             def enhanced_error_callback(error_message):
                 """Enhanced error callback with detailed error handling"""
                 try:
-                    print(f"❌ Enhanced Upload Error: {error_message}")
+                    try:
+                        self.logger.error(f"Enhanced Upload Error: {error_message}")
+                    except Exception:
+                        pass
                     self._upload_failed_enhanced(error_message)
                 except Exception as e:
-                    print(f"Error callback error: {e}")
+                    try:
+                        self.logger.error(f"Error callback error: {e}")
+                    except Exception:
+                        pass
             
             # Start enhanced async file copy
             task_id = copy_files_async(
@@ -4212,12 +4639,23 @@ class WelcomeScreen(ctk.CTkFrame):
                 ui_master=self.master
             )
             
-            print(f"🚀 Enhanced Upload gestartet - Task ID: {task_id}")
-            print(f"📊 Upload Metriken: {file_count} Dateien, {size_mb:.1f} MB")
+            try:
+                self.logger.info(f"Upload started - Task ID: {task_id}")
+                self.logger.info(f"Upload metrics: {file_count} files, {size_mb:.1f} MB")
+            except Exception:
+                pass
             self.current_upload_task = task_id
+            # Enable cancel for this task
+            try:
+                self._enable_cancel(task_id)
+            except Exception:
+                pass
             
         except Exception as e:
-            print(f"❌ Enhanced Upload-Prozess Fehler: {e}")
+            try:
+                self.logger.error(f"Enhanced Upload-Prozess Fehler: {e}")
+            except Exception:
+                pass
             self._upload_failed_enhanced(str(e))
     
     def _complete_enhanced_upload(self, success_files, failed_files, project_path):
@@ -4271,8 +4709,28 @@ class WelcomeScreen(ctk.CTkFrame):
                     "success",
                     duration=6000
                 )
-                
-                print(f"Upload erfolgreich: {success_count} Dateien, {size_mb:.1f} MB, {speed_text}")
+
+                # UX: Button anzeigen, um Projektordner direkt im Explorer zu öffnen
+                try:
+                    if hasattr(self, 'upload_actions_frame') and self.upload_actions_frame:
+                        # Optionalen Button anfügen
+                        btn_cfg = {
+                            'text': 'Im Explorer öffnen',
+                            'command': lambda p=project_path: self._open_path(p)
+                        }
+                        # Design-System nutzen, falls verfügbar
+                        try:
+                            from design_system import create_button
+                            btn_style = create_button(style='secondary', **btn_cfg)
+                            open_btn = ctk.CTkButton(self.upload_actions_frame, **btn_style)
+                        except Exception:
+                            open_btn = ctk.CTkButton(self.upload_actions_frame, **btn_cfg,
+                                                     fg_color=self.get_color('secondary'),
+                                                     hover_color=self.get_color('secondary_hover'),
+                                                     text_color=self.get_color('white'))
+                        open_btn.pack(side='right', padx=self.get_spacing('sm'))
+                except Exception:
+                    pass
                 
             else:
                 # Partial success or failure handling
@@ -4285,6 +4743,15 @@ class WelcomeScreen(ctk.CTkFrame):
                         "warning",
                         duration=5000
                     )
+                    # UX: Liste fehlgeschlagener Dateien im UI anzeigen (kompakt)
+                    try:
+                        if hasattr(self, 'file_list_label') and self.file_list_label:
+                            preview = ', '.join([os.path.basename(f.get('file','')) for f in failed_files[:3] if isinstance(f, dict)])
+                            more = '' if len(failed_files) <= 3 else '...'
+                            self.file_list_label.configure(text=f"{success_count} ok, {failed_count} fehlgeschlagen: {preview}{more}",
+                                                           text_color=self.get_color('warning'))
+                    except Exception:
+                        pass
                 else:
                     # Complete failure
                     self._update_progress_status("Upload fehlgeschlagen", "error")
@@ -4296,9 +4763,12 @@ class WelcomeScreen(ctk.CTkFrame):
             
             # Log detailed results
             if failed_files:
-                print(f"Upload - Details fehlgeschlagener Dateien:")
-                for failed_file in failed_files:
-                    print(f"  - {failed_file.get('file', 'Unknown')}: {failed_file.get('error', 'Unknown error')}")
+                try:
+                    self.logger.warning("Upload - fehlgeschlagene Dateien:")
+                    for failed_file in failed_files:
+                        self.logger.warning(f"  - {failed_file.get('file', 'Unknown')}: {failed_file.get('error', 'Unknown error')}")
+                except Exception:
+                    pass
             
             # Reset upload state
             self._reset_enhanced_upload_state()
@@ -4306,6 +4776,33 @@ class WelcomeScreen(ctk.CTkFrame):
 
             # Upload abgeschlossen -> Browse wieder aktivieren
             self._apply_browse_button_state(True)
+
+            # 3) Re-Index nach erfolgreichem Kopieren (best-effort)
+            try:
+                if hasattr(self, 'reindex_projects') and callable(self.reindex_projects):
+                    self.reindex_projects(self.current_customer)
+                elif hasattr(self, 'indexer') and hasattr(self.indexer, 'rebuild'):
+                    self.indexer.rebuild(self.current_customer)
+            except Exception:
+                pass
+
+            # 4) Mini‑Kalender sofort aktualisieren, damit neue Projekte sichtbar sind
+            try:
+                self._refresh_mini_calendar_for_project(project_path)
+                # Zusätzlich: ActionsSection-API direkt aufrufen, falls vorhanden
+                if hasattr(self, 'actions_section') and hasattr(self.actions_section, 'refresh_mini_calendar'):
+                    try:
+                        self.actions_section.refresh_mini_calendar()
+                    except Exception:
+                        pass
+                # Oder lokaler Hook
+                if hasattr(self, '_refresh_actions_calendar'):
+                    try:
+                        self._refresh_actions_calendar()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
 
             # Reset UI after delay
             self.master.after(6000, self._reset_upload_form)
@@ -4358,6 +4855,48 @@ class WelcomeScreen(ctk.CTkFrame):
         except Exception as e:
             print(f"❌ Upload failure handling error: {e}")
     
+    def _refresh_mini_calendar_for_project(self, project_path: str) -> None:
+        """Aktualisiert den Mini‑Kalender sofort für den Monat des gegebenen Projektpfads.
+
+        - Invalidiert den Kundenpfad‑Cache
+        - Stellt den Mini‑Kalender auf den Upload‑Monat
+        - Triggert ein sicheres Re‑Render nach Idle
+        """
+        try:
+            # Kalender-Cache invalidieren (neue Kunden/Ordner sofort sichtbar)
+            try:
+                self._calendar_customer_paths_cache = None
+            except Exception:
+                pass
+
+            # Actions‑Section ermitteln
+            section = None
+            if hasattr(self, '_sections') and isinstance(self._sections, dict):
+                section = self._sections.get("actions")
+            if not section or not hasattr(section, 'refresh_mini_calendar'):
+                return
+
+            # Mini‑Kalender auf den Upload‑Monat stellen
+            import os
+            from datetime import datetime as _dt
+            try:
+                date_folder = os.path.basename(project_path)
+                parts = date_folder.split('-')
+                if len(parts) >= 2:
+                    y = int(parts[0])
+                    m = int(parts[1])
+                    setattr(section, '_mini_calendar_date', _dt(y, m, 1))
+            except Exception:
+                pass
+
+            # Jetzt neu zeichnen (nach Idle, um Layout-Stottern zu vermeiden)
+            try:
+                self.after(0, section.refresh_mini_calendar)
+            except Exception:
+                section.refresh_mini_calendar()
+        except Exception:
+            pass
+
     def _reset_enhanced_upload_state(self):
         """🔄 ENHANCED STATE RESET - Umfassende Zustandsrücksetztung"""
         try:
@@ -4492,7 +5031,7 @@ class WelcomeScreen(ctk.CTkFrame):
             self.master.bind_all('<Button-4>', lambda e: self._on_global_mousewheel(e, delta=120), add=True)
             self.master.bind_all('<Button-5>', lambda e: self._on_global_mousewheel(e, delta=-120), add=True)
         except Exception as e:
-            print(f"Global scroll binding error: {e}")
+            self.logger.debug(f"Global scroll binding error: {e}")
 
     def _on_global_mousewheel(self, event, delta=None):
         """Leitet das Scroll-Ereignis an das nächstliegende CTkScrollableFrame weiter."""
@@ -4521,7 +5060,7 @@ class WelcomeScreen(ctk.CTkFrame):
             except Exception:
                 pass
         except Exception as e:
-            print(f"Global mousewheel handler error: {e}")
+            self.logger.debug(f"Global mousewheel handler error: {e}")
 
     def _find_scrollable_target(self, event):
         """Findet das CTkScrollableFrame unter dem Mauszeiger oder in der Parent-Hierarchie."""
@@ -4546,6 +5085,8 @@ class WelcomeScreen(ctk.CTkFrame):
             if selection and selection != "Kunde auswählen..." and selection != "Keine Kunden verfügbar":
                 # Set current customer
                 self.current_customer = selection
+                # Einheitlich aktiv stylen
+                self._apply_customer_action_button_styles(active=True)
 
                 # Business logic: ensure project structure and activity
                 try:
@@ -4572,7 +5113,7 @@ class WelcomeScreen(ctk.CTkFrame):
                         if hasattr(self.ui_manager, 'force_ui_update'):
                             self.ui_manager.force_ui_update()
                         if hasattr(self.ui_manager, 'show_toast'):
-                            self.ui_manager.show_toast(f"'{selection}' ist jetzt aktiver Kunde", "success")
+                            self.toast_show(f"'{selection}' ist jetzt aktiver Kunde", "success")
                     except Exception:
                         # Silent UI manager failure; fallback to legacy updates
                         self._update_customer_ui_legacy(selection)
@@ -4646,7 +5187,7 @@ class WelcomeScreen(ctk.CTkFrame):
                     matches = []
 
                 if matches:
-                    if len(matches) == 1:
+                    if getattr(self, 'auto_select_single_hit', False) and len(matches) == 1:
                         customer_name = matches[0].get('name', str(matches[0])) if isinstance(matches[0], dict) else str(matches[0])
                         self._on_customer_select(customer_name)
                         self._show_enhanced_toast(f"Kunde '{customer_name}' ausgewählt", "success")
@@ -4776,10 +5317,12 @@ class WelcomeScreen(ctk.CTkFrame):
         
         config = indicators.get(status, indicators['ready'])
         
-        indicator = ctk.CTkLabel(parent,
-                               text=config['text'],
-                               font=ctk.CTkFont(*self.get_typography('small')),  # Korrekte Verwendung der get_typography Methode
-                               text_color=config['color'])
+        indicator = ctk.CTkLabel(
+            parent,
+            text=config['text'],
+            font=ctk.CTkFont(*self.get_typography('caption')),  # Verwende 'caption' statt deprecated 'small'
+            text_color=config['color']
+        )
         
         return indicator
 
@@ -4871,10 +5414,20 @@ class WelcomeScreen(ctk.CTkFrame):
         right_section.pack(side="right", fill="y")
         
         # Status mit konsistenter Farbe
+        status_container = ctk.CTkFrame(
+            right_section,
+            fg_color=self.get_color('success_light'),
+            border_width=1,
+            border_color=self.get_color('surface_border'),
+            corner_radius=self.get_component_value('borders.radius_sm')
+        )
+        status_container.pack(side="right")
+        status_inner = ctk.CTkFrame(status_container, fg_color="transparent")
+        status_inner.pack(padx=self.get_spacing('sm'), pady=self.get_spacing('xs'))
         status = ctk.CTkLabel(
-            right_section, 
+            status_inner,
             text="System bereit",
-            font=ctk.CTkFont(*self.get_typography('small')),  # Korrekte Verwendung der get_typography Methode
+            font=ctk.CTkFont(*self.get_typography('caption')),
             text_color=self.get_color('success')
         )
         status.pack(side="right")
@@ -4941,23 +5494,88 @@ class WelcomeScreen(ctk.CTkFrame):
             self._show_enhanced_toast(f"Settings error: {str(e)}", "error")
     
     def _show_calendar(self):
-        """Show professional calendar interface using existing SmartUploadCalendar"""
+        """Öffnet den Kalender – delegiert auf die professionelle Variante."""
         try:
-            self._show_enhanced_toast("Opening Calendar...", "info")
-            
-            # Try to import the existing smart calendar with better error handling
-            smart_calendar_available = self._check_smart_calendar_availability()
-            
-            if smart_calendar_available:
-                self._show_smart_calendar()
-            else:
-                self._show_enhanced_toast("Smart Calendar not available, using fallback", "warning")
-                self._show_simple_calendar_fallback()
-                
+            self._show_professional_calendar()
         except Exception as e:
             self._show_enhanced_toast(f"Calendar error: {str(e)}", "error")
             print(f"❌ Calendar error: {e}")
             self._show_simple_calendar_fallback()
+
+    # ----------------------------------------------------------------------------
+    # 📦 KALENDER-HILFSMETHODEN: Kundenpfade robust ermitteln + Caching
+    # ----------------------------------------------------------------------------
+    def _get_calendar_customer_paths(self):
+        """Liefert eine Liste existierender Kundenordner für Kalender-Checks.
+
+        Quellen:
+        - customers_data (falls vorhanden)
+        - bevorzugt KundenManager.kunden_ordner(<kunde>)
+        - tatsächliche Ordner unter KundenManager.base_dir oder projects_base_path (Fallback/Ergänzung)
+        Ergebnis wird kurz gecacht und nach Uploads invalidiert.
+        """
+        try:
+            import os
+            # Cache verwenden, wenn vorhanden
+            cache = getattr(self, '_calendar_customer_paths_cache', None)
+            if isinstance(cache, list) and cache:
+                return cache
+
+            paths = []
+
+            # 1) Aus customers_data bekannte Kundenpfade (bevorzugt KundenManager)
+            try:
+                for customer in getattr(self, 'customers_data', []) or []:
+                    try:
+                        name = customer['name'] if isinstance(customer, dict) else str(customer)
+                        if not name:
+                            continue
+                        p = None
+                        # KundenManager bevorzugen
+                        try:
+                            if hasattr(self, 'kunden_manager') and self.kunden_manager and hasattr(self.kunden_manager, 'kunden_ordner'):
+                                p = self.kunden_manager.kunden_ordner(name)
+                        except Exception:
+                            p = None
+                        # Fallback: projects_base_path
+                        if not p:
+                            base = getattr(self, 'projects_base_path', None) or ''
+                            p = (self.file_ops.sanitize_and_join(base, name)
+                                 if hasattr(self, 'file_ops') and self.file_ops and hasattr(self.file_ops, 'sanitize_and_join')
+                                 else os.path.join(base, name))
+                        if os.path.isdir(p):
+                            paths.append(p)
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+            # 2) Ergänze alle Verzeichnisse direkt unter KundenManager.base_dir oder projects_base_path
+            try:
+                km_base = None
+                try:
+                    if hasattr(self, 'kunden_manager') and self.kunden_manager and hasattr(self.kunden_manager, 'base_dir'):
+                        km_base = self.kunden_manager.base_dir
+                except Exception:
+                    km_base = None
+
+                enumerate_base = km_base or getattr(self, 'projects_base_path', '')
+                if enumerate_base and os.path.isdir(enumerate_base):
+                    for entry in os.listdir(enumerate_base):
+                        ep = os.path.join(enumerate_base, entry)
+                        if os.path.isdir(ep) and ep not in paths:
+                            paths.append(ep)
+            except Exception:
+                pass
+
+            # Cache setzen
+            try:
+                self._calendar_customer_paths_cache = paths
+            except Exception:
+                pass
+            return paths
+        except Exception:
+            return []
     
     def _check_smart_calendar_availability(self):
         """Check if SmartUploadCalendar is available"""
@@ -4985,121 +5603,9 @@ class WelcomeScreen(ctk.CTkFrame):
             return False
     
     def _show_smart_calendar(self):
-        """Show the SmartUploadCalendar"""
+        """Alias: Delegiert auf die professionelle Kalender-Ansicht."""
         try:
-            # Try to import the smart calendar, fallback if not available
-            calendar_available = False
-            try:
-                sys.path.append(os.path.join(os.path.dirname(__file__), 'src', 'ui'))
-                # Dynamic import to avoid linting issues
-                import importlib.util
-                spec = importlib.util.spec_from_file_location("smart_upload_calendar", 
-                    os.path.join(os.path.dirname(__file__), 'src', 'ui', 'smart_upload_calendar.py'))
-                if spec and spec.loader:
-                    smart_calendar_module = importlib.util.module_from_spec(spec)
-                    spec.loader.exec_module(smart_calendar_module)
-                    SmartUploadCalendar = smart_calendar_module.SmartUploadCalendar
-                    calendar_available = True
-            except (ImportError, AttributeError, ModuleNotFoundError, FileNotFoundError):
-                print("Smart Upload Calendar not available - using fallback")
-                calendar_available = False
-            
-            if not calendar_available:
-                self._show_enhanced_toast("Kalender wird entwickelt...", "info")
-                return
-            
-            # Create calendar window
-            calendar_window = ctk.CTkToplevel(self)
-            calendar_window.title("Smart Upload Calendar - Checker Pro")
-            calendar_window.geometry("1200x800")
-            calendar_window.transient(self)
-            calendar_window.grab_set()
-            calendar_window.resizable(True, True)
-            
-            # Center the window
-            self._center_dialog(calendar_window, 1200, 800)
-            
-            # Main container with improved styling
-            main_container = ctk.CTkFrame(calendar_window, fg_color="transparent")
-            main_container.pack(fill="both", expand=True, padx=15, pady=15)
-            
-            # Enhanced header with gradient-like appearance
-            header_frame = ctk.CTkFrame(main_container, fg_color=self.get_color('primary'), corner_radius=self.get_component_value('borders.radius_custom_15'), height=80)
-            header_frame.pack(fill="x", pady=(0, 20))
-            header_frame.pack_propagate(False)
-            
-            header_content = ctk.CTkFrame(header_frame, fg_color="transparent")
-            header_content.pack(fill="both", expand=True, padx=25, pady=20)
-            
-            # Title with better typography
-            title_container = ctk.CTkFrame(header_content, fg_color="transparent")
-            title_container.pack(side="left", fill="y")
-            
-            title_label = ctk.CTkLabel(
-                title_container,
-                text="Smart Upload Calendar",
-                font=ctk.CTkFont(*self.get_typography("title")),  # Zentralisierte Font-Definition
-                text_color=self.get_color('white')
-            )
-            title_label.pack(anchor="w")
-            
-            subtitle_label = ctk.CTkLabel(
-                title_container,
-                text="Professional project calendar with intelligent upload tracking",
-                font=ctk.CTkFont(*self.get_typography("body_sm")),
-                text_color=self.get_color('gray_400')
-            )
-            subtitle_label.pack(anchor="w", pady=(2, 0))
-            
-            # Enhanced close button
-            close_btn = ctk.CTkButton(
-                header_content,
-                text="Schließen",
-                font=ctk.CTkFont(*self.get_typography("small")),
-                fg_color=self.get_color('white'),
-                hover_color=self.get_color('surface_hover'),
-                text_color=self.get_color('primary'),
-                width=90,
-                height=40,
-                corner_radius=self.get_component_value('borders.radius_lg'),
-                command=calendar_window.destroy
-            )
-            close_btn.pack(side="right", anchor="center")
-            
-            # Calendar container with shadow effect
-            calendar_container = ctk.CTkFrame(
-                main_container, 
-                fg_color=self.get_color('white'), 
-                corner_radius=self.get_component_value('borders.radius_custom_15'),
-                border_width=1,
-                border_color=self.get_color('border')
-            )
-            calendar_container.pack(fill="both", expand=True)
-            
-            # Initialize the smart calendar with error handling
-            try:
-                smart_calendar = SmartUploadCalendar(
-                    master=calendar_container,
-                    app=self,  # Pass the main app reference
-                    fg_color="transparent"
-                )
-                smart_calendar.pack(fill="both", expand=True, padx=25, pady=25)
-                
-                # Reload calendar data to ensure current information
-                if hasattr(smart_calendar, 'reload'):
-                    smart_calendar.reload()
-                
-                self._show_enhanced_toast("Smart Calendar erfolgreich geladen", "success")
-                print("✅ Smart Upload Calendar integrated successfully")
-                
-            except Exception as calendar_error:
-                print(f"❌ Error initializing SmartUploadCalendar: {calendar_error}")
-                self._handle_smart_calendar_error(calendar_container, calendar_error, calendar_window)
-                
-        except ImportError as import_error:
-            print(f"❌ Could not import SmartUploadCalendar: {import_error}")
-            self._show_enhanced_toast("Smart Calendar nicht verfügbar – Fallback aktiv", "warning")
-            self._show_simple_calendar_fallback()
+            self._show_professional_calendar()
         except Exception as e:
             print(f"❌ Smart Calendar error: {e}")
             self._show_enhanced_toast(f"Calendar error: {str(e)}", "error")
@@ -5156,7 +5662,7 @@ class WelcomeScreen(ctk.CTkFrame):
         fallback_btn = ctk.CTkButton(
             button_frame,
             text="Use Simple Calendar",
-            font=ctk.CTkFont(*self.get_typography("small")),
+            font=ctk.CTkFont(*self.get_typography("body_bold")),
             fg_color=self.get_color('success'),
             hover_color=self.get_color('success'),
             text_color=self.get_color('white'),
@@ -5169,9 +5675,9 @@ class WelcomeScreen(ctk.CTkFrame):
         close_btn = ctk.CTkButton(
             button_frame,
             text="Close",
-            font=ctk.CTkFont(*self.get_typography("small")),
-            fg_color=self.get_color('text_secondary'),
-            hover_color=self.get_color('anthracite_600'),
+            font=ctk.CTkFont(*self.get_typography("body_bold")),
+            fg_color=self.get_color('primary'),
+            hover_color=self.get_color('primary_hover'),
             text_color=self.get_color('white'),
             height=45,
             corner_radius=self.get_component_value('borders.radius_lg'),
@@ -5231,7 +5737,7 @@ class WelcomeScreen(ctk.CTkFrame):
         title_label = ctk.CTkLabel(
             header_content,
             text="Project Calendar (Simple)",
-            font=ctk.CTkFont(*self.get_typography("heading_sm")),
+            font=ctk.CTkFont(*self.get_typography("subheading")),
             text_color=self.get_color('primary')
         )
         title_label.pack(anchor="w")
@@ -5239,7 +5745,7 @@ class WelcomeScreen(ctk.CTkFrame):
         date_label = ctk.CTkLabel(
             header_content,
             text=f"Heute: {current_date.strftime('%A, %d. %B %Y')}",
-            font=ctk.CTkFont(*self.get_typography("small")),  # Zentralisierte Font-Definition
+            font=ctk.CTkFont(*self.get_typography("caption")),  # Zentralisierte Font-Definition
             text_color=self.get_color('text_secondary')
         )
         date_label.pack(anchor="w", pady=(5, 0))
@@ -5251,7 +5757,7 @@ class WelcomeScreen(ctk.CTkFrame):
         info_label = ctk.CTkLabel(
             info_frame,
             text="Enhanced Simple Calendar - Navigate months with arrow buttons, click days for project details",
-            font=ctk.CTkFont(*self.get_typography("small")),  # Zentralisierte Font-Definition
+            font=ctk.CTkFont(*self.get_typography("caption")),  # Zentralisierte Font-Definition
             text_color=self.get_color('warning'),
             wraplength=800
         )
@@ -5285,47 +5791,48 @@ class WelcomeScreen(ctk.CTkFrame):
         calendar_container.grid(row=0, column=0, sticky="nsew", padx=(0, 15))
         
         # Calendar header with navigation
-        cal_header = ctk.CTkFrame(calendar_container, fg_color=self.get_color('surface_secondary'), corner_radius=(15, 15, 0, 0))
+        cal_header = ctk.CTkFrame(
+            calendar_container,
+            fg_color=self.get_color('surface_secondary'),
+            corner_radius=self.get_component_value('borders.radius_custom_15')
+        )
         cal_header.pack(fill="x", padx=20, pady=(20, 0))
         
         # Month navigation
         nav_frame = ctk.CTkFrame(cal_header, fg_color="transparent")
         nav_frame.pack(fill="x", pady=15)
-        
-        prev_btn = ctk.CTkButton(
+
+        prev_btn = ModernUIComponents.create_professional_button(
             nav_frame,
-            text="Zurück",
-            width=40,
-            height=35,
-            font=ctk.CTkFont(*self.get_typography("label")),  # Zentralisierte Font-Definition
-            fg_color=self.get_color('primary'),
-            hover_color=self.get_color('primary_hover'),
-            text_color=self.get_color('white'),
-            corner_radius=self.get_component_value('borders.radius_md'),
-            command=lambda: self._navigate_month(calendar_window, -1)
+            "Zurück",
+            lambda: self._navigate_month(calendar_window, -1),
+            self.design_system,
+            style="secondary",
+            size="sm",
         )
         prev_btn.pack(side="left")
         
         self.current_calendar_date = current_date
+        # Monatstitel mit deutscher Formatierung
+        try:
+            _month_title = self._format_month_year_de(current_date)
+        except Exception:
+            _month_title = f"{current_date.strftime('%B %Y')}"
         self.month_label = ctk.CTkLabel(
             nav_frame,
-            text=f"{current_date.strftime('%B %Y')}",
+            text=_month_title,
             font=ctk.CTkFont(*self.get_typography("subheading")),  # Zentralisierte Font-Definition
             text_color=self.get_color('primary')
         )
         self.month_label.pack(side="left", expand=True)
         
-        next_btn = ctk.CTkButton(
+        next_btn = ModernUIComponents.create_professional_button(
             nav_frame,
-            text="Weiter",
-            width=40,
-            height=35,
-            font=ctk.CTkFont(*self.get_typography("label")),  # Zentralisierte Font-Definition
-            fg_color=self.get_color('primary'),
-            hover_color=self.get_color('primary_hover'),
-            text_color=self.get_color('white'),
-            corner_radius=self.get_component_value('borders.radius_md'),
-            command=lambda: self._navigate_month(calendar_window, 1)
+            "Weiter",
+            lambda: self._navigate_month(calendar_window, 1),
+            self.design_system,
+            style="secondary",
+            size="sm",
         )
         next_btn.pack(side="right")
         
@@ -5426,20 +5933,49 @@ class WelcomeScreen(ctk.CTkFrame):
             
             current_date = datetime.now()
             month_projects = []
-            
-            # Check each customer for current month projects
-            for customer in self.customers_data:
-                customer_path = os.path.join(self.projects_base_path, customer['name'])
-                if os.path.exists(customer_path):
-                    for item in os.listdir(customer_path):
-                        item_path = os.path.join(customer_path, item)
-                        if os.path.isdir(item_path) and item.startswith(f"{current_date.year}-{current_date.month:02d}"):
-                            month_projects.append({
-                                'customer': customer['name'],
-                                'date': item,
-                                'path': item_path
-                            })
-            
+
+            # Nutze kombinierte Quellen (customers_data + tatsächliche Ordner auf Platte)
+            for customer_path in self._get_calendar_customer_paths():
+                try:
+                    if os.path.exists(customer_path):
+                        # 1) Top-Level Projekte: Kunde/<YYYY-MM-DD*>
+                        for item in os.listdir(customer_path):
+                            item_path = os.path.join(customer_path, item)
+                            if os.path.isdir(item_path) and item.startswith(f"{current_date.year}-{current_date.month:02d}"):
+                                month_projects.append({
+                                    'customer': os.path.basename(customer_path),
+                                    'date': item.split('_')[0],  # Basis-Datum extrahieren
+                                    'path': item_path
+                                })
+                        # 2) Workflow-Unterordner: Kunde/<Workflow>/<YYYY-MM-DD*>
+                        workflows = []
+                        try:
+                            if hasattr(self, 'kunden_manager') and self.kunden_manager and hasattr(self.kunden_manager, 'workflows'):
+                                workflows = list(self.kunden_manager.workflows)
+                        except Exception:
+                            workflows = []
+                        if not workflows:
+                            workflows = ["Ausgangstexte", "Angebot", "Pruefung", "Finalisierung"]
+                        for wf in workflows:
+                            wf_path = os.path.join(customer_path, wf)
+                            if not os.path.isdir(wf_path):
+                                continue
+                            try:
+                                for item in os.listdir(wf_path):
+                                    if not item.startswith(f"{current_date.year}-{current_date.month:02d}"):
+                                        continue
+                                    date_path = os.path.join(wf_path, item)
+                                    if os.path.isdir(date_path):
+                                        month_projects.append({
+                                            'customer': os.path.basename(customer_path),
+                                            'date': item.split('_')[0],
+                                            'path': date_path
+                                        })
+                            except Exception:
+                                continue
+                except Exception:
+                    continue
+
             return month_projects
             
         except Exception as e:
@@ -5447,20 +5983,70 @@ class WelcomeScreen(ctk.CTkFrame):
             return []
     
     def _check_day_has_projects(self, year, month, day):
-        """Check if a specific day has projects"""
+        """Check if a specific day has projects (robust: scans existing customer folders on disk)."""
         try:
             import os
-            
+
             date_str = f"{year}-{month:02d}-{day:02d}"
-            
-            for customer in self.customers_data:
-                customer_path = os.path.join(self.projects_base_path, customer['name'])
-                project_path = os.path.join(customer_path, date_str)
-                if os.path.exists(project_path):
-                    return True
-            
+
+            for customer_path in self._get_calendar_customer_paths():
+                try:
+                    if not os.path.isdir(customer_path):
+                        continue
+                    # Schneller Direkt-Treffer (Ordner exakt == date_str)
+                    direct = os.path.join(customer_path, date_str)
+                    if os.path.isdir(direct):
+                        if hasattr(self, 'logger') and self.logger:
+                            self.logger.debug(f"[Calendar] {date_str} -> True (exact) @ {direct}")
+                        return True
+                    # Prefix-Matching: erkenne auch 2025-08-21_Projekt_A, 2025-08-21-01 etc.
+                    for entry in os.listdir(customer_path):
+                        if entry.startswith(date_str):
+                            ep = os.path.join(customer_path, entry)
+                            if os.path.isdir(ep):
+                                if hasattr(self, 'logger') and self.logger:
+                                    self.logger.debug(f"[Calendar] {date_str} -> True (prefix) @ {ep}")
+                                return True
+                    # NEU: Workflow-Unterordner-Ebene (Kunde/<Workflow>/<Datum*>) prüfen
+                    workflows = []
+                    try:
+                        if hasattr(self, 'kunden_manager') and self.kunden_manager and hasattr(self.kunden_manager, 'workflows'):
+                            workflows = list(self.kunden_manager.workflows)
+                    except Exception:
+                        workflows = []
+                    if not workflows:
+                        workflows = ["Ausgangstexte", "Angebot", "Pruefung", "Finalisierung"]
+                    for wf in workflows:
+                        wf_path = os.path.join(customer_path, wf)
+                        if not os.path.isdir(wf_path):
+                            continue
+                        # Direkt-Treffer unter Workflow
+                        direct_wf = os.path.join(wf_path, date_str)
+                        if os.path.isdir(direct_wf):
+                            if hasattr(self, 'logger') and self.logger:
+                                self.logger.debug(f"[Calendar] {date_str} -> True (wf-exact) @ {direct_wf}")
+                            return True
+                        # Prefix-Suche unter Workflow
+                        try:
+                            for entry in os.listdir(wf_path):
+                                if entry.startswith(date_str):
+                                    ep2 = os.path.join(wf_path, entry)
+                                    if os.path.isdir(ep2):
+                                        if hasattr(self, 'logger') and self.logger:
+                                            self.logger.debug(f"[Calendar] {date_str} -> True (wf-prefix) @ {ep2}")
+                                        return True
+                        except Exception:
+                            continue
+                except Exception:
+                    continue
+
+            try:
+                if hasattr(self, 'logger') and self.logger:
+                    self.logger.debug(f"[Calendar] {date_str} -> False")
+            except Exception:
+                pass
             return False
-            
+
         except Exception as e:
             print(f"Check day projects error: {e}")
             return False
@@ -5471,29 +6057,44 @@ class WelcomeScreen(ctk.CTkFrame):
             date_str = f"{year}-{month:02d}-{day:02d}"
             projects = []
             
-            # Collect all projects for this day with detailed file information
-            for customer in self.customers_data:
-                customer_path = os.path.join(self.projects_base_path, customer['name'])
-                project_path = os.path.join(customer_path, date_str)
-                if os.path.exists(project_path):
-                    # Get file details
-                    files = []
-                    for file_name in os.listdir(project_path):
-                        file_path = os.path.join(project_path, file_name)
-                        if os.path.isfile(file_path):
-                            files.append({
-                                'name': file_name,
-                                'path': file_path,
-                                'size': os.path.getsize(file_path)
-                            })
-                    
-                    projects.append({
-                        'customer': customer['name'],
-                        'date': date_str,
-                        'path': project_path,
-                        'files': files,
-                        'file_count': len(files)
-                    })
+            # Collect all date-prefixed projects (supports suffixes like _ProjektX or -01)
+            for customer_path in self._get_calendar_customer_paths():
+                try:
+                    if not os.path.isdir(customer_path):
+                        continue
+                    # 1) Top-Level Projekte Kunde/<Datum*>
+                    for entry in os.listdir(customer_path):
+                        if not entry.startswith(date_str):
+                            continue
+                        project_path = os.path.join(customer_path, entry)
+                        if not os.path.isdir(project_path):
+                            continue
+                        projects.append(self._aggregate_project_files(customer_path, project_path, date_str))
+                    # 2) Workflow-Unterordner Kunde/<Workflow>/<Datum*>
+                    workflows = []
+                    try:
+                        if hasattr(self, 'kunden_manager') and self.kunden_manager and hasattr(self.kunden_manager, 'workflows'):
+                            workflows = list(self.kunden_manager.workflows)
+                    except Exception:
+                        workflows = []
+                    if not workflows:
+                        workflows = ["Ausgangstexte", "Angebot", "Pruefung", "Finalisierung"]
+                    for wf in workflows:
+                        wf_path = os.path.join(customer_path, wf)
+                        if not os.path.isdir(wf_path):
+                            continue
+                        try:
+                            for entry in os.listdir(wf_path):
+                                if not entry.startswith(date_str):
+                                    continue
+                                project_path = os.path.join(wf_path, entry)
+                                if not os.path.isdir(project_path):
+                                    continue
+                                projects.append(self._aggregate_project_files(customer_path, project_path, date_str, workflow=wf))
+                        except Exception:
+                            continue
+                except Exception:
+                    continue
             
             if projects:
                 self._show_enhanced_day_projects_dialog(date_str, projects)
@@ -5504,6 +6105,56 @@ class WelcomeScreen(ctk.CTkFrame):
             print(f"Show day projects error: {e}")
             self._show_enhanced_toast(f"Fehler beim Laden der Tages-Projekte: {str(e)}", "error")
     
+    def _aggregate_project_files(self, customer_path: str, project_path: str, date_str: str, workflow: str = None):
+        """Aggregiert Dateien für ein einzelnes Projekt.
+
+        - Sammelt Dateien direkt im Projektpfad
+        - Sammelt Dateien eine Ebene tiefer (Workflow-Unterordner oder Substruktur)
+        - Liefert konsistente Struktur für Dialoganzeige
+        """
+        import os
+        files = []
+        try:
+            for root_level in os.listdir(project_path):
+                level_path = os.path.join(project_path, root_level)
+                if os.path.isfile(level_path):
+                    try:
+                        size = os.path.getsize(level_path)
+                    except Exception:
+                        size = 0
+                    files.append({
+                        'name': root_level,
+                        'path': level_path,
+                        'size': size
+                    })
+                elif os.path.isdir(level_path):
+                    # Eine Ebene tiefer
+                    try:
+                        for wf_file in os.listdir(level_path):
+                            wf_fp = os.path.join(level_path, wf_file)
+                            if os.path.isfile(wf_fp):
+                                try:
+                                    size = os.path.getsize(wf_fp)
+                                except Exception:
+                                    size = 0
+                                files.append({
+                                    'name': f"{root_level}/{wf_file}",
+                                    'path': wf_fp,
+                                    'size': size
+                                })
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+        return {
+            'customer': os.path.basename(customer_path),
+            'date': date_str,
+            'path': project_path,
+            'files': files,
+            'file_count': len(files),
+            'workflow': workflow
+        }
+
     def _show_enhanced_day_projects_dialog(self, date_str, projects):
         """Enhanced dialog showing day projects with source file access"""
         try:
@@ -5571,13 +6222,14 @@ class WelcomeScreen(ctk.CTkFrame):
             )
             open_folder_btn.pack(side="left", padx=(0, 10))
             
-            # Close button
+            # Close button (primary style)
             close_btn = ctk.CTkButton(
                 buttons_frame,
                 text="Schließen",
                 font=ctk.CTkFont(*self.get_typography("small")),
-                fg_color=self.get_color('success'),
-                hover_color=self.get_color('success_hover'),
+                fg_color=self.get_color('primary'),
+                hover_color=self.get_color('primary_hover'),
+                text_color=self.get_color('white'),
                 command=dialog.destroy
             )
             close_btn.pack(side="right")
@@ -5678,25 +6330,25 @@ class WelcomeScreen(ctk.CTkFrame):
             actions_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
             actions_frame.pack(fill="x")
             
-            # Open project folder
-            folder_btn = ctk.CTkButton(
+            # Open project folder (vereinheitlichtes Button-Design, zentral über FileOps)
+            folder_btn = ModernUIComponents.create_professional_button(
                 actions_frame,
-                text="Ordner öffnen",
-                font=ctk.CTkFont(*self.get_typography("small")),
-                fg_color=self.get_color('secondary'),
-                hover_color=self.get_color('secondary_hover'),
-                command=lambda: self._open_folder(project['path'])
+                "Ordner öffnen",
+                lambda: (self.file_ops.open_folder(project['path']) if hasattr(self, 'file_ops') and self.file_ops else self._open_source_file(project['path'])),
+                self.design_system,
+                style="secondary",
+                size="sm"
             )
             folder_btn.pack(side="left", padx=(0, 10))
-            
-            # Start quality check
-            quality_btn = ctk.CTkButton(
+
+            # Start quality check (vereinheitlichtes Button-Design)
+            quality_btn = ModernUIComponents.create_professional_button(
                 actions_frame,
-                text="Qualitätsprüfung",
-                font=ctk.CTkFont(*self.get_typography("small")),
-                fg_color=self.get_color('success'),
-                hover_color=self.get_color('success_hover'),
-                command=lambda: self._start_quality_check_for_project(project)
+                "Qualitätsprüfung",
+                lambda: self._start_quality_check_for_project(project),
+                self.design_system,
+                style="primary",
+                size="sm"
             )
             quality_btn.pack(side="left")
             
@@ -5726,21 +6378,31 @@ class WelcomeScreen(ctk.CTkFrame):
     def _open_day_projects_folder(self, date_str):
         """Open the folder containing all projects for a specific day"""
         try:
-            import subprocess
-            import platform
-            
             # Create a temporary folder view or open first customer's project folder
             for customer in self.customers_data:
-                customer_path = os.path.join(self.projects_base_path, customer['name'])
-                project_path = os.path.join(customer_path, date_str)
+                # Sanitize via FileOps if verfügbar, sonst direkter Join
+                if hasattr(self, 'file_ops') and self.file_ops:
+                    customer_path = self.file_ops.sanitize_and_join(self.projects_base_path, customer['name'])
+                    project_path = os.path.join(customer_path, date_str)
+                else:
+                    customer_path = os.path.join(self.projects_base_path, customer['name'])
+                    project_path = os.path.join(customer_path, date_str)
                 if os.path.exists(project_path):
-                    system = platform.system()
-                    if system == "Windows":
-                        subprocess.run(["explorer", project_path])
-                    elif system == "Darwin":  # macOS
-                        subprocess.run(["open", project_path])
-                    else:  # Linux
-                        subprocess.run(["xdg-open", project_path])
+                    if hasattr(self, 'file_ops') and self.file_ops:
+                        self.file_ops.open_folder(project_path)
+                    else:
+                        # Fallback auf system-default
+                        try:
+                            import platform, subprocess
+                            system = platform.system()
+                            if system == "Windows":
+                                subprocess.run(["explorer", project_path])
+                            elif system == "Darwin":
+                                subprocess.run(["open", project_path])
+                            else:
+                                subprocess.run(["xdg-open", project_path])
+                        except Exception:
+                            pass
                     
                     self._show_enhanced_toast(f"Projektordner für {date_str} geöffnet", "success")
                     return
@@ -5808,6 +6470,17 @@ class WelcomeScreen(ctk.CTkFrame):
     def _navigate_month(self, window, direction):
         """Navigate to previous/next month in enhanced calendar"""
         try:
+            # Beim Navigieren Containerhöhe beibehalten, falls bereits gemessen
+            try:
+                target_h = getattr(self, '_calendar_container_target_h', None)
+                if target_h and hasattr(self, 'calendar_grid_container'):
+                    self.calendar_grid_container.configure(height=target_h)
+                    try:
+                        self.calendar_grid_container.pack_propagate(False)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
             # Calculate new date
             if direction > 0:
                 # Next month
@@ -5822,9 +6495,13 @@ class WelcomeScreen(ctk.CTkFrame):
                 else:
                     self.current_calendar_date = self.current_calendar_date.replace(month=self.current_calendar_date.month - 1)
             
-            # Update month label
+            # Update month label (deutsche Formatierung, Fallback auf strftime)
             if hasattr(self, 'month_label'):
-                self.month_label.configure(text=f"{self.current_calendar_date.strftime('%B %Y')}")
+                try:
+                    _month_title = self._format_month_year_de(self.current_calendar_date)
+                except Exception:
+                    _month_title = f"{self.current_calendar_date.strftime('%B %Y')}"
+                self.month_label.configure(text=_month_title)
             
             # Clear and recreate calendar grid
             if hasattr(self, 'calendar_grid_container'):
@@ -5836,13 +6513,34 @@ class WelcomeScreen(ctk.CTkFrame):
             print(f"Month navigation error: {e}")
     
     def _create_enhanced_calendar_grid(self, parent, date):
-        """Create enhanced calendar grid with better styling"""
+        """Create enhanced calendar grid using centralized calendar view-model if available.
+
+        Fallback auf `calendar.monthcalendar` wenn das Utils‑View‑Model nicht verfügbar ist.
+        """
         try:
-            # Get calendar data
-            cal = calendar.monthcalendar(date.year, date.month)
+            month_counts = {}
+            view_weeks = None
+            # Prefer zentrales View‑Model
+            try:
+                if hasattr(self, 'utils_module') and self.utils_module and hasattr(self.utils_module, 'calendar_get_view_model'):
+                    vm = self.utils_module.calendar_get_view_model(date.year, date.month, firstweekday=0, country='DE')
+                    if vm and isinstance(vm.get('weeks'), list):
+                        view_weeks = vm['weeks']
+                        # month_counts redundant, aber weiter verfügbar
+                        month_counts = self.utils_module.calendar_get_month_summary(date.year, date.month) or {}
+            except Exception:
+                view_weeks = None
+                month_counts = {}
+
+            # Legacy calendar matrix, falls kein View‑Model
+            if view_weeks is None:
+                cal = calendar.monthcalendar(date.year, date.month)
             
-            # Day headers with better styling
-            days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+            # Day headers mit deutscher Lokalisierung
+            try:
+                days = list(self._weekday_headers_de())  # ['Mo','Di','Mi','Do','Fr','Sa','So']
+            except Exception:
+                days = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
             header_frame = ctk.CTkFrame(parent, fg_color=self.get_color('surface_secondary'), corner_radius=self.get_component_value('borders.radius_md'))
             header_frame.pack(fill="x", pady=(0, 15))
             
@@ -5860,20 +6558,133 @@ class WelcomeScreen(ctk.CTkFrame):
             # Calendar grid with enhanced styling
             grid_frame = ctk.CTkFrame(parent, fg_color="transparent")
             grid_frame.pack(fill="both", expand=True)
+            # Spalten (0..6) konsistent konfigurieren
+            for c in range(7):
+                grid_frame.grid_columnconfigure(c, weight=1)
+            # Wir rendern immer 6 Wochenzeilen und setzen eine minimale Höhe pro Zeile,
+            # damit der Container nicht springt (45 Button-Höhe + 2px oben/unten = 49 ca.)
+            _row_min = 49
+            for r in range(6):
+                grid_frame.grid_rowconfigure(r, weight=1, minsize=_row_min)
             
             today = datetime.now()
             
-            for week_num, week in enumerate(cal):
-                for day_num, day in enumerate(week):
-                    if day == 0:
-                        # Empty cell
-                        empty_cell = ctk.CTkFrame(grid_frame, fg_color="transparent", width=50, height=45)
-                        empty_cell.grid(row=week_num, column=day_num, padx=2, pady=2, sticky="nsew")
-                        continue
+            if view_weeks is not None:
+                # Render aus View‑Model – immer 6 Zeilen darstellen
+                weeks_render = list(view_weeks)
+                if len(weeks_render) < 6:
+                    # mit leeren Wochen auffüllen
+                    for _ in range(6 - len(weeks_render)):
+                        weeks_render.append({'days': [{'in_month': False} for _ in range(7)]})
+                elif len(weeks_render) > 6:
+                    weeks_render = weeks_render[:6]
+
+                for week_num, w in enumerate(weeks_render):
+                    days = w.get('days') or []
+                    for day_num, d in enumerate(days):
+                        if not d.get('in_month'):
+                            empty_cell = ctk.CTkFrame(grid_frame, fg_color="transparent", width=50, height=45)
+                            empty_cell.grid(row=week_num, column=day_num, padx=2, pady=2, sticky="nsew")
+                            continue
+
+                        is_today = bool(d.get('is_today'))
+                        has_projects = int(d.get('project_count') or 0) > 0
+                        is_weekend = bool(d.get('is_weekend'))
+                        day_val = int(d.get('day') or 0)
+
+                        # Styling wie zuvor
+                        if is_today:
+                            bg_color = self.get_color('primary')
+                            hover_color = self.get_color('primary_hover')
+                            text_color = self.get_color('white')
+                            border_width = 2
+                            border_color = self.get_color('info_light')
+                        elif has_projects:
+                            bg_color = self.get_color('success_500')
+                            hover_color = self.get_color('success_600')
+                            text_color = self.get_color('white')
+                            border_width = 1
+                            border_color = self.get_color('success_light')
+                        elif is_weekend:
+                            bg_color = self.get_color('surface_hover')
+                            hover_color = self.get_color('gray_100')
+                            text_color = self.get_color('gray_400')
+                            border_width = 1
+                            border_color = self.get_color('gray_300')
+                        else:
+                            bg_color = self.get_color('white')
+                            hover_color = self.get_color('surface_hover')
+                            text_color = self.get_color('gray_700')
+                            border_width = 1
+                            border_color = self.get_color('surface_border')
+
+                        day_btn = ctk.CTkButton(
+                            grid_frame,
+                            text=str(day_val),
+                            font=ctk.CTkFont(*self.get_typography("small")) if is_today or has_projects else ctk.CTkFont(*self.get_typography("caption")),
+                            fg_color=bg_color,
+                            hover_color=hover_color,
+                            text_color=text_color,
+                            border_width=border_width,
+                            border_color=border_color,
+                            width=50,
+                            height=45,
+                            corner_radius=self.get_component_value('borders.radius_md'),
+                            command=lambda y=date.year, m=date.month, d=day_val: self._show_enhanced_day_details(y, m, d)
+                        )
+                        day_btn.grid(row=week_num, column=day_num, padx=2, pady=2, sticky="nsew")
+
+                        # Indicator
+                        if has_projects:
+                            project_count = int(d.get('project_count') or 0)
+                            if project_count > 0:
+                                indicator_frame = ctk.CTkFrame(
+                                    grid_frame,
+                                    fg_color=self.get_color('error'),
+                                    corner_radius=self.get_component_value('borders.radius_md'),
+                                    width=20,
+                                    height=15
+                                )
+                                indicator_frame.place(in_=day_btn, anchor="ne", x=-3, y=3)
+                                count_label = ctk.CTkLabel(
+                                    indicator_frame,
+                                    text=str(project_count),
+                                    font=ctk.CTkFont(*self.get_typography("micro")),
+                                    text_color=self.get_color('white')
+                                )
+                                count_label.pack(expand=True)
+            else:
+                # Legacy Rendering mit calendar.monthcalendar
+                cal = calendar.monthcalendar(date.year, date.month)
+                # Immer 6 Wochen rendern – ggf. mit Nullen auffüllen
+                while len(cal) < 6:
+                    cal.append([0] * 7)
+                if len(cal) > 6:
+                    cal = cal[:6]
+                today = datetime.now()
+                for week_num, week in enumerate(cal):
+                    for day_num, day in enumerate(week):
+                        if day == 0:
+                            # Empty cell
+                            empty_cell = ctk.CTkFrame(grid_frame, fg_color="transparent", width=50, height=45)
+                            empty_cell.grid(row=week_num, column=day_num, padx=2, pady=2, sticky="nsew")
+                            continue
+                # Hinweis-Karte bei komplett leerem Monat entfernt, um Layout-Sprünge zu vermeiden
                     
                     # Determine day styling
                     is_today = (day == today.day and date.month == today.month and date.year == today.year)
-                    has_projects = self._check_day_has_projects(date.year, date.month, day)
+                    # Prefer centralized month_counts for presence detection
+                    try:
+                        ds8 = f"{date.year:04d}{date.month:02d}{day:02d}"
+                        has_projects = bool(month_counts.get(ds8, 0))
+                    except Exception:
+                        has_projects = False
+                    if not has_projects:
+                        # Fallback to legacy checker
+                        try:
+                            has_projects = self._check_day_has_projects(date.year, date.month, day)
+                        except Exception:
+                            has_projects = False
                     is_weekend = day_num >= 5
                     
                     # Day button with enhanced styling
@@ -5917,7 +6728,6 @@ class WelcomeScreen(ctk.CTkFrame):
                         command=lambda d=day: self._show_enhanced_day_details(date.year, date.month, d)
                     )
                     day_btn.grid(row=week_num, column=day_num, padx=2, pady=2, sticky="nsew")
-                    grid_frame.grid_columnconfigure(day_num, weight=1)
                     
                     # Add project count indicator if has projects
                     if has_projects:
@@ -5946,75 +6756,122 @@ class WelcomeScreen(ctk.CTkFrame):
                             )
                             count_label.pack(expand=True)
                     
+            # Nach dem Rendern die aktuelle Gesamthöhe messen und festsetzen
+            try:
+                if hasattr(self, 'calendar_grid_container'):
+                    # Zuverlässig: gewünschte Höhe (reqheight) auslesen
+                    measured = self.calendar_grid_container.winfo_reqheight()
+                    MIN_H = 260
+                    total_h = max(int(measured or 0), MIN_H)
+                    if total_h >= MIN_H:
+                        self._calendar_container_target_h = total_h
+                        try:
+                            self.calendar_grid_container.configure(height=total_h)
+                            self.calendar_grid_container.pack_propagate(False)
+                        except Exception:
+                            pass
+                    else:
+                        # Falls noch zu früh, später erneut messen
+                        try:
+                            self.after(120, lambda: self._create_enhanced_calendar_grid(parent, date))
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
         except Exception as e:
             print(f"Enhanced calendar grid error: {e}")
     
-    def _get_day_project_count(self, year, month, day):
-        """Get number of projects for a specific day"""
+    def _get_day_project_count(self, year: int, month: int, day: int) -> int:
+        """Get number of projects for a specific day using utils when available; fallback to legacy scan."""
         try:
+            # Prefer centralized calendar index
+            try:
+                if hasattr(self, 'utils_module') and self.utils_module:
+                    ds8 = f"{int(year):04d}{int(month):02d}{int(day):02d}"
+                    return len(self.utils_module.calendar_get_day_projects(ds8) or [])
+            except Exception:
+                pass
+
+            # Legacy filesystem-based fallback
             date_str = f"{year}-{month:02d}-{day:02d}"
             count = 0
-            
-            for customer in self.customers_data:
-                customer_path = os.path.join(self.projects_base_path, customer['name'])
-                project_path = os.path.join(customer_path, date_str)
-                if os.path.exists(project_path):
-                    count += 1
-            
+            for customer in getattr(self, 'customers_data', []) or []:
+                try:
+                    customer_path = os.path.join(self.projects_base_path, customer['name'])
+                    project_path = os.path.join(customer_path, date_str)
+                    if os.path.exists(project_path):
+                        count += 1
+                except Exception:
+                    pass
             return count
-            
         except Exception as e:
             print(f"Get day project count error: {e}")
             return 0
     
-    def _show_enhanced_day_details(self, year, month, day):
-        """Enhanced day details view with project statistics and quick actions"""
+    def _show_enhanced_day_details(self, year: int, month: int, day: int) -> None:
+        """Enhanced day details using centralized utils; falls back to legacy file scan on error."""
         try:
-            date_str = f"{year}-{month:02d}-{day:02d}"
+            ui_date_str = f"{year}-{month:02d}-{day:02d}"
             projects = []
             total_files = 0
             total_size = 0
-            
-            # Collect comprehensive project data
-            for customer in self.customers_data:
-                customer_path = os.path.join(self.projects_base_path, customer['name'])
-                project_path = os.path.join(customer_path, date_str)
-                if os.path.exists(project_path):
-                    # Get detailed file information
-                    files = []
-                    project_size = 0
-                    for file_name in os.listdir(project_path):
-                        file_path = os.path.join(project_path, file_name)
-                        if os.path.isfile(file_path):
-                            file_size = os.path.getsize(file_path)
-                            file_info = {
-                                'name': file_name,
-                                'path': file_path,
-                                'size': file_size,
-                                'type': self._get_file_type(file_name),
-                                'modified': os.path.getmtime(file_path)
-                            }
-                            files.append(file_info)
-                            project_size += file_size
-                    
-                    total_files += len(files)
-                    total_size += project_size
-                    
-                    projects.append({
-                        'customer': customer['name'],
-                        'date': date_str,
-                        'path': project_path,
-                        'files': files,
-                        'file_count': len(files),
-                        'total_size': project_size
-                    })
-            
+
+            used_utils = False
+            try:
+                if hasattr(self, 'utils_module') and self.utils_module and hasattr(self.utils_module, 'calendar_get_day_details'):
+                    details = self.utils_module.calendar_get_day_details(year, month, day) or {}
+                    # projects from utils already include files/file_count/total_size (best-effort)
+                    projects = list(details.get('projects', []) or [])
+                    total_files = int(details.get('total_files', 0) or 0)
+                    total_size = int(details.get('total_size', 0) or 0)
+                    used_utils = True
+            except Exception:
+                used_utils = False
+
+            if not used_utils:
+                # Legacy fallback: walk filesystem similar to previous implementation
+                date_str_fs = ui_date_str
+                for customer in getattr(self, 'customers_data', []) or []:
+                    try:
+                        customer_path = (self.file_ops.sanitize_and_join(self.projects_base_path, customer['name'])
+                                         if hasattr(self, 'file_ops') and self.file_ops and hasattr(self.file_ops, 'sanitize_and_join')
+                                         else os.path.join(self.projects_base_path, customer['name']))
+                        project_path = os.path.join(customer_path, date_str_fs)
+                        if os.path.exists(project_path):
+                            files = []
+                            project_size = 0
+                            for file_name in os.listdir(project_path):
+                                file_path = os.path.join(project_path, file_name)
+                                if os.path.isfile(file_path):
+                                    file_size = os.path.getsize(file_path)
+                                    files.append({
+                                        'name': file_name,
+                                        'path': file_path,
+                                        'size': file_size,
+                                        'type': self._get_file_type(file_name),
+                                        'modified': os.path.getmtime(file_path)
+                                    })
+                                    project_size += file_size
+                            total_files += len(files)
+                            total_size += project_size
+                            projects.append({
+                                'customer': customer['name'],
+                                'date': ui_date_str,
+                                'path': project_path,
+                                'files': files,
+                                'file_count': len(files),
+                                'total_size': project_size
+                            })
+                    except Exception:
+                        pass
+
             if projects:
-                self._show_enhanced_day_projects_dialog_v2(date_str, projects, total_files, total_size)
+                self._show_enhanced_day_projects_dialog_v2(ui_date_str, projects, total_files, total_size)
             else:
                 # Show option to create new project for this day
-                self._show_create_project_for_day_dialog(date_str)
-                
+                self._show_create_project_for_day_dialog(ui_date_str)
+
         except Exception as e:
             print(f"Enhanced day details error: {e}")
             self._show_enhanced_toast(f"Fehler beim Laden der Tages-Details: {str(e)}", "error")
@@ -6098,36 +6955,33 @@ class WelcomeScreen(ctk.CTkFrame):
             actions_bar.pack(fill="x", pady=(15, 0))
             
             # Quick action buttons
-            open_all_btn = ctk.CTkButton(
+            open_all_btn = ModernUIComponents.create_professional_button(
                 actions_bar,
-                text="Alle Ordner öffnen",
-                font=ctk.CTkFont(*self.get_typography("caption")),
-                fg_color=self.get_color('surface_hover'),
-                hover_color=self.get_color('gray_100'),
-                text_color=self.get_color('white'),
-                command=lambda: self._open_all_day_projects(projects)
+                "Alle Ordner öffnen",
+                lambda: self._open_all_day_projects(projects),
+                self.design_system,
+                style="secondary",
+                size="sm"
             )
             open_all_btn.pack(side="left", padx=(0, 10))
-            
-            quality_all_btn = ctk.CTkButton(
+
+            quality_all_btn = ModernUIComponents.create_professional_button(
                 actions_bar,
-                text="Alle prüfen",
-                font=ctk.CTkFont(*self.get_typography("caption")),
-                fg_color=self.get_color('surface_hover'),
-                hover_color=self.get_color('gray_100'),
-                text_color=self.get_color('white'),
-                command=lambda: self._quality_check_all_day_projects(projects)
+                "Alle prüfen",
+                lambda: self._quality_check_all_day_projects(projects),
+                self.design_system,
+                style="primary",
+                size="sm"
             )
             quality_all_btn.pack(side="left", padx=(0, 10))
-            
-            export_btn = ctk.CTkButton(
+
+            export_btn = ModernUIComponents.create_professional_button(
                 actions_bar,
-                text="Bericht erstellen",
-                font=ctk.CTkFont(*self.get_typography("caption")),
-                fg_color=self.get_color('surface_hover'),
-                hover_color=self.get_color('gray_100'),
-                text_color=self.get_color('white'),
-                command=lambda: self._create_day_report(date_str, projects)
+                "Bericht erstellen",
+                lambda: self._create_day_report(date_str, projects),
+                self.design_system,
+                style="secondary",
+                size="sm"
             )
             export_btn.pack(side="left")
             
@@ -6147,13 +7001,14 @@ class WelcomeScreen(ctk.CTkFrame):
             bottom_bar = ctk.CTkFrame(main_container, fg_color="transparent")
             bottom_bar.pack(fill="x")
             
-            # Close button
+            # Close button (primary style)
             close_btn = ctk.CTkButton(
                 bottom_bar,
                 text="Schließen",
                 font=ctk.CTkFont(*self.get_typography("small")),
-                fg_color=self.get_color('success'),
-                hover_color=self.get_color('success_hover'),
+                fg_color=self.get_color('primary'),
+                hover_color=self.get_color('primary_hover'),
+                text_color=self.get_color('white'),
                 command=dialog.destroy
             )
             close_btn.pack(side="right")
@@ -6283,13 +7138,14 @@ class WelcomeScreen(ctk.CTkFrame):
         
         # Type header
         type_icon = self._get_file_type_icon(file_type)
-        type_label = ctk.CTkLabel(
+        header_label = ctk.CTkLabel(
             type_frame,
-            text=f"{file_type.title()} ({len(files)})",
-            font=ctk.CTkFont(*self.get_typography("small")),
-            text_color=self.get_color('text_primary')
+            text=f"{type_icon} {file_type.title()} ({len(files)} Dateien)",
+            font=ctk.CTkFont(*self.get_typography("body_bold")),
+            text_color=self.get_color("gray_700"),
+            anchor="w"
         )
-        type_label.pack(anchor="w", pady=(0, 5))
+        header_label.pack(fill="x", pady=(0, 5))
         
         # Files in this type (max 3 per type)
         for file_info in files[:3]:
@@ -6297,9 +7153,11 @@ class WelcomeScreen(ctk.CTkFrame):
             file_row.pack(fill="x", padx=20)
             
             file_name = file_info['name'][:45] + '...' if len(file_info['name']) > 45 else file_info['name']
+            size_text = self._format_file_size(file_info.get('size', 0)) if hasattr(self, '_format_file_size') else ""
+            file_line = f"{type_icon} {file_name}   {size_text}".strip()
             file_label = ctk.CTkLabel(
                 file_row,
-                text=f"{file_name}",
+                text=file_line,
                 font=ctk.CTkFont(*self.get_typography("caption")),
                 text_color=self.get_color('text_primary'),
                 anchor="w"
@@ -6307,15 +7165,13 @@ class WelcomeScreen(ctk.CTkFrame):
             file_label.pack(side="left", fill="x", expand=True)
             
             # Quick open button
-            open_btn = ctk.CTkButton(
+            open_btn = ModernUIComponents.create_professional_button(
                 file_row,
-                text="Öffnen",
-                width=25,
-                height=20,
-                font=ctk.CTkFont(*self.get_typography("micro")),
-                fg_color=self.get_color('primary'),
-                hover_color=self.get_color('primary_hover'),
-                command=lambda path=file_info['path']: self._open_source_file(path)
+                "Öffnen",
+                lambda path=file_info['path']: self._open_source_file(path),
+                self.design_system,
+                style="secondary",
+                size="sm"
             )
             open_btn.pack(side="right", padx=(5, 0))
         
@@ -6345,7 +7201,7 @@ class WelcomeScreen(ctk.CTkFrame):
             fg_color=self.get_color('secondary'),
             hover_color=self.get_color('secondary_hover'),
             width=80,
-            command=lambda: self._open_folder(project['path'])
+            command=lambda: (self.file_ops.open_folder(project['path']) if hasattr(self, 'file_ops') and self.file_ops else self._open_source_file(project['path']))
         )
         folder_btn.pack(side="left", padx=(0, 8))
         
@@ -6376,18 +7232,17 @@ class WelcomeScreen(ctk.CTkFrame):
         info_btn.pack(side="right")
     
     def _get_file_type_icon(self, file_type):
-        """Get icon for file type (No-Icons-Policy: return empty)"""
-        icons = {
-            'text': '',
-            'document': '',
-            'pdf': '',
-            'spreadsheet': '',
-            'presentation': '',
-            'image': '',
-            'archive': '',
-            'unknown': ''
+        """Return a short label for file type (no icons, policy-compliant)."""
+        labels = {
+            'document': '[DOC]',
+            'pdf': '[PDF]',
+            'spreadsheet': '[XLS]',
+            'presentation': '[PPT]',
+            'image': '[IMG]',
+            'archive': '[ZIP]',
+            'text': '[TXT]'
         }
-        return icons.get(file_type, '')
+        return labels.get(file_type, '[?]')
     
     def _open_all_day_projects(self, projects):
         """Open all project folders for the day"""
@@ -6502,13 +7357,17 @@ DATEIEN ({project['file_count']}):
         """Create enhanced project information panel"""
         try:
             # Header
-            info_header = ctk.CTkFrame(parent, fg_color=self.get_color('surface_secondary'), corner_radius=(15, 15, 0, 0))
+            info_header = ctk.CTkFrame(
+                parent,
+                fg_color=self.get_color('surface_secondary'),
+                corner_radius=self.get_component_value('borders.radius_custom_15')
+            )
             info_header.pack(fill="x", padx=20, pady=(20, 0))
             
             info_title = ctk.CTkLabel(
                 info_header,
                 text="Projektübersicht",
-                font=ctk.CTkFont(*self.get_typography("label_bold")),
+                font=ctk.CTkFont(*self.get_typography("body_bold")),
                 text_color=self.get_color('primary')
             )
             info_title.pack(pady=15)
@@ -6578,7 +7437,7 @@ DATEIEN ({project['file_count']}):
                 btn = ctk.CTkButton(
                     actions_frame,
                     text=text,
-                    font=ctk.CTkFont(*self.get_typography("small")),
+                    font=ctk.CTkFont(*self.get_typography("body_bold")),
                     fg_color=color,
                     hover_color=hover_color,
                     text_color=self.get_color('white'),
@@ -6591,48 +7450,8 @@ DATEIEN ({project['file_count']}):
         except Exception as e:
             print(f"Enhanced project info error: {e}")
     
-    def _show_enhanced_day_details(self, year, month, day):
-        """Show enhanced day details with better formatting"""
-        try:
-            date_str = f"{year}-{month:02d}-{day:02d}"
-            date_display = datetime(year, month, day).strftime("%A, %B %d, %Y")
-            
-            projects = []
-            for customer in self.customers_data:
-                customer_path = os.path.join(self.projects_base_path, customer['name'])
-                project_path = os.path.join(customer_path, date_str)
-                if os.path.exists(project_path):
-                    # Count files in project
-                    file_count = 0
-                    for root, dirs, files in os.walk(project_path):
-                        file_count += len(files)
-                    
-                    projects.append({
-                        'customer': customer['name'],
-                        'date': date_str,
-                        'path': project_path,
-                        'files': file_count
-                    })
-            
-            if projects:
-                project_details = []
-                for p in projects:
-                    project_details.append(f"• {p['customer']} ({p['files']} files)")
-                
-                project_list = "\n".join(project_details)
-                messagebox.showinfo(
-                    f"Projekte für {date_display}",
-                    f"Aktive Projekte:\n\n{project_list}\n\nSumme: {len(projects)} Projekte"
-                )
-            else:
-                messagebox.showinfo(
-                    f"{date_display}",
-                    "Keine Projekte für dieses Datum gefunden.\n\nTipp: Laden Sie Dateien hoch, um neue Projekte zu erstellen."
-                )
-                
-        except Exception as e:
-            print(f"Enhanced day details error: {e}")
-            messagebox.showerror("Error", f"Error showing day details: {str(e)}")
+    # (konsolidiert) Duplikat von _show_enhanced_day_details entfernt –
+    # die umfassendere Variante oben mit Projekt-Dashboard bleibt die einzige Quelle.
     
     # =============================================================================
     # 📋 CUSTOMER MANAGEMENT CORE METHODS
@@ -6641,39 +7460,89 @@ DATEIEN ({project['file_count']}):
     def _add_customer(self):
         """Add new customer using separated business logic"""
         try:
+            print("DEBUG: _add_customer aufgerufen")
             customer_name = self.customer_entry.get().strip()
+            print(f"DEBUG: customer_name = '{customer_name}'")
             
             if not customer_name:
+                print("DEBUG: customer_name ist leer")
                 if self.ui_manager:
-                    self.ui_manager.show_toast("Bitte geben Sie einen Kundennamen ein", "warning")
+                    self.toast_show("Bitte geben Sie einen Kundennamen ein", "warning")
                 else:
                     self._show_enhanced_toast("Bitte geben Sie einen Kundennamen ein", "warning")
                 return
             
-            # ✅ USE BUSINESS LOGIC MANAGER
+            print("DEBUG: Versuche Customer-Addition...")
+            # ✅ USE BUSINESS LOGIC MANAGER - Try both managers
+            success = False
+            message = ""
+            similar_customers = []
+            
+            print(f"DEBUG: self.customer_manager = {getattr(self, 'customer_manager', 'NOT FOUND')}")
             if self.customer_manager:
-                success, message, similar_customers = self.customer_manager.add_customer(customer_name)
-                
-                if success:
-                    # Customer added successfully
-                    self._handle_customer_added_successfully(customer_name)
-                elif similar_customers:
-                    # Similar customers found - show dialog
-                    self._show_duplicate_warning_dialog(customer_name, similar_customers)
+                try:
+                    print("DEBUG: Versuche customer_manager.add_customer...")
+                    success, message, similar_customers = self.customer_manager.add_customer(customer_name)
+                    print(f"DEBUG: customer_manager Ergebnis: success={success}, msg='{message}', similar={similar_customers}")
+                    
+                    # If customer_manager found similar customers, show them immediately
+                    if not success and similar_customers:
+                        print("DEBUG: Similar customers found in customer_manager - showing dialog")
+                        self._show_duplicate_warning_dialog(customer_name, similar_customers)
+                        return
+                    
+                except Exception as e:
+                    print(f"DEBUG: Error with customer_manager: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    success = False
+            
+            # If customer_manager failed or doesn't exist, try kunden_manager
+            print(f"DEBUG: success={success}, hasattr kunden_manager={hasattr(self, 'kunden_manager')}, kunden_manager={getattr(self, 'kunden_manager', 'NOT FOUND')}")
+            if not success and hasattr(self, 'kunden_manager') and self.kunden_manager:
+                try:
+                    print("DEBUG: Versuche kunden_manager.add_customer...")
+                    success2, message2, similar_customers2 = self.kunden_manager.add_customer(customer_name)
+                    print(f"DEBUG: kunden_manager Ergebnis: success={success2}, msg='{message2}', similar={similar_customers2}")
+                    
+                    # If kunden_manager found similar customers, show them
+                    if not success2 and similar_customers2:
+                        print("DEBUG: Similar customers found in kunden_manager - showing dialog")
+                        self._show_duplicate_warning_dialog(customer_name, similar_customers2)
+                        return
+                    
+                    # Use results from kunden_manager
+                    success = success2
+                    message = message2
+                    similar_customers = similar_customers2
+                    
+                except Exception as e:
+                    print(f"DEBUG: Error with kunden_manager: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    success = False
+            
+            print(f"DEBUG: Final results: success={success}, similar_customers={similar_customers}")
+            if success:
+                print("DEBUG: Customer added successfully - calling _handle_customer_added_successfully")
+                # Customer added successfully
+                self._handle_customer_added_successfully(customer_name)
+            elif not success and (self.customer_manager or hasattr(self, 'kunden_manager')):
+                print("DEBUG: Error occurred - showing error toast")
+                # Error occurred
+                if self.ui_manager:
+                    self.toast_show(message, "error")
                 else:
-                    # Error occurred
-                    if self.ui_manager:
-                        self.ui_manager.show_toast(message, "error")
-                    else:
-                        self._show_enhanced_toast(message, "error")
+                    self._show_enhanced_toast(message, "error")
             else:
+                print("DEBUG: Fallback to legacy method")
                 # Fallback to old method
                 self._add_customer_legacy(customer_name)
                 
         except Exception as e:
             error_msg = f"Fehler beim Hinzufügen des Kunden: {str(e)}"
             if self.ui_manager:
-                self.ui_manager.show_toast(error_msg, "error")
+                self.toast_show(error_msg, "error")
             else:
                 self._show_enhanced_toast(error_msg, "error")
     
@@ -6690,7 +7559,7 @@ DATEIEN ({project['file_count']}):
                 self.ui_manager.update_search_entry(customer_name)
                 self.ui_manager.clear_customer_entry()
                 self.ui_manager.hide_search_results()
-                self.ui_manager.show_toast(f"✅ Kunde '{customer_name}' erfolgreich hinzugefügt und ausgewählt!", "success")
+                self.toast_show(f"Kunde '{customer_name}' erfolgreich hinzugefügt und ausgewählt!", "success")
                 self.ui_manager.force_ui_update()
             else:
                 # Fallback UI updates
@@ -6823,7 +7692,7 @@ DATEIEN ({project['file_count']}):
             warning_title = ctk.CTkLabel(
                 header_content,
                 text="Ähnlicher Kunde bereits vorhanden",
-                font=ctk.CTkFont(*self.get_typography("label_bold")),
+                font=ctk.CTkFont(*self.get_typography("body_bold")),
                 text_color=self.get_color('gray_700')
             )
             warning_title.pack()
@@ -6831,7 +7700,7 @@ DATEIEN ({project['file_count']}):
             warning_subtitle = ctk.CTkLabel(
                 header_content,
                 text=f"Möchten Sie '{new_customer_name}' trotzdem hinzufügen?",
-                font=ctk.CTkFont(*self.get_typography("small_normal")),
+                font=ctk.CTkFont(*self.get_typography("caption")),
                 text_color=self.get_color('gray_600')
             )
             warning_subtitle.pack(pady=(5, 0))
@@ -6877,7 +7746,7 @@ DATEIEN ({project['file_count']}):
             add_anyway_btn = ctk.CTkButton(
                 button_container,
                 text="Trotzdem hinzufügen",
-                font=ctk.CTkFont(*self.get_typography("small")),
+                font=ctk.CTkFont(*self.get_typography("body_bold")),
                 fg_color=self.get_color('success'),
                 hover_color=self.get_color('success_hover') if hasattr(self, 'get_color') else None,
                 text_color=self.get_color('white'),
@@ -6899,7 +7768,7 @@ DATEIEN ({project['file_count']}):
             cancel_btn = ctk.CTkButton(
                 button_container,
                 text="Abbrechen",
-                font=ctk.CTkFont(*self.get_typography("small")),
+                font=ctk.CTkFont(*self.get_typography("body_bold")),
                 fg_color=self.get_color('secondary_light'),
                 hover_color=self.get_color('secondary'),
                 text_color=self.get_color('gray_700'),
@@ -6987,41 +7856,34 @@ DATEIEN ({project['file_count']}):
         except Exception as e:
             print(f"Similar customer card error: {e}")
     
-    def _select_existing_customer(self, customer_name, dialog):
-        """Wählt bestehenden ähnlichen Kunden aus"""
+    def _select_existing_customer(self, customer_name, dialog=None):
+        """Wählt bestehenden Kunden aus und organisiert ggf. bereits ausgewählte Dateien.
+
+        dialog: Optionales Dialogfenster, das nach Auswahl geschlossen wird.
+        """
         try:
-            # Kunden auswählen
-            self.current_customer = customer_name
-            
-            # UI aktualisieren
-            if hasattr(self, 'current_customer_label'):
-                self.current_customer_label.configure(
-                    text=f"{customer_name}", 
-                    text_color=self.get_color('success')
-                )
-            
-            # Header aktualisieren
-            if hasattr(self, 'header_customer_status'):
-                self.header_customer_status.configure(
-                    text=f"{customer_name}",
-                    fg_color=self.get_color('success')
-                )
-            
-            # Eingabefeld leeren
-            self.customer_entry.delete(0, 'end')
-            
-            # Customer selection logic
+            if not customer_name or customer_name == "No customers yet":
+                return
+            # Zentrale Auswahl + UI/Struktur
             self._on_customer_select(customer_name)
-            
-            # Dialog schließen
-            dialog.destroy()
-            
-            # Erfolgsmeldung
-            self._show_enhanced_toast(f"Bestehender Kunde '{customer_name}' ausgewählt", "success")
-            
+
+            # Bereits hochgeladene Dateien direkt kopieren
+            if getattr(self, 'uploaded_files', None):
+                project_path = self._ensure_customer_project_structure(customer_name)
+                if project_path:
+                    copied = self._copy_uploaded_files_to_project(project_path, self.uploaded_files)
+                    self._show_enhanced_toast(f"{copied} Datei(en) organisiert für: {customer_name}", "success")
+            else:
+                self._show_enhanced_toast(f"Customer '{customer_name}' selected", "success")
+
+            if dialog:
+                try:
+                    dialog.destroy()
+                except Exception:
+                    pass
+            print(f"✅ Selected existing customer: {customer_name}")
         except Exception as e:
-            print(f"Select existing customer error: {e}")
-            dialog.destroy()
+            print(f"⚠️ Customer selection error: {e}")
     
     def _add_customer_anyway(self, customer_name, dialog):
         """Fügt Kunden trotz Ähnlichkeiten hinzu"""
@@ -7118,8 +7980,6 @@ DATEIEN ({project['file_count']}):
             # Create project structure
             self._ensure_customer_project_structure(customer_name)
             
-        except Exception as e:
-            self._show_enhanced_toast(f"Fehler beim Erstellen des Kunden: {str(e)}", "error")
     
     # =============================================================================
     # 🎛️ MENU BAR FUNCTIONS
@@ -7218,7 +8078,7 @@ DATEIEN ({project['file_count']}):
             current_path_label = ctk.CTkLabel(
                 current_path_frame,
                 text="Aktueller Pfad:",
-                font=ctk.CTkFont(*self.get_typography("small")),
+                font=ctk.CTkFont(*self.get_typography("caption")),
                 text_color=self.get_color('text_secondary')
             )
             current_path_label.pack(anchor="w")
@@ -7239,7 +8099,7 @@ DATEIEN ({project['file_count']}):
             change_path_btn = ctk.CTkButton(
                 path_content,
                 text="Verzeichnis ändern",
-                font=ctk.CTkFont(*self.get_typography("small")),
+                font=ctk.CTkFont(*self.get_typography("body_bold")),
                 fg_color=self.get_color('primary'),
                 hover_color=self.get_color('primary_hover'),
                 text_color=self.get_color('white'),
@@ -7253,13 +8113,13 @@ DATEIEN ({project['file_count']}):
             button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
             button_frame.pack(fill="x", pady=(15, 0))
             
-            # Schließen Button
+            # Schließen Button (primary style)
             close_btn = ctk.CTkButton(
                 button_frame,
                 text="Schließen",
-                font=ctk.CTkFont(*self.get_typography("small")),
-                fg_color=self.get_color('success'),
-                hover_color=self.get_color('success_600'),
+                font=ctk.CTkFont(*self.get_typography("body_bold")),
+                fg_color=self.get_color('primary'),
+                hover_color=self.get_color('primary_hover'),
                 text_color=self.get_color('white'),
                 height=40,
                 corner_radius=self.get_component_value('borders.radius_md'),
@@ -7365,9 +8225,19 @@ DATEIEN ({project['file_count']}):
     def _ensure_all_customers_structure(self):
         """Stellt sicher, dass alle Kunden die neue Ordnerstruktur haben"""
         try:
-            for customer in self.customers_data:
-                customer_name = customer['name']
-                self._ensure_customer_project_structure(customer_name)
+            for customer in (self.customers_data or []):
+                try:
+                    if isinstance(customer, dict):
+                        customer_name = customer.get('name') or customer.get('customer')
+                    elif isinstance(customer, str):
+                        customer_name = customer.strip()
+                    else:
+                        customer_name = None
+                    if not customer_name:
+                        continue
+                    self._ensure_customer_project_structure(customer_name)
+                except Exception:
+                    continue
             
             self._show_enhanced_toast(f"Ordnerstruktur für {len(self.customers_data)} Kunden erstellt", "success")
             
@@ -7463,125 +8333,108 @@ DATEIEN ({project['file_count']}):
             print(f"About dialog error: {e}")
     
     def _ensure_customer_project_structure(self, customer_name, use_date_folder=True):
-        """Create project folder structure for customer with date-specific organization"""
+        """Delegiert die Ordnerstruktur-Erstellung an FileOperations."""
         try:
-            # Basis-Kundenpfad
-            customer_path = os.path.join(self.projects_base_path, customer_name)
-            
-            if not os.path.exists(customer_path):
-                os.makedirs(customer_path, exist_ok=True)
-            
+            if hasattr(self, 'file_ops') and self.file_ops:
+                return self.file_ops.ensure_customer_project_structure(
+                    base_path=self.projects_base_path,
+                    customer_name=customer_name,
+                    workflow_folders=self.project_structure,
+                    use_date_folder=use_date_folder,
+                )
+            # Fallback: direkte einfache Struktur (mit optionalem Sanitizing)
+            base = (self.file_ops.sanitize_and_join(self.projects_base_path, customer_name)
+                    if hasattr(self, 'file_ops') and self.file_ops and hasattr(self.file_ops, 'sanitize_and_join')
+                    else os.path.join(self.projects_base_path, customer_name))
+            os.makedirs(base, exist_ok=True)
             if use_date_folder:
-                # ✅ NEUE DATUMSSPEZIFISCHE STRUKTUR
-                # Heutiges Datum im Format YYYY-MM-DD
+                from datetime import datetime
                 today = datetime.now().strftime("%Y-%m-%d")
-                date_path = os.path.join(customer_path, today)
-                
-                if not os.path.exists(date_path):
-                    os.makedirs(date_path, exist_ok=True)
-                    print(f"📅 Date folder created: {today}")
-                
-                # Workflow-Ordner unter dem Datum erstellen
-                for folder in self.project_structure:
-                    folder_path = os.path.join(date_path, folder)
-                    os.makedirs(folder_path, exist_ok=True)
-                
-                print(f"📁 Date-specific project structure created for {customer_name}/{today}")
-                return date_path
-            else:
-                # ✅ LEGACY-STRUKTUR (für Abwärtskompatibilität)
-                # Direkte Workflow-Ordner unter Kunde
-                for folder in self.project_structure:
-                    folder_path = os.path.join(customer_path, folder)
-                    os.makedirs(folder_path, exist_ok=True)
-                
-                print(f"📁 Legacy project structure created for {customer_name}")
-                return customer_path
-            
+                try:
+                    if hasattr(self, 'file_ops') and self.file_ops and hasattr(self.file_ops, 'normalize_date_folder'):
+                        today = self.file_ops.normalize_date_folder(today)
+                except Exception:
+                    pass
+                base = os.path.join(base, today)
+                os.makedirs(base, exist_ok=True)
+            for folder in self.project_structure:
+                os.makedirs(os.path.join(base, folder), exist_ok=True)
+            return base
         except Exception as e:
-            print(f"⚠️ Project structure error: {e}")
+            print(f"Projektstruktur-Fehler: {e}")
             return None
     
     def _copy_files_to_customer_folder(self, files):
-        """Copy uploaded files to customer's input folder with date-specific structure"""
+        """Kopiert Dateien in den Kundenordner (datumsspezifische Struktur)."""
         try:
             if not self.current_customer:
                 return
-            
-            # ✅ NEUE DATUMSSPEZIFISCHE STRUKTUR
-            # Erst Projektstruktur sicherstellen (mit heutigem Datum)
             project_path = self._ensure_customer_project_structure(self.current_customer, use_date_folder=True)
-            
             if not project_path:
-                print("❌ Could not create project structure")
+                print("Struktur konnte nicht erstellt werden")
                 return
-                
-            # Input-Ordner im datumsspezifischen Pfad
-            input_folder = os.path.join(project_path, "01_Ausgangstext")
-            
-            os.makedirs(input_folder, exist_ok=True)
-            
-            copied_count = 0
-            for file_path in files:
-                try:
-                    file_name = os.path.basename(file_path)
-                    dest_path = os.path.join(input_folder, file_name)
-                    
-                    # Copy file
-                    with open(file_path, 'rb') as src, open(dest_path, 'wb') as dst:
-                        dst.write(src.read())
-                    
-                    copied_count += 1
-                    print(f"File copied: {file_name} -> {input_folder}")
-                    
-                except Exception as file_error:
-                    print(f"File copy error for {file_path}: {file_error}")
-            
-            if copied_count > 0:
-                print(f"{copied_count} files copied to {self.current_customer}'s folder")
-            
+            if hasattr(self, 'file_ops') and self.file_ops and hasattr(self.file_ops, 'copy_uploaded_files_to_project'):
+                copied_count = self.file_ops.copy_uploaded_files_to_project(project_path, files, "01_Ausgangstext")
+                if copied_count > 0:
+                    print(f"{copied_count} Dateien kopiert")
+            else:
+                input_folder = os.path.join(project_path, "01_Ausgangstext")
+                os.makedirs(input_folder, exist_ok=True)
+                copied_count = 0
+                for file_path in files:
+                    try:
+                        file_name = os.path.basename(file_path)
+                        dest_path = os.path.join(input_folder, file_name)
+                        with open(file_path, 'rb') as src, open(dest_path, 'wb') as dst:
+                            dst.write(src.read())
+                        copied_count += 1
+                    except Exception as file_error:
+                        print(f"Dateikopierfehler für {file_path}: {file_error}")
+                if copied_count > 0:
+                    print(f"{copied_count} Dateien kopiert")
         except Exception as e:
-            print(f"Customer file copy error: {e}")
+            print(f"Kunden-Dateikopie Fehler: {e}")
     
     def _open_customer_project_folder(self, customer_name=None, open_today=True):
-        """Open customer project folder in file explorer with date navigation"""
+        """Öffnet den Kundenordner (optional direkt heutigen Datumspfad)."""
         try:
             target_customer = customer_name or self.current_customer
             if not target_customer:
-                print("No customer selected")
+                print("Kein Kunde ausgewählt")
                 return
-            
-            customer_path = os.path.join(self.projects_base_path, target_customer)
-            
-            if not os.path.exists(customer_path):
-                print(f"Customer folder does not exist: {customer_path}")
-                return
-            
+            # Öffne mindestens den Kundenordner
+            base = (self.file_ops.sanitize_and_join(self.projects_base_path, target_customer)
+                    if hasattr(self, 'file_ops') and self.file_ops and hasattr(self.file_ops, 'sanitize_and_join')
+                    else os.path.join(self.projects_base_path, target_customer))
             if open_today:
-                # ✅ DATUMSSPEZIFISCHER ORDNER öffnen
+                from datetime import datetime
                 today = datetime.now().strftime("%Y-%m-%d")
-                today_path = os.path.join(customer_path, today)
-                
-                if os.path.exists(today_path):
-                    # Heutigen Ordner öffnen
-                    subprocess.Popen(['explorer', today_path])
-                    print(f"Opened today's folder: {target_customer}/{today}")
-                else:
-                    # Kunde-Hauptordner öffnen (zeigt alle Datum-Ordner)
-                    subprocess.Popen(['explorer', customer_path])
-                    print(f"Opened customer folder: {target_customer}")
+                try:
+                    if hasattr(self, 'file_ops') and self.file_ops and hasattr(self.file_ops, 'normalize_date_folder'):
+                        today = self.file_ops.normalize_date_folder(today)
+                except Exception:
+                    pass
+                today_path = os.path.join(base, today)
+                path_to_open = today_path if os.path.isdir(today_path) else base
             else:
-                # Kunde-Hauptordner öffnen
-                subprocess.Popen(['explorer', customer_path])
-                print(f"Opened customer folder: {target_customer}")
-                
+                path_to_open = base
+            if hasattr(self, 'file_ops') and self.file_ops:
+                # Use alias for clarity
+                if hasattr(self.file_ops, 'open_folder'):
+                    self.file_ops.open_folder(path_to_open)
+                else:
+                    self.file_ops.open_folder_in_explorer(path_to_open)
+            else:
+                subprocess.Popen(['explorer', path_to_open])
         except Exception as e:
-            print(f"Open folder error: {e}")
+            print(f"Ordner öffnen Fehler: {e}")
     
     def _get_customer_date_folders(self, customer_name):
         """Get list of date folders for a customer (sorted newest first)"""
         try:
-            customer_path = os.path.join(self.projects_base_path, customer_name)
+            customer_path = (self.file_ops.sanitize_and_join(self.projects_base_path, customer_name)
+                             if hasattr(self, 'file_ops') and self.file_ops and hasattr(self.file_ops, 'sanitize_and_join')
+                             else os.path.join(self.projects_base_path, customer_name))
             
             if not os.path.exists(customer_path):
                 return []
@@ -7606,14 +8459,7 @@ DATEIEN ({project['file_count']}):
             print(f"⚠️ Error getting date folders: {e}")
             return []
     
-    def _start_auto_save_timer(self):
-        """Start automatic save timer for app state"""
-        try:
-            # Auto-save every 30 seconds
-            self._auto_save()
-            self.master.after(30000, self._start_auto_save_timer)
-        except Exception as e:
-            print(f"⚠️ Auto-save timer error: {e}")
+    # (konsolidiert) doppelte _start_auto_save_timer entfernt – zentrale Implementierung weiter unten aktiv
     
     def _auto_save(self):
         """Automatically save current application state"""
@@ -7633,13 +8479,7 @@ DATEIEN ({project['file_count']}):
         except Exception as e:
             print(f"Auto-save error: {e}")
     
-    def _hide_toast(self, toast):
-        """Hide and destroy toast notification"""
-        try:
-            if toast.winfo_exists():
-                toast.destroy()
-        except Exception as e:
-            print(f"Toast hide error: {e}")
+    # (konsolidiert) einfache _hide_toast entfernt – benutze die verbesserte Variante mit Cleanup weiter unten
     
     # =============================================================================
     # 📊 STATISTICS & CONFIGURATION
@@ -7710,94 +8550,15 @@ DATEIEN ({project['file_count']}):
             except Exception:
                 pass
 
-    def _load_configuration(self):
-        """Load application configuration"""
-        try:
-            if os.path.exists(self.config_file):
-                with open(self.config_file, 'r', encoding='utf-8') as f:
-                    config = json.load(f)
-                    self.projects_base_path = config.get('projects_base_path', 'Checker_Projekte')
-            else:
-                self.projects_base_path = 'Checker_Projekte'
-                self._save_configuration()
-                
-        except Exception as e:
-            print(f"Configuration load error: {e}")
-            self.projects_base_path = 'Checker_Projekte'
+    # Entfernt: ältere _load_configuration/_save_configuration Implementation (konsolidierte Version weiter unten aktiv)
     
-    def _save_configuration(self):
-        """Save application configuration"""
-        try:
-            config = {
-                'projects_base_path': self.projects_base_path,
-                'version': '2.1',
-                'last_updated': datetime.now().isoformat()
-            }
-            
-            with open(self.config_file, 'w', encoding='utf-8') as f:
-                json.dump(config, f, indent=2)
-                
-        except Exception as e:
-            print(f"Configuration save error: {e}")
-    
-    def _load_statistics(self):
-        """Load application statistics"""
-        try:
-            stats_file = "app_statistics.json"
-            if os.path.exists(stats_file):
-                with open(stats_file, 'r', encoding='utf-8') as f:
-                    self.stats_data = json.load(f)
-            else:
-                self.stats_data = {
-                    'documents_today': 0,
-                    'checks_today': 0,
-                    'projects_today': 0,
-                    'success_rate': 98.5
-                }
-                
-        except Exception as e:
-            print(f"Statistics load error: {e}")
-            self.stats_data = {
-                'documents_today': 0,
-                'checks_today': 0,
-                'projects_today': 0,
-                'success_rate': 98.5
-            }
-    
-    def _save_statistics(self):
-        """Save application statistics"""
-        try:
-            stats_file = "app_statistics.json"
-            with open(stats_file, 'w', encoding='utf-8') as f:
-                json.dump(self.stats_data, f, indent=2)
-                
-        except Exception as e:
-            print(f"Statistics save error: {e}")
-    
-    def _update_statistics_display(self):
-        """Update statistics display in dashboard"""
-        try:
-            # This would update the metric cards in the dashboard
-            # The actual implementation depends on how metrics are displayed
-            pass
-        except Exception as e:
-            print(f"Statistics display update error: {e}")
+    # (entfernt) Ältere app_statistics.json-Variante – konsolidiert unten auf statistics.json
     
     # =============================================================================
     # 🚀 ADDITIONAL HELPER METHODS
     # =============================================================================
     
-    def _load_recent_projects(self):
-        """Load recent projects data"""
-        try:
-            if os.path.exists(self.recent_projects_file):
-                with open(self.recent_projects_file, 'r', encoding='utf-8') as f:
-                    self.recent_projects = json.load(f)
-            else:
-                self.recent_projects = []
-        except Exception as e:
-            print(f"Recent projects load error: {e}")
-            self.recent_projects = []
+    # (konsolidiert) doppelte _load_recent_projects entfernt – benutze die spätere Variante mit Log-Ausgabe
     
     def _setup_keyboard_shortcuts(self):
         """Setup keyboard shortcuts for common actions"""
@@ -7841,6 +8602,91 @@ DATEIEN ({project['file_count']}):
         except Exception as e:
             print(f"Hover effects setup error: {e}")
     
+    def _load_statistics(self):
+        """Lade gespeicherte Statistiken (konsolidierte statistics.json-Variante)"""
+        try:
+            stats_file = "statistics.json"
+            if os.path.exists(stats_file):
+                with open(stats_file, 'r', encoding='utf-8') as f:
+                    self.stats_data = json.load(f)
+            else:
+                # Default-Statistiken initialisieren
+                self.stats_data = {
+                    'documents_today': self.stats_data.get('documents_today', 0),
+                    'checks_today': self.stats_data.get('checks_today', 0),
+                    'projects_today': len(self.customers_data) if hasattr(self, 'customers_data') else 0,
+                    'success_rate': float(self.stats_data.get('success_rate', 95.5))
+                }
+            # Erste Anzeige aktualisieren, falls UI-Labels vorhanden
+            self._update_statistics_display()
+        except Exception as e:
+            print(f"Statistics loading error: {e}")
+            self.stats_data = {'documents_today': 0, 'checks_today': 0, 'projects_today': 0, 'success_rate': 0.0}
+    
+    def _save_statistics(self):
+        """Speichere aktuelle Statistiken in statistics.json"""
+        try:
+            stats_file = "statistics.json"
+            with open(stats_file, 'w', encoding='utf-8') as f:
+                json.dump(self.stats_data, f, ensure_ascii=False, indent=4)
+        except Exception as e:
+            print(f"Statistics save error: {e}")
+    
+    def _update_statistics_display(self):
+        """Aktualisiert die Statistik-Anzeige, falls UI-Elemente existieren"""
+        try:
+            # Optionales UI Dictionary mit einzelnen Labels
+            if hasattr(self, 'stats_labels') and isinstance(self.stats_labels, dict):
+                # Dokumente
+                if 'documents' in self.stats_labels:
+                    try:
+                        self.stats_labels['documents'].configure(
+                            text=f"Documents: {int(self.stats_data.get('documents_today', 0))}"
+                        )
+                    except Exception:
+                        pass
+                # Checks
+                if 'checks' in self.stats_labels:
+                    try:
+                        self.stats_labels['checks'].configure(
+                            text=f"Checks: {int(self.stats_data.get('checks_today', 0))}"
+                        )
+                    except Exception:
+                        pass
+                # Projekte
+                if 'projects' in self.stats_labels:
+                    try:
+                        self.stats_labels['projects'].configure(
+                            text=f"Projekte: {int(self.stats_data.get('projects_today', 0))}"
+                        )
+                    except Exception:
+                        pass
+                # Erfolgsquote (mit Farbcodierung)
+                if 'success_rate' in self.stats_labels:
+                    try:
+                        sr = float(self.stats_data.get('success_rate', 0.0))
+                        color = (
+                            self.get_color('success_500') if sr >= 90 else
+                            self.get_color('warning_500') if sr >= 70 else
+                            self.get_color('error_500')
+                        )
+                        self.stats_labels['success_rate'].configure(
+                            text=f"Erfolgsquote: {sr:.1f}%",
+                            text_color=color
+                        )
+                    except Exception:
+                        pass
+            # Fallback: Falls es nur ein zusammengefasstes Label gibt
+            elif hasattr(self, 'stats_label') and self.stats_label is not None:
+                try:
+                    self.stats_label.configure(
+                        text=f"Files: {int(self.stats_data.get('documents_today', 0))} | Processed: {int(self.stats_data.get('checks_today', 0))}"
+                    )
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"Statistics display update error: {e}")
+    
     def _start_statistics_updater(self):
         """Start periodic statistics updates"""
         try:
@@ -7854,50 +8700,7 @@ DATEIEN ({project['file_count']}):
     # 🎨 LOGO & UI COMPONENTS
     # =============================================================================
     
-    def _create_logo_label(self, parent, height=40, padx=(0, 0)):
-        """Create logo label with proper error handling"""
-        try:
-            if os.path.exists(self.logo_path):
-                # Load and resize logo
-                from PIL import Image
-                
-                logo_image = Image.open(self.logo_path)
-                # Maintain aspect ratio
-                aspect_ratio = logo_image.width / logo_image.height
-                width = int(height * aspect_ratio)
-                
-                logo_image = logo_image.resize((width, height), Image.Resampling.LANCZOS)
-                logo_ctk = ctk.CTkImage(light_image=logo_image, size=(width, height))
-                
-                logo_label = ctk.CTkLabel(parent, 
-                                        image=logo_ctk,
-                                        text="",
-                                        width=width,
-                                        height=height)
-                logo_label.pack(side="left", padx=padx)
-                
-                print(f"Logo loaded successfully ({width}x{height})")
-                return logo_label
-            else:
-                # Fallback text logo (No-Icons-Policy)
-                logo_label = ctk.CTkLabel(parent,
-                                        text="Checker",
-                                        font=ctk.CTkFont(*self.get_font('body_md')),
-                                        width=height,
-                                        height=height)
-                logo_label.pack(side="left", padx=padx)
-                print("Logo file not found, using text fallback")
-                return logo_label
-                
-        except Exception as e:
-            print(f"Logo creation error: {e}")
-            # Ultimate fallback
-            logo_label = ctk.CTkLabel(parent,
-                                    text="Checker",
-                                    font=ctk.CTkFont(*self.get_typography('body')),  # Korrekte Verwendung der get_typography Methode
-                                    text_color=self.get_color('primary'))
-            logo_label.pack(side="left", padx=padx)
-            return logo_label
+    # (entfernt) Ältere Logo-Label-Variante – konsolidiert mit Caching-Version unten
             
 
     # =============================================================================
@@ -7905,10 +8708,10 @@ DATEIEN ({project['file_count']}):
     # =============================================================================
     
     def _select_files(self):
-        """Select files with enhanced customer integration and progress tracking"""
+        """Select files with enhanced customer integration and real-time async progress."""
         try:
             self._show_enhanced_toast("Öffne Dateibrowser...", "info", 2000)
-            
+
             files = filedialog.askopenfilenames(
                 title="Dateien für Qualitätsprüfung auswählen",
                 filetypes=[
@@ -7920,46 +8723,156 @@ DATEIEN ({project['file_count']}):
                     ("All files", "*.*")
                 ]
             )
-            
-            if files:
-                # Show progress
-                self._show_file_upload_progress(len(files))
-                
-                self.uploaded_files = list(files)
+
+            if not files:
+                self._show_enhanced_toast("Keine Dateien ausgewählt", "neutral", 2000)
+                return
+
+            self.uploaded_files = list(files)
+            if hasattr(self, 'file_status'):
                 self.file_status.configure(
                     text=f"{len(files)} Dateien ausgewählt",
                     text_color=self.get_color('success')
                 )
-                
-                # Show clear button when files are selected
+            if hasattr(self, 'clear_files_btn'):
                 self.clear_files_btn.pack(pady=(5, 0))
-                
-                # � UPDATE STATISTICS
-                self._increment_stat('documents_today', len(files))
-                
-                # �🔥 SOFORTIGE KUNDENZUORDNUNG
-                if self.current_customer:
-                    self._copy_files_to_customer_folder(files)
-                    self._show_enhanced_toast(
-                        f"{len(files)} files added to {self.current_customer}'s folder!", 
-                        "success", 
-                        4000,
-                        "View Folder",
-                        lambda: self._open_customer_folder()
-                    )
-                else:
-                    self._show_enhanced_toast(
-                        f"{len(files)} Dateien ausgewählt - Bitte wählen Sie einen Kunden zum Organisieren der Dateien", 
-                        "warning",
-                        4000,
-                        "Kunde hinzufügen",
-                        lambda: self.customer_entry.focus_set()
-                    )
-                    
-                print(f"Files selected with enhancements: {len(files)}")
-            else:
-                self._show_enhanced_toast("Keine Dateien ausgewählt", "info", 2000)
-                
+            try:
+                self._refresh_upload_empty_state()
+            except Exception:
+                pass
+
+            # Update stats immediately
+            self._increment_stat('documents_today', len(files))
+
+            # If a customer is set, copy immediately with real async progress
+            if self.current_customer:
+                project_path = self._ensure_customer_project_structure(self.current_customer)
+                if project_path:
+                    try:
+                        input_folder = os.path.join(project_path, "01_Ausgangstext")
+                        os.makedirs(input_folder, exist_ok=True)
+
+                        # Progress UI: ensure bar is visible
+                        if hasattr(self, 'progress_bar') and self.progress_bar:
+                            try:
+                                self.progress_bar.set(0)
+                            except Exception:
+                                pass
+
+                        # Define lightweight callbacks mapped to welcome screen UI
+                        def _progress_cb(current_file, completed, total, percentage):
+                            try:
+                                # percentage is 0..100
+                                pct = max(0.0, min(1.0, (percentage or 0) / 100.0))
+                                if hasattr(self, 'progress_bar') and self.progress_bar:
+                                    self.progress_bar.set(pct)
+                                if hasattr(self, 'progress_percentage') and self.progress_percentage:
+                                    try:
+                                        self.progress_percentage.configure(text=f"{int(pct*100)}%")
+                                    except Exception:
+                                        pass
+                                if hasattr(self, 'transfer_info_label'):
+                                    try:
+                                        self.transfer_info_label.configure(text=f"{completed}/{total}")
+                                    except Exception:
+                                        pass
+                                if hasattr(self, 'file_status') and current_file:
+                                    self.file_status.configure(text=f"Kopiere {completed}/{total} · {os.path.basename(current_file)}")
+                            except Exception:
+                                pass
+
+                        def _completion_cb(success_files, failed_files):
+                            try:
+                                success_count = len(success_files)
+                                failed_count = len(failed_files)
+                                if hasattr(self, 'progress_bar'):
+                                    try:
+                                        self.progress_bar.set(1.0)
+                                        if hasattr(self, 'progress_percentage'):
+                                            self.progress_percentage.configure(text="100%")
+                                    except Exception:
+                                        pass
+                                # Disable cancel after completion
+                                try:
+                                    self._disable_cancel()
+                                except Exception:
+                                    pass
+                                if failed_count == 0:
+                                    self._show_enhanced_toast(
+                                        f"{success_count} Datei(en) ins Projekt kopiert",
+                                        "success",
+                                        3500,
+                                        "Ordner öffnen",
+                                        lambda: self._open_customer_folder()
+                                    )
+                                else:
+                                    self._show_enhanced_toast(
+                                        f"{success_count} kopiert, {failed_count} fehlgeschlagen",
+                                        "warning",
+                                        5000
+                                    )
+                            except Exception:
+                                pass
+
+                        def _error_cb(msg):
+                            try:
+                                self._show_enhanced_toast(f"Upload-Fehler: {msg}", "error", 5000)
+                                try:
+                                    self._disable_cancel()
+                                except Exception:
+                                    pass
+                            except Exception:
+                                pass
+
+                        # Start async copy
+                        def _telemetry_cb(current_file, bytes_done, bytes_total, speed_bps, eta_sec):
+                            try:
+                                # Human-readable speed & ETA
+                                def _fmt_bytes(b):
+                                    for unit in ['B','KB','MB','GB','TB']:
+                                        if b < 1024.0:
+                                            return f"{b:.1f}{unit}"
+                                        b /= 1024.0
+                                    return f"{b:.1f}PB"
+                                def _fmt_eta(s):
+                                    if s == float('inf') or s > 86400:
+                                        return "--:--"
+                                    m, s = divmod(int(s), 60)
+                                    h, m = divmod(m, 60)
+                                    return f"{h:02d}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
+                                if hasattr(self, 'transfer_info_label') and self.transfer_info_label:
+                                    self.transfer_info_label.configure(text=f"{_fmt_bytes(bytes_done)}/{_fmt_bytes(bytes_total)} • {_fmt_bytes(speed_bps)}/s • ETA {_fmt_eta(eta_sec)}")
+                            except Exception:
+                                pass
+                        task_id2 = copy_files_async(
+                            file_list=self.uploaded_files,
+                            destination_folder=input_folder,
+                            progress_callback=_progress_cb,
+                            completion_callback=_completion_cb,
+                            error_callback=_error_cb,
+                            ui_master=self.master,
+                            telemetry_callback=_telemetry_cb
+                        )
+                        try:
+                            self._enable_cancel(task_id2)
+                        except Exception:
+                            pass
+                    except Exception as copy_err:
+                        print(f"Copy start error: {copy_err}")
+                        # Fallback: show simple simulated finish
+                        self._show_enhanced_toast("Kopieren konnte nicht gestartet werden", "error", 4000)
+                return
+
+            # No customer yet: keep files and prompt to add/select customer
+            self._show_enhanced_toast(
+                f"{len(files)} Dateien ausgewählt - Bitte wählen Sie einen Kunden zum Organisieren der Dateien",
+                "neutral",
+                4000,
+                "Kunde hinzufügen",
+                lambda: self.customer_entry.focus_set()
+            )
+
+            print(f"Files selected with enhancements: {len(files)}")
         except Exception as e:
             print(f"❌ File selection error: {e}")
             self._show_enhanced_toast("File selection error", "error", 3000)
@@ -7970,57 +8883,33 @@ DATEIEN ({project['file_count']}):
             self.uploaded_files = []
             self.file_status.configure(text="0 files selected")
             self.clear_files_btn.pack_forget()  # Hide clear button
-            self._show_toast("Dateiliste geleert", "info")
+            self._show_enhanced_toast("Dateiliste geleert", "info")
+            try:
+                self._refresh_upload_empty_state()
+            except Exception:
+                pass
             print("Files cleared")
         except Exception as e:
             print(f"❌ Clear files error: {e}")
     
     def _clear_customer_selection(self):
-        """Clear customer selection for new customer workflow"""
+        """Clear customer selection for new customer workflow (konsolidiert)."""
         try:
-            self.current_customer = None
-            self.current_customer_label.configure(
-                text="No customer selected",
-                text_color=self.get_color('anthracite_600')
-            )
-            self.customer_entry.delete(0, 'end')
-            self.customer_entry.focus_set()  # Focus on entry for new input
-            
-            # Update dropdown to show all customers
-            self._update_customer_dropdown()
-            
-            self._show_toast("Ready for new customer", "info")
+            self._reset_customer_state(with_files=False)
+            self._show_enhanced_toast("Ready for new customer", "info")
             print("🔄 Customer selection cleared - ready for new customer")
         except Exception as e:
             print(f"❌ Clear customer error: {e}")
     
     def _clear_all_data(self):
-        """Clear all data for complete fresh start"""
+        """Clear all data for complete fresh start (konsolidiert)."""
         try:
-            # Clear customer
-            self.current_customer = None
-            self.current_customer_label.configure(
-                text="No customer selected", 
-                text_color=self.get_color('anthracite_600')
-            )
-            self.customer_entry.delete(0, 'end')
-            
-            # Clear files
-            self.uploaded_files = []
-            self.file_status.configure(text="0 files selected")
-            self.clear_files_btn.pack_forget()
-            
-            # Update dropdown
-            self._update_customer_dropdown()
-            
-            # Focus on customer entry for new workflow
-            self.customer_entry.focus_set()
-            
-            self._show_toast("Kompletter Reset – bereit für ein neues Projekt", "success")
+            self._reset_customer_state(with_files=True)
+            self._show_enhanced_toast("Kompletter Reset – bereit für ein neues Projekt", "success")
             print("Complete data cleared - fresh start")
         except Exception as e:
             print(f"❌ Clear all error: {e}")
-            self._show_toast("Error clearing data", "error")
+            self._show_enhanced_toast("Error clearing data", "error")
     
     def _start_quality_check(self):
         """Enhanced quality check with project management and progress tracking"""
@@ -8152,6 +9041,7 @@ DATEIEN ({project['file_count']}):
                 with open(self.config_file, 'r', encoding='utf-8') as f:
                     config = json.load(f)
                     self.projects_base_path = config.get('projects_base_path', 'Checker_Projekte')
+                    self.typography_scale = config.get('typography_scale', getattr(self, 'typography_scale', 0))
                     print(f"Konfiguration geladen: {self.projects_base_path}")
             else:
                 self._create_default_configuration()
@@ -8163,6 +9053,7 @@ DATEIEN ({project['file_count']}):
         """Erstelle Standard-Konfiguration"""
         default_config = {
             'projects_base_path': 'Checker_Projekte',
+            'typography_scale': getattr(self, 'typography_scale', 0),
             'last_updated': datetime.now().isoformat()
         }
         self._save_configuration_data(default_config)
@@ -8172,6 +9063,7 @@ DATEIEN ({project['file_count']}):
         try:
             config = {
                 'projects_base_path': self.projects_base_path,
+                'typography_scale': int(self._get_typography_scale()),
                 'last_updated': datetime.now().isoformat()
             }
             self._save_configuration_data(config)
@@ -8226,6 +9118,15 @@ DATEIEN ({project['file_count']}):
     def _load_recent_projects(self):
         """Lade kürzliche Projekte"""
         try:
+            # Delegiere an zentrales Utils-Modul, falls vorhanden
+            try:
+                if hasattr(self, 'utils_module') and self.utils_module:
+                    # None übergeben, damit Repo genutzt wird, falls vorhanden (Fallback auf Datei intern)
+                    self.recent_projects = self.utils_module.recent_projects_load(None)
+                    return
+            except Exception:
+                pass
+            # Fallback: lokale Implementierung
             if os.path.exists(self.recent_projects_file):
                 with open(self.recent_projects_file, 'r', encoding='utf-8') as f:
                     self.recent_projects = json.load(f)
@@ -8237,6 +9138,16 @@ DATEIEN ({project['file_count']}):
     def _save_recent_projects(self):
         """Speichere kürzliche Projekte"""
         try:
+            # Delegiere an zentrales Utils-Modul, falls vorhanden
+            try:
+                if hasattr(self, 'utils_module') and self.utils_module:
+                    # None übergeben, damit Repo genutzt wird, falls vorhanden (Fallback auf Datei intern)
+                    saved = self.utils_module.recent_projects_save(None, self.recent_projects)
+                    if saved:
+                        return
+            except Exception:
+                pass
+            # Fallback: lokale Implementierung
             with open(self.recent_projects_file, 'w', encoding='utf-8') as f:
                 json.dump(self.recent_projects, f, ensure_ascii=False, indent=4)
         except Exception as e:
@@ -8254,76 +9165,98 @@ DATEIEN ({project['file_count']}):
             print("✅ Toast-System initialisiert")
         except Exception as e:
             print(f"⚠️ Toast-System Setup Fehler: {e}")
+
+    # Kompatibilitäts-Alias: Einige Aufrufer rufen toast_show() direkt auf
+    def toast_show(self, message: str, toast_type: str = "info", duration: int = 3000) -> None:
+        try:
+            # Versuche neue, einheitliche API zuerst
+            enum_val = None
+            try:
+                enum_val = getattr(self.ToastType, (toast_type or "info").upper(), None)
+            except Exception:
+                enum_val = None
+            if enum_val is None:
+                return self._show_toast(message, toast_type, duration)
+            return self.toast(message, enum_val, duration)
+        except Exception:
+            # Fallback auf bisherigen lokalen Renderer
+            try:
+                return self._show_toast(message, toast_type, duration)
+            except Exception:
+                try:
+                    print(f"Toast: {message}")
+                except Exception:
+                    pass
+                return None
     
     def _show_toast(self, message, toast_type="info", duration=3000):
-        """Zeige Toast-Benachrichtigung"""
+        """Zeige Toast-Benachrichtigung (inkl. 'neutral') – delegiert an zentrale API, mit lokalem Fallback."""
+        # 1) Bevorzugt zentrale Alias-API verwenden
+        try:
+            if hasattr(self, 'toast_show') and callable(getattr(self, 'toast_show')):
+                return self.toast_show(message, toast_type, duration)
+        except Exception:
+            pass
+        try:
+            if hasattr(self, 'utils_module') and self.utils_module and hasattr(self.utils_module, 'toast_show'):
+                return self.utils_module.toast_show(message, toast_type, duration)
+        except Exception:
+            pass
+
+        # 2) Lokaler Fallback (bestehende Implementierung)
         try:
             if not hasattr(self, 'toast_container') or not self.toast_container:
                 return
-            
-            # Toast Farben
+
             colors = {
                 "success": (self.get_color('success_500'), self.get_color('success_light')),
-                "error": (self.get_color('error_500'), self.get_color('error_light')), 
+                "error": (self.get_color('error_500'), self.get_color('error_light')),
                 "warning": (self.get_color('warning_500'), self.get_color('warning_light')),
-                "info": (self.get_color('info'), self.get_color('info_light'))
+                "info": (self.get_color('info'), self.get_color('info_light')),
+                "neutral": (self.get_color('gray_600'), self.get_color('gray_300')),
             }
-            
             bg_color, text_bg = colors.get(toast_type, colors["info"])
-            
-            # Toast Frame
-            toast = ctk.CTkFrame(self.toast_container,
-                               fg_color=bg_color,
-                               corner_radius=self.get_component_value('borders.radius_xl'),
-                               border_width=2,
-                               border_color=text_bg)
-            
-            # Toast Content
+
+            toast = ctk.CTkFrame(
+                self.toast_container,
+                fg_color=bg_color,
+                corner_radius=self.get_component_value('borders.radius_xl'),
+                border_width=2,
+                border_color=text_bg,
+            )
             content_frame = ctk.CTkFrame(toast, fg_color="transparent")
             content_frame.pack(padx=15, pady=10)
-            
-            # Message
-            msg_label = ctk.CTkLabel(content_frame,
-                                   text=message,
-                                   font=ctk.CTkFont(*self.get_typography("body_bold")),
-                                   text_color="white")
+
+            msg_label = ctk.CTkLabel(
+                content_frame,
+                text=message,
+                font=self.get_font('body_bold'),
+                text_color="white",
+            )
             msg_label.pack(side="left")
-            
-            # Position Toast
+
             self.toast_container.place(relx=0.98, rely=0.02, anchor="ne")
             toast.pack(pady=5)
-            
-            # Auto-Hide Toast
             self.master.after(duration, lambda: self._hide_toast(toast))
-            
             print(f"Toast: {message}")
-            
         except Exception as e:
             print(f"⚠️ Toast-Fehler: {e}")
     
     def _hide_toast(self, toast):
-        """Verstecke Toast mit verbesserter Cleanup-Logik"""
+        """Verstecke Toast mit Cleanup – delegiert an Utils wenn verfügbar."""
         try:
+            # Delegation an Utils (zentral)
+            try:
+                if hasattr(self, 'utils_module') and self.utils_module and hasattr(self.utils_module, 'hide_toast_widget'):
+                    container = getattr(self, 'toast_container', None)
+                    self.utils_module.hide_toast_widget(toast, container)
+                    return
+            except Exception:
+                pass
+            # Fallback: sofort zerstören und Container bereinigen
             if toast and toast.winfo_exists():
-                # Fade-out Animation
-                current_alpha = 1.0
-                def fade_out():
-                    nonlocal current_alpha
-                    current_alpha -= 0.1
-                    if current_alpha <= 0:
-                        # Cleanup: Entferne Toast vollständig
-                        toast.destroy()
-                        # Prüfe ob Container leer ist und verstecke ihn
-                        self._cleanup_toast_container()
-                    else:
-                        # Reduziere Opacity (falls unterstützt)
-                        try:
-                            toast.configure(fg_color=self._adjust_color_alpha(toast.cget("fg_color"), current_alpha))
-                        except:
-                            pass
-                        self.master.after(50, fade_out)
-                
-                fade_out()
+                toast.destroy()
+                self._cleanup_toast_container()
         except Exception as e:
             print(f"⚠️ Toast-Hide Fehler: {e}")
     
@@ -8350,14 +9283,30 @@ DATEIEN ({project['file_count']}):
             return color
     
     def _start_auto_save_timer(self):
-        """Starte Auto-Save Timer"""
+        """Starte Auto-Save Timer (zentral via Utils, Fallback lokal) mit Debounce (5–10s)."""
         try:
-            if hasattr(self, 'auto_save_job') and self.auto_save_job:
-                self.master.after_cancel(self.auto_save_job)
-            
-            # Auto-Save alle 5 Minuten (300 Sekunden)
-            self.auto_save_job = self.master.after(300000, self._auto_save_data)
-            print("✅ Auto-Save Timer gestartet (5 Min)")
+            # Debounce: wenn bereits ein Job geplant ist, zunächst abbrechen und kurz warten
+            try:
+                if hasattr(self, 'auto_save_job') and self.auto_save_job:
+                    self.master.after_cancel(self.auto_save_job)
+                    self.auto_save_job = None
+            except Exception:
+                pass
+
+            # Bevorzugt: Utils nutzen für konfigurierbares Intervall
+            try:
+                if hasattr(self, 'utils_module') and self.utils_module and hasattr(self.utils_module, 'auto_save_start'):
+                    # Kurzer Debounce von 7s, damit häufige Eingaben/Batch-Kopie nicht dauernd speichern
+                    job_id = self.utils_module.auto_save_start(callback=self._auto_save_data, interval_ms=7000)
+                    # Für lokale Kompatibilität zusätzlich in self.auto_save_job spiegeln
+                    if job_id:
+                        self.auto_save_job = job_id
+                        return
+            except Exception:
+                pass
+            # Fallback: kurzer Debounce (7s), danach regulärer 5-Minuten-Zyklus in _auto_save_data
+            self.auto_save_job = self.master.after(7000, self._auto_save_data)
+            print("✅ Auto-Save (debounced 7s) geplant")
         except Exception as e:
             print(f"⚠️ Auto-Save Timer Fehler: {e}")
     
@@ -8375,61 +9324,29 @@ DATEIEN ({project['file_count']}):
             self._save_configuration()
             
             # Nächsten Auto-Save planen
-            self._start_auto_save_timer()
+            # Nach dem kurzen Debounce wieder in den längeren Takt übergehen (5 Min), sofern Utils keine eigene Planung übernimmt
+            try:
+                if hasattr(self, 'utils_module') and self.utils_module and hasattr(self.utils_module, 'auto_save_start'):
+                    # Utils übernimmt eigenen Zyklus; hier nichts weiter tun
+                    pass
+                else:
+                    # Fallback 5 Minuten
+                    if hasattr(self, 'auto_save_job') and self.auto_save_job:
+                        self.master.after_cancel(self.auto_save_job)
+                    self.auto_save_job = self.master.after(300000, self._auto_save_data)
+            except Exception:
+                # Minimaler Fallback: 5 Minuten neu planen
+                try:
+                    self.auto_save_job = self.master.after(300000, self._auto_save_data)
+                except Exception:
+                    pass
             
             print("💾 Auto-Save ausgeführt (alle 5 Min)")
             
         except Exception as e:
             print(f"⚠️ Auto-Save Fehler: {e}")
     
-    def _copy_uploaded_files_to_project(self, project_path, files):
-        """Kopiere hochgeladene Dateien in Projektordner - ASYNC VERSION"""
-        try:
-            target_folder = os.path.join(project_path, "01_Ausgangstext")
-            
-            # 🚀 ASYNC FILE COPY - Verhindert UI-Blockierung
-            def progress_callback(current_file, completed, total, percentage):
-                """Update progress during async project copy"""
-                print(f"📄 Kopiere in Projekt: {current_file} ({completed}/{total})")
-            
-            def completion_callback(success_files, failed_files):
-                """Handle completion of async project copy"""
-                success_count = len(success_files)
-                failed_count = len(failed_files)
-                
-                if failed_count == 0:
-                    print(f"✅ {success_count} Dateien erfolgreich in Projekt kopiert")
-                    self._show_enhanced_toast(f"{success_count} Dateien in Projekt kopiert", "success")
-                else:
-                    print(f"⚠️ Projekt-Kopie teilweise erfolgreich: {success_count} erfolgreich, {failed_count} fehlgeschlagen")
-                    self._show_enhanced_toast(f"Projekt-Kopie: {success_count} erfolgreich, {failed_count} fehlgeschlagen", "warning")
-            
-            def error_callback(error_message):
-                """Handle async project copy errors"""
-                print(f"❌ Async Projekt-Kopie Fehler: {error_message}")
-                self._show_enhanced_toast(f"Projekt-Kopie fehlgeschlagen: {error_message}", "error")
-            
-            # Filter existing files
-            existing_files = [f for f in files if os.path.exists(f)]
-            
-            if existing_files:
-                # Start async file copy (non-blocking)
-                task_id = copy_files_async(
-                    file_list=existing_files,
-                    destination_folder=target_folder,
-                    progress_callback=progress_callback,
-                    completion_callback=completion_callback,
-                    error_callback=error_callback,
-                    ui_master=self.master
-                )
-                
-                print(f"� Async Projekt-Kopie gestartet - Task ID: {task_id}")
-            else:
-                print("⚠️ Keine gültigen Dateien zum Kopieren gefunden")
-            
-        except Exception as e:
-            print(f"⚠️ Projekt-Kopie Setup Fehler: {e}")
-            self._show_enhanced_toast(f"Projekt-Kopie Fehler: {e}", "error")
+    # (entfernt) Frühere Async-Kopie-Variante – konsolidiert über FileOperations.copy_uploaded_files_to_project
     
     def _reset_main_cta(self):
         """Reset Main CTA Button"""
@@ -8514,23 +9431,25 @@ DATEIEN ({project['file_count']}):
     # 🔧 ADVANCED CUSTOMER MANAGEMENT METHODS
     # =============================================================================
     
-    def _select_existing_customer(self, customer_name):
-        """Select existing customer with automatic file organization"""
+    def _select_existing_customer(self, customer_name, dialog=None):
+        """Select existing customer with automatic file organization (vereinheitlicht)."""
         try:
             if customer_name and customer_name != "No customers yet":
-                self.current_customer = customer_name
-                self.current_customer_label.configure(
-                    text=f"Current: {customer_name}",
-                    text_color="white"
-                )
-                
-                # 🔥 REORGANIZE FILES IF ALREADY UPLOADED
-                if self.uploaded_files:
-                    self._copy_files_to_customer_folder(self.uploaded_files)
-                    self._show_toast(f"Files organized for customer: {customer_name}", "success")
+                # Zentrale Auswahl + UI
+                self._on_customer_select(customer_name)
+                # Bereits hochgeladene Dateien direkt kopieren
+                if getattr(self, 'uploaded_files', None):
+                    project_path = self._ensure_customer_project_structure(customer_name)
+                    if project_path:
+                        copied = self._copy_uploaded_files_to_project(project_path, self.uploaded_files)
+                        self._show_enhanced_toast(f"{copied} Datei(en) organisiert für: {customer_name}", "success")
                 else:
-                    self._show_toast(f"Customer '{customer_name}' selected", "success")
-                
+                    self._show_enhanced_toast(f"Customer '{customer_name}' selected", "success")
+                if dialog:
+                    try:
+                        dialog.destroy()
+                    except Exception:
+                        pass
                 print(f"✅ Selected existing customer: {customer_name}")
         except Exception as e:
             print(f"⚠️ Customer selection error: {e}")
@@ -8539,7 +9458,7 @@ DATEIEN ({project['file_count']}):
         """Show dialog with all customers"""
         try:
             if not self.customers_data:
-                self._show_toast("No customers found", "info")
+                self._show_enhanced_toast("No customers found", "info")
                 return
                 
             # Create customer management dialog
@@ -8570,6 +9489,7 @@ DATEIEN ({project['file_count']}):
                                     text="Schließen",
                                     fg_color=self.get_color('primary'),
                                     hover_color=self.get_color('primary_hover'),
+                                    text_color=self.get_color('white'),
                                     command=dialog.destroy)
             close_btn.pack(pady=10)
             
@@ -8578,7 +9498,7 @@ DATEIEN ({project['file_count']}):
             
         except Exception as e:
             print(f"⚠️ Show customers error: {e}")
-            self._show_toast("Error showing customers", "error")
+            self._show_enhanced_toast("Error showing customers", "error")
     
     def _create_customer_card(self, parent, customer, index):
         """Create card for individual customer"""
@@ -8596,7 +9516,7 @@ DATEIEN ({project['file_count']}):
             # Customer name
             name_label = ctk.CTkLabel(content,
                                     text=customer['name'],
-                                    font=ctk.CTkFont(*self.get_typography("label_bold")),
+                                    font=ctk.CTkFont(*self.get_typography("body_bold")),
                                     text_color=self.get_color('anthracite_800'))
             name_label.pack(side="left")
             
@@ -8621,7 +9541,7 @@ DATEIEN ({project['file_count']}):
                 text=f"Current: {customer_name}",
                 text_color="white"
             )
-            self._show_toast(f"Customer '{customer_name}' selected", "success")
+            self._show_enhanced_toast(f"Customer '{customer_name}' selected", "success")
             
             # Close any open dialogs
             for widget in self.master.winfo_children():
@@ -8637,7 +9557,7 @@ DATEIEN ({project['file_count']}):
         """Show favorite customers dialog"""
         try:
             if not self.favorite_customers:
-                self._show_toast("No favorite customers yet", "info")
+                self._show_enhanced_toast("No favorite customers yet", "info")
                 return
                 
             # Create favorites dialog
@@ -8673,7 +9593,7 @@ DATEIEN ({project['file_count']}):
             
         except Exception as e:
             print(f"⚠️ Favorites error: {e}")
-            self._show_toast("Error showing favorites", "error")
+            self._show_enhanced_toast("Error showing favorites", "error")
     
     def _show_settings_dialog(self):
         """Show settings configuration dialog"""
@@ -8750,37 +9670,37 @@ DATEIEN ({project['file_count']}):
             if new_path and new_path.strip():
                 self.projects_base_path = new_path.strip()
                 self._save_configuration()
-                self._show_toast("Settings saved successfully", "success")
+                self._show_enhanced_toast("Settings saved successfully", "success")
             dialog.destroy()
         except Exception as e:
             print(f"Save settings error: {e}")
-            self._show_toast("Error saving settings", "error")
+            self._show_enhanced_toast("Error saving settings", "error")
     
     def _create_new_project(self):
         """Create new project with current customer"""
         try:
             if not self.current_customer:
-                self._show_toast("Please select a customer first", "warning")
+                self._show_enhanced_toast("Please select a customer first", "warning")
                 return
                 
             # Create project structure
             project_path = self._ensure_customer_project_structure(self.current_customer)
             
             if project_path:
-                self._show_toast(f"Project created for {self.current_customer}", "success")
+                self._show_enhanced_toast(f"Project created for {self.current_customer}", "success")
                 print(f"New project created: {project_path}")
             else:
-                self._show_toast("Error creating project", "error")
+                self.toast_show("Error creating project", "error")
                 
         except Exception as e:
             print(f"⚠️ Project creation error: {e}")
-            self._show_toast("Error creating project", "error")
+            self.toast_show("Error creating project", "error")
     
     def _show_recent_projects_dialog(self):
         """Show dialog with recent projects"""
         try:
             if not self.recent_projects:
-                self._show_toast("No recent projects yet", "info")
+                self.toast_show("No recent projects yet", "info")
                 return
                 
             dialog = ctk.CTkToplevel(self.master)
@@ -8825,32 +9745,32 @@ DATEIEN ({project['file_count']}):
             
         except Exception as e:
             print(f"⚠️ Recent projects error: {e}")
-            self._show_toast("Error showing recent projects", "error")
+            self.toast_show("Error showing recent projects", "error")
     
     # 🔍 MISSING METHODS FROM ORIGINAL - ADDITIONAL FUNCTIONALITY
     
     def _start_single_file_check(self):
         """Start single file quality check"""
-        self._show_toast("Einzeldatei-Prüfung wird gestartet...", "info")
+        self.toast_show("Einzeldatei-Prüfung wird gestartet...", "info")
         self._navigate_to_main_app("single_file")
     
     def _start_batch_processing(self):
         """Start batch processing workflow"""
-        self._show_toast("Batch-Verarbeitung wird gestartet...", "info")
+        self.toast_show("Batch-Verarbeitung wird gestartet...", "info")
         self._navigate_to_main_app("batch")
     
     def _upload_files(self):
         """Upload files workflow"""
         try:
-            self._show_toast("Opening file browser...", "info")
+            self.toast_show("Opening file browser...", "info")
             self._select_files()
             
             if self.uploaded_files:
                 self._navigate_to_main_app("upload")
-                self._show_toast(f"Navigating with {len(self.uploaded_files)} files", "success")
+                self.toast_show(f"Navigating with {len(self.uploaded_files)} files", "success")
         except Exception as e:
             print(f"Upload error: {e}")
-            self._show_toast("Upload error", "error")
+            self.toast_show("Upload error", "error")
     
     def _on_upload_hover(self, widget, entering):
         """Enhanced hover effect for upload area with premium feedback"""
@@ -8883,33 +9803,81 @@ DATEIEN ({project['file_count']}):
             print(f"Entry reset error: {e}")
     
     def _browse_project_path(self, dialog):
-        """Browse for project path"""
+        """Projektverzeichnis auswählen und übernehmen"""
         try:
             from tkinter import filedialog
-            new_path = filedialog.askdirectory(title="Select Projects Directory")
+            initial = None
+            try:
+                initial = self.projects_base_path if getattr(self, 'projects_base_path', None) else None
+            except Exception:
+                initial = None
+            new_path = filedialog.askdirectory(title="Projektverzeichnis auswählen", initialdir=initial)
             if new_path:
                 self.projects_base_path = new_path
                 if hasattr(dialog, 'path_label'):
-                    dialog.path_label.configure(text=f"Path: {new_path}")
+                    dialog.path_label.configure(text=f"Pfad: {new_path}")
+                try:
+                    self._save_configuration()
+                except Exception:
+                    pass
+                if hasattr(self, '_show_enhanced_toast'):
+                    self._show_enhanced_toast("Projektpfad aktualisiert", "success", 2500)
+                elif hasattr(self, '_show_toast'):
+                    self.toast_show("Projektpfad aktualisiert", "success")
         except Exception as e:
             print(f"Browse path error: {e}")
     
     def _save_project_path(self, dialog):
         """Save project path configuration"""
         try:
+            # 1) Aus Dialog übernehmen, falls vorhanden
+            selected_path = None
+            try:
+                if hasattr(dialog, 'path_label') and dialog.path_label:
+                    txt = dialog.path_label.cget('text') or ''
+                    # Erwartetes Format: "Pfad: C:\..." – robust extrahieren
+                    lower = txt.lower()
+                    if lower.startswith('pfad:'):
+                        selected_path = txt.split(':', 1)[1].strip()
+                    else:
+                        selected_path = txt.strip()
+            except Exception:
+                selected_path = None
+
+            if selected_path and os.path.isdir(selected_path):
+                self.projects_base_path = selected_path
+
+            # 2) Verzeichnis sicherstellen
+            try:
+                os.makedirs(self.projects_base_path, exist_ok=True)
+            except Exception:
+                pass
+
+            # 3) Struktur für bestehende Kunden anlegen (best-effort)
+            try:
+                self._ensure_all_customers_structure()
+            except Exception:
+                pass
+
+            # 4) Konfiguration speichern + Feedback
             self._save_configuration()
-            self._show_toast("Project path saved!", "success")
+            if hasattr(self, '_show_enhanced_toast'):
+                self._show_enhanced_toast("Projektpfad gespeichert", "success", 2500)
+            else:
+                self.toast_show("Projektpfad gespeichert", "success")
             dialog.destroy()
         except Exception as e:
             print(f"Save path error: {e}")
-            self._show_toast("Error saving path", "error")
+            if hasattr(self, '_show_enhanced_toast'):
+                self._show_enhanced_toast("Fehler beim Speichern des Pfads", "error", 3000)
+            else:
+                self.toast_show("Fehler beim Speichern des Pfads", "error")
     
     def _select_favorite_customer(self, customer_name, dialog):
         """Select a customer from favorites dialog"""
         try:
-            self.current_customer = customer_name
-            self.current_customer_label.configure(text=f"Customer: {customer_name}")
-            self._show_toast(f"Selected favorite customer: {customer_name}", "success")
+            # Zentrale Selektion verwenden (inkl. UI/Struktur)
+            self._on_customer_select(customer_name)
             dialog.destroy()
         except Exception as e:
             print(f"Select favorite error: {e}")
@@ -8930,9 +9898,8 @@ DATEIEN ({project['file_count']}):
     def _select_customer_from_dialog(self, customer_name, dialog):
         """Select customer from dialog"""
         try:
-            self.current_customer = customer_name
-            self.current_customer_label.configure(text=f"Customer: {customer_name}")
-            self._show_toast(f"Selected customer: {customer_name}", "success")
+            # Zentrale Selektion verwenden (inkl. UI/Struktur)
+            self._on_customer_select(customer_name)
             dialog.destroy()
         except Exception as e:
             print(f"Select customer error: {e}")
@@ -8947,10 +9914,10 @@ DATEIEN ({project['file_count']}):
             
             if customer_name in self.favorite_customers:
                 self.favorite_customers.remove(customer_name)
-                self._show_toast(f"Removed {customer_name} from favorites", "info")
+                self.toast_show(f"Aus Favoriten entfernt: {customer_name}", "info")
             else:
                 self.favorite_customers.append(customer_name)
-                self._show_toast(f"Added {customer_name} to favorites", "success")
+                self.toast_show(f"Zu Favoriten hinzugefügt: {customer_name}", "success")
             
             # Save updated favorites
             self._save_customers_data()
@@ -8959,17 +9926,55 @@ DATEIEN ({project['file_count']}):
             print(f"Toggle favorite error: {e}")
     
     def _perform_fuzzy_search(self, customer_name):
-        """Perform fuzzy search for customer names"""
+        """Perform fuzzy search for customer names + Duplicate-Hinweis-Hook."""
         try:
-            matches = []
-            search_term = customer_name.lower()
-            
-            for customer in self.customers_data:
-                name = customer.get('name', '').lower()
-                if search_term in name:
-                    matches.append(customer)
-            
-            return matches
+            query = (customer_name or "").strip()
+            if not query:
+                return []
+
+            # Bevorzuge zentrale Business-Logik
+            try:
+                manager = getattr(self, 'customer_manager', None) or getattr(self, 'kunden_manager', None)
+                if manager and hasattr(manager, 'search_customers_with_autocomplete'):
+                    # Liefert Liste von Dicts mit mindestens 'name'
+                    results = manager.search_customers_with_autocomplete(query, limit=8)
+                    # Normalisiere auf Liste von Dikten im bisherigen Format
+                    out = [{ 'name': r.get('name', '') } for r in (results or []) if r.get('name')]
+                elif manager and hasattr(manager, 'search_customers'):
+                    results = manager.search_customers(query, limit=8)
+                    out = [{ 'name': r.get('name', '') } for r in (results or []) if r.get('name')]
+                else:
+                    raise RuntimeError("no-manager")
+            except Exception:
+                # Fallback: einfache contains-Suche über self.customers_data
+                out = []
+                search_term = query.lower()
+                for customer in (self.customers_data or []):
+                    try:
+                        raw = (customer.get('name', '') if isinstance(customer, dict) else str(customer))
+                        if search_term in raw.lower():
+                            out.append({'name': raw if isinstance(customer, str) else customer.get('name', raw)})
+                    except Exception:
+                        continue
+
+            # Duplicate-Hinweis-Hook (dezente Toast + Action)
+            try:
+                if len(query) >= 3:
+                    similar = self._find_similar_customers(query)
+                    top = similar[0] if similar else None
+                    if top and (int(top.get('score', 0)) >= 85 or self._normalize_name(top.get('name', '')) == self._normalize_name(query)):
+                        if getattr(self, '_last_duplicate_query', None) != query:
+                            self._last_duplicate_query = query
+                            self._show_enhanced_toast(
+                                "Ähnlicher Kunde gefunden",
+                                "neutral",
+                                2500,
+                                "Anzeigen",
+                                lambda q=query, s=similar: self._show_duplicate_warning_dialog(q, s)
+                            )
+            except Exception:
+                pass
+            return out
         except Exception as e:
             print(f"Fuzzy search error: {e}")
             return []
@@ -8978,38 +9983,60 @@ DATEIEN ({project['file_count']}):
         """Execute project creation with given date"""
         try:
             if not self.current_customer:
-                self._show_toast("Please select a customer first", "warning")
+                self.toast_show("Bitte zuerst einen Kunden auswählen", "warning")
                 return
             
             project_path = self._create_project_for_customer(self.current_customer, project_date)
             if project_path:
-                self._show_toast("Project created successfully!", "success")
+                self.toast_show("Projekt erfolgreich erstellt", "success")
                 dialog.destroy()
             else:
-                self._show_toast("Error creating project", "error")
+                self.toast_show("Fehler beim Erstellen des Projekts", "error")
                 
         except Exception as e:
             print(f"Project creation error: {e}")
-            self._show_toast("Error creating project", "error")
+            self.toast_show("Fehler beim Erstellen des Projekts", "error")
     
     def _create_project_for_customer(self, customer_name, project_date=None):
         """Create project structure for customer"""
         try:
             import os
             from datetime import datetime
-            
-            if not project_date:
-                project_date = datetime.now().strftime("%Y%m%d")
-            
-            # Create project path
-            project_name = f"{customer_name}_{project_date}"
-            project_path = os.path.join(self.projects_base_path, customer_name, project_name)
-            
-            # Create directory structure
+
+            # Datum normalisieren -> YYYY-MM-DD
+            def _normalize_date(value) -> str:
+                try:
+                    if value is None or value == "":
+                        return datetime.now().strftime("%Y-%m-%d")
+                    # datetime/date
+                    if hasattr(value, 'strftime'):
+                        return value.strftime("%Y-%m-%d")
+                    s = str(value).strip()
+                    # 20250131 -> 2025-01-31
+                    if len(s) == 8 and s.isdigit():
+                        return f"{s[0:4]}-{s[4:6]}-{s[6:8]}"
+                    # Bereits im Format YYYY-MM-DD
+                    if len(s) == 10 and s[4] == '-' and s[7] == '-':
+                        return s
+                    # Versuch: ISO-like
+                    try:
+                        dt = datetime.fromisoformat(s)
+                        return dt.strftime("%Y-%m-%d")
+                    except Exception:
+                        return datetime.now().strftime("%Y-%m-%d")
+                except Exception:
+                    return datetime.now().strftime("%Y-%m-%d")
+
+            date_folder = _normalize_date(project_date)
+
+            # Zielpfad: <Base>/<Kunde>/<YYYY-MM-DD>
+            project_path = os.path.join(self.projects_base_path, customer_name, date_folder)
+
+            # Struktur anlegen
             os.makedirs(project_path, exist_ok=True)
             for folder in self.project_structure:
                 os.makedirs(os.path.join(project_path, folder), exist_ok=True)
-            
+
             print(f"✅ Created project: {project_path}")
             return project_path
             
@@ -9043,11 +10070,11 @@ DATEIEN ({project['file_count']}):
     def _get_activity_description(self, activity_type):
         """Get description for activity type"""
         descriptions = {
-            'created': 'Customer created',
-            'selected': 'Kunde ausgewählt',  # Deutsch und spezifischer
-            'project_created': 'Project created',
-            'favorite_added': 'Added to favorites',
-            'favorite_removed': 'Removed from favorites'
+            'created': 'Kunde erstellt',
+            'selected': 'Kunde ausgewählt',
+            'project_created': 'Projekt erstellt',
+            'favorite_added': 'Zu Favoriten hinzugefügt',
+            'favorite_removed': 'Aus Favoriten entfernt'
         }
         return descriptions.get(activity_type, 'Unknown activity')
 
@@ -9056,6 +10083,40 @@ DATEIEN ({project['file_count']}):
     # 🎨 LOGO MANAGEMENT METHODS
     # =============================================================================
     
+    def _get_logo_image(self, size: tuple[int, int]) -> Optional[ctk.CTkImage]:
+        """Gibt ein gecachtes CTkImage des Logos in gewünschter Größe zurück.
+
+        - size: (width, height)
+        - nutzt self.logo_cache und self.logo_path
+        - respektiert Light-Mode (nur light_image)
+        """
+        try:
+            if not hasattr(self, 'logo_cache'):
+                self.logo_cache = {}
+            if not hasattr(self, 'logo_path'):
+                return None
+
+            width, height = size
+            cache_key = f"logo_{width}x{height}"
+            cached = self.logo_cache.get(cache_key)
+            if cached:
+                return cached
+
+            if not os.path.exists(self.logo_path):
+                return None
+
+            from PIL import Image as _PILImage
+            img = _PILImage.open(self.logo_path)
+            # Optional: proportional skalieren, aber hier ist size bereits fest
+            img = img.resize((width, height), _PILImage.Resampling.LANCZOS)
+            ctk_img = ctk.CTkImage(light_image=img, size=(width, height))
+            self.logo_cache[cache_key] = ctk_img
+            return ctk_img
+        except Exception as e:
+            if getattr(self, 'logger', None):
+                self.logger.warning(f"_get_logo_image Fehler: {e}")
+            return None
+
     def _load_logo(self, height=40):
         """Zentrale Logo-Loading-Funktion mit Caching"""
         try:
@@ -9118,205 +10179,7 @@ DATEIEN ({project['file_count']}):
     # 🚀 ERWEITERTE UI-VERBESSERUNGEN
     # =============================================================================
     
-    def _setup_keyboard_shortcuts(self):
-        """Setup Keyboard-Shortcuts für bessere Benutzerfreundlichkeit"""
-        try:
-            # Bind shortcuts to master window
-            self.master.bind('<Control-o>', lambda e: self._ctrl_o_browse_guard())
-            self.master.bind('<Control-n>', lambda e: self._clear_all_data())
-            self.master.bind('<Control-r>', lambda e: self._clear_customer_selection())
-            self.master.bind('<F5>', lambda e: self._refresh_statistics())
-            self.master.bind('<Control-q>', lambda e: self._start_quality_check())
-            self.master.focus_set()  # Ensure window can receive key events
-            
-            # Store shortcuts for reference
-            self.keyboard_shortcuts = {
-                'Ctrl+O': 'Open Files',
-                'Ctrl+N': 'Clear All',
-                'Ctrl+R': 'New Customer',
-                'F5': 'Refresh Stats',
-                'Ctrl+Q': 'Quality Check'
-            }
-            
-            print("⌨️ Keyboard shortcuts enabled")
-        except Exception as e:
-            print(f"⚠️ Keyboard shortcuts setup error: {e}")
-    
-    def _setup_drag_and_drop(self):
-        """Setup grundlegendes Drag & Drop System"""
-        try:
-            self.drag_drop_enabled = True
-            print("🎯 Drag & Drop system initialized")
-        except Exception as e:
-            print(f"⚠️ Drag & Drop setup error: {e}")
-    
-    def _setup_upload_drag_drop(self, widget):
-        """Setup Drag & Drop für Upload-Area"""
-        try:
-            # Basic drag and drop bindings
-            widget.bind('<ButtonPress-1>', self._on_drag_start)
-            widget.bind('<B1-Motion>', self._on_drag_motion)
-            widget.bind('<ButtonRelease-1>', self._on_drag_end)
-            
-            # Visual feedback bindings
-            widget.bind('<Enter>', self._on_upload_hover_enter)
-            widget.bind('<Leave>', self._on_upload_hover_leave)
-            
-            print("📁 Upload area drag & drop configured")
-        except Exception as e:
-            print(f"⚠️ Upload drag & drop error: {e}")
-    
-    def _on_drag_start(self, event):
-        """Handle drag start"""
-        try:
-            self.upload_area.configure(border_color=self.get_color('primary'))
-        except Exception as e:
-            pass
-    
-    def _on_drag_motion(self, event):
-        """Handle drag motion"""
-        pass
-    
-    def _on_drag_end(self, event):
-        """Handle drag end"""
-        try:
-            self.upload_area.configure(border_color=self.get_color('input_border'))
-            # Trigger file selection
-            self._select_files()
-        except Exception as e:
-            pass
-    
-    def _on_upload_hover_enter(self, event):
-        """Enhanced hover effect for upload area"""
-        try:
-            self.upload_area.configure(
-                border_color=self.get_color('primary'),
-                border_width=3
-            )
-            # Animate upload icon
-            if hasattr(self, 'upload_icon'):
-                self._animate_widget_scale(self.upload_icon, 1.1)
-        except Exception as e:
-            pass
-    
-    def _on_upload_hover_leave(self, event):
-        """Reset hover effect for upload area"""
-        try:
-            self.upload_area.configure(
-                border_color=self.get_color('input_border'),
-                border_width=2
-            )
-            # Reset upload icon
-            if hasattr(self, 'upload_icon'):
-                self._animate_widget_scale(self.upload_icon, 1.0)
-        except Exception as e:
-            pass
-    
-    def _setup_hover_effects(self):
-        """Setup Hover-Effekte für alle interaktiven Elemente"""
-        try:
-            # Sammle alle Buttons für Hover-Effekte
-            self._apply_hover_to_buttons()
-            print("✨ Hover effects applied to UI elements")
-        except Exception as e:
-            print(f"⚠️ Hover effects setup error: {e}")
-    
-    def _apply_hover_to_buttons(self):
-        """Wendet Hover-Effekte auf alle Buttons an"""
-        try:
-            # Diese Methode würde rekursiv alle Buttons finden
-            # Für jetzt implementieren wir grundlegende Hover-Effekte
-            pass
-        except Exception as e:
-            print(f"⚠️ Button hover effects error: {e}")
-    
-    def _animate_widget_scale(self, widget, scale):
-        """Animiert Widget-Skalierung (vereinfacht)"""
-        try:
-            # Vereinfachte Animation durch Font-Size Änderung
-            if hasattr(widget, 'cget'):
-                current_font = widget.cget('font')
-                if current_font and hasattr(current_font, 'cget'):
-                    size = int(current_font.cget('size') * scale)
-                    new_font = ctk.CTkFont(size=size)
-                    widget.configure(font=new_font)
-        except Exception as e:
-            pass
-    
-    def _load_statistics(self):
-        """Lade gespeicherte Statistiken"""
-        try:
-            stats_file = "statistics.json"
-            if os.path.exists(stats_file):
-                with open(stats_file, 'r', encoding='utf-8') as f:
-                    self.stats_data = json.load(f)
-            else:
-                # Erstelle Default-Statistiken
-                self.stats_data = {
-                    'documents_today': 0,
-                    'checks_today': 0,
-                    'projects_today': len(self.customers_data),
-                    'success_rate': 95.5
-                }
-            
-            print(f"📊 Statistics loaded: {self.stats_data}")
-        except Exception as e:
-            print(f"⚠️ Statistics loading error: {e}")
-            self.stats_data = {'documents_today': 0, 'checks_today': 0, 'projects_today': 0, 'success_rate': 0.0}
-    
-    def _save_statistics(self):
-        """Speichere aktuelle Statistiken"""
-        try:
-            stats_file = "statistics.json"
-            with open(stats_file, 'w', encoding='utf-8') as f:
-                json.dump(self.stats_data, f, ensure_ascii=False, indent=4)
-            print("💾 Statistics saved")
-        except Exception as e:
-            print(f"⚠️ Statistics save error: {e}")
-    
-    def _update_statistics_display(self):
-        """Aktualisiert die Statistik-Anzeige"""
-        try:
-            if hasattr(self, 'stats_labels'):
-                # Update document count
-                self.stats_labels['documents'].configure(
-                    text=f"📄 Documents: {self.stats_data['documents_today']}"
-                )
-                
-                # Update checks count
-                self.stats_labels['checks'].configure(
-                    text=f"✅ Checks: {self.stats_data['checks_today']}"
-                )
-                
-                # Update projects count
-                self.stats_labels['projects'].configure(
-                    text=f"Projekte: {self.stats_data['projects_today']}"
-                )
-                
-                # Update success rate with color coding
-                success_rate = self.stats_data['success_rate']
-                color = (
-                    self.get_color('success_500') if success_rate >= 90
-                    else self.get_color('warning_500') if success_rate >= 70
-                    else self.get_color('error_500')
-                )
-                self.stats_labels['success_rate'].configure(
-                    text=f"Erfolgsquote: {success_rate:.1f}%",
-                    text_color=color
-                )
-                
-                print(f"📊 Statistics display updated")
-        except Exception as e:
-            print(f"⚠️ Statistics display update error: {e}")
-    
-    def _start_statistics_updater(self):
-        """Startet regelmäßige Statistik-Updates"""
-        try:
-            self._update_statistics_display()
-            # Update alle 5 Sekunden
-            self.master.after(5000, self._start_statistics_updater)
-        except Exception as e:
-            print(f"⚠️ Statistics updater error: {e}")
+    # (entfernt) Duplikate von Shortcut/Drag&Drop/Hover/Statistics – konsolidierte Version aktiv
     
     def _refresh_statistics(self):
         """Manueller Statistik-Refresh (F5)"""
@@ -9329,7 +10192,7 @@ DATEIEN ({project['file_count']}):
             
             self._update_statistics_display()
             self._save_statistics()
-            self._show_toast("Statistiken aktualisiert", "info")
+            self.toast_show("Statistiken aktualisiert", "info")
             
             # Update real-time status
             if hasattr(self, 'real_time_status'):
@@ -9342,8 +10205,36 @@ DATEIEN ({project['file_count']}):
             print(f"⚠️ Statistics refresh error: {e}")
     
     def _show_enhanced_toast(self, message, toast_type="info", duration=4000, action_text=None, action_command=None):
-        """Erweiterte Toast-Nachrichten mit Action-Buttons und verbesserter Cleanup"""
+        """Erweiterte Toast-Nachrichten; delegiert an zentralen ToastManager wenn keine Action-Buttons nötig sind.
+
+        - Wenn action_text/action_command angegeben sind, wird der lokale erweiterte Renderer genutzt (Button-Unterstützung).
+        - Sonst wird, falls vorhanden, self.toast_manager verwendet (einheitliche zentrale Darstellung).
+        """
         try:
+            # Wenn keine Aktion nötig ist, ToastManager bevorzugen
+            if not action_text and not action_command:
+                tm = getattr(self, 'toast_manager', None)
+                if tm:
+                    try:
+                        t = (toast_type or 'info').lower()
+                        if t == 'success' and hasattr(tm, 'show_success'):
+                            tm.show_success(message, duration)
+                            return
+                        if t == 'warning' and hasattr(tm, 'show_warning'):
+                            tm.show_warning(message, duration)
+                            return
+                        if t == 'error' and hasattr(tm, 'show_error'):
+                            tm.show_error(message, duration)
+                            return
+                        if hasattr(tm, 'show_info') and t in {'info', 'neutral'}:
+                            tm.show_info(message, duration)
+                            return
+                        if hasattr(tm, 'show'):
+                            tm.show(message, t, duration)
+                            return
+                    except Exception:
+                        pass
+            # Fallback: lokaler Renderer (unterstützt Action-Buttons)
             if not hasattr(self, 'toast_container') or not self.toast_container:
                 return
             
@@ -9353,7 +10244,8 @@ DATEIEN ({project['file_count']}):
                 "error": (self.get_color('error_500'), self.get_color('error_light')), 
                 "warning": (self.get_color('warning_500'), self.get_color('warning_light')),
                 "info": (self.get_color('info'), self.get_color('info_light')),
-                "progress": (self.get_color('info_hover'), self.get_color('surface_light'))
+                "progress": (self.get_color('info_hover'), self.get_color('surface_light')),
+                "neutral": (self.get_color('gray_600'), self.get_color('gray_300'))
             }
             
             bg_color, text_bg = colors.get(toast_type, colors["info"])
@@ -9429,6 +10321,66 @@ DATEIEN ({project['file_count']}):
                     self.toast_container.place_forget()
             except:
                 pass
+
+    # ------------------------------------------------------------------
+    # 🆕 ZENTRALES TOAST ENUM + WRAPPER (einheitliche Nutzung)
+    # ------------------------------------------------------------------
+    class ToastType(Enum):
+        INFO = "info"
+        SUCCESS = "success"
+        WARNING = "warning"
+        ERROR = "error"
+        PROGRESS = "progress"
+        NEUTRAL = "neutral"
+
+    def toast(self, message: str, t: "WelcomeScreen.ToastType" = None, duration: int = 3000,
+              action_text: str | None = None, action_command=None) -> None:
+        """Einheitlicher Toast-Aufruf.
+
+        Bevorzugt zentralen ToastManager; fällt auf erweiterten lokalen Renderer zurück.
+        """
+        try:
+            toast_type = (t or self.ToastType.INFO).value
+        except Exception:
+            toast_type = "info"
+
+        # 1) Delegation: zentraler ToastManager, wenn verfügbar
+        try:
+            tm = getattr(self, 'toast_manager', None)
+            if tm and not action_text and not action_command:
+                lower = toast_type.lower()
+                if lower == 'success' and hasattr(tm, 'show_success'):
+                    tm.show_success(message, duration)
+                    return
+                if lower == 'warning' and hasattr(tm, 'show_warning'):
+                    tm.show_warning(message, duration)
+                    return
+                if lower == 'error' and hasattr(tm, 'show_error'):
+                    tm.show_error(message, duration)
+                    return
+                if hasattr(tm, 'show_info') and lower in {'info', 'neutral'}:
+                    tm.show_info(message, duration)
+                    return
+                if hasattr(tm, 'show'):
+                    tm.show(message, lower, duration)
+                    return
+        except Exception:
+            pass
+
+        # 2) Fallback: lokaler erweiterter Renderer
+        try:
+            return self._show_enhanced_toast(
+                message,
+                toast_type=toast_type,
+                duration=duration,
+                action_text=action_text,
+                action_command=action_command,
+            )
+        except Exception:
+            try:
+                print(f"Toast: {message}")
+            except Exception:
+                pass
     
     def _increment_stat(self, stat_name, increment=1):
         """Erhöht eine Statistik und aktualisiert die Anzeige"""
@@ -9467,27 +10419,131 @@ DATEIEN ({project['file_count']}):
         """Öffnet den Kundenordner im Explorer"""
         try:
             if self.current_customer:
-                customer_path = os.path.join(self.projects_base_path, self.current_customer)
+                customer_path = (self.file_ops.sanitize_and_join(self.projects_base_path, self.current_customer)
+                                 if hasattr(self, 'file_ops') and self.file_ops and hasattr(self.file_ops, 'sanitize_and_join')
+                                 else os.path.join(self.projects_base_path, self.current_customer))
                 if os.path.exists(customer_path):
-                    self._open_path(customer_path)
-                    self._show_enhanced_toast(f"Folder opened for {self.current_customer}", "success", 2000)
+                    # Delegiere an zentrale FileOperations wenn verfügbar
+                    try:
+                        if hasattr(self, 'file_ops') and self.file_ops:
+                            ok = (self.file_ops.open_folder(customer_path)
+                                  if hasattr(self.file_ops, 'open_folder')
+                                  else self.file_ops.open_folder_in_explorer(customer_path))
+                        else:
+                            ok = self._open_path(customer_path)
+                    except Exception:
+                        ok = self._open_path(customer_path)
+                    if ok and hasattr(self, '_show_enhanced_toast'):
+                        self._show_enhanced_toast(f"Ordner geöffnet: {self.current_customer}", "success", 2000)
+                    elif ok and hasattr(self, '_show_toast'):
+                        self.toast_show(f"Ordner geöffnet: {self.current_customer}", "success")
                 else:
-                    self._show_enhanced_toast("Customer folder not found", "warning", 2000)
+                    if hasattr(self, '_show_enhanced_toast'):
+                        self._show_enhanced_toast("Kundenordner nicht gefunden", "warning", 2000)
+                    elif hasattr(self, '_show_toast'):
+                        self.toast_show("Kundenordner nicht gefunden", "warning")
         except Exception as e:
             print(f"⚠️ Open folder error: {e}")
-            self._show_enhanced_toast("Error opening folder", "error", 2000)
+            if hasattr(self, '_show_enhanced_toast'):
+                self._show_enhanced_toast("Fehler beim Öffnen des Ordners", "error", 2000)
+            elif hasattr(self, '_show_toast'):
+                self.toast_show("Fehler beim Öffnen des Ordners", "error")
 
-    def _open_path(self, path: str) -> None:
+    def _open_path(self, path: str) -> bool:
         """Öffnet einen Pfad OS-portabel im System-Dateimanager."""
         try:
+            # Bevorzuge zentrale Implementierung
+            if hasattr(self, 'file_ops') and self.file_ops:
+                return self.file_ops._open_path(path)
             if sys.platform.startswith("win"):
                 os.startfile(path)  # type: ignore[attr-defined]
+                return True
             elif sys.platform == "darwin":
                 subprocess.Popen(["open", path])
+                return True
             else:
                 subprocess.Popen(["xdg-open", path])
+                return True
         except Exception as e:
             print(f"⚠️ Open path error: {e}")
+            return False
+
+    # ------------------------------------------------------------------
+    # 🆕 ZENTRALE STATE-ZURÜCKSETZUNG (nicht-destruktiv)
+    # ------------------------------------------------------------------
+    def _reset_state(self, clear_files: bool = False) -> None:
+        """Leichte UI/State-Rücksetzung.
+
+        - Optional: Dateiliste leeren (Upload-UI synchronisieren)
+        - Main-CTA zurücksetzen, Header aktualisieren, Auto-Save neu anstoßen
+        """
+        try:
+            # Dateien optional zurücksetzen (sicher, keine Logik/Handler ändern)
+            if clear_files:
+                try:
+                    self.uploaded_files = []
+                except Exception:
+                    pass
+                try:
+                    if getattr(self, 'upload_manager', None) is not None and hasattr(self.upload_manager, 'uploaded_files'):
+                        self.upload_manager.uploaded_files = []
+                except Exception:
+                    pass
+
+            # Upload-UI synchronisieren (non-blocking)
+            try:
+                self._refresh_upload_ui_from_manager()
+            except Exception:
+                pass
+
+            # Header/Status aktualisieren
+            try:
+                self._apply_current_state()
+            except Exception:
+                pass
+
+            # CTA zurücksetzen
+            try:
+                self._reset_main_cta()
+            except Exception:
+                pass
+
+            # Auto-Save erneut planen (debounced)
+            try:
+                self._start_auto_save_timer()
+            except Exception:
+                pass
+
+            # Feedback
+            try:
+                self.toast("Zurückgesetzt", t=self.ToastType.INFO, duration=1800)
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+    # ------------------------------------------------------------------
+    # 🆕 DUPLIKAT-GUARD für einmalige Definitionen
+    # ------------------------------------------------------------------
+    def _define_once(self, name: str, fn) -> bool:
+        """Führt fn genau einmal aus (per Name) und liefert True bei Erst-Definition."""
+        try:
+            reg = getattr(self, '_define_once_registry', None)
+            if reg is None:
+                reg = set()
+                setattr(self, '_define_once_registry', reg)
+            if name in reg:
+                return False
+            fn()
+            reg.add(name)
+            return True
+        except Exception:
+            # Im Fehlerfall nichts blockieren
+            try:
+                fn()
+            except Exception:
+                pass
+            return True
     
     def _show_progress_dialog(self):
         """Zeigt einen Progress-Dialog für laufende Operationen"""
@@ -9565,44 +10621,64 @@ DATEIEN ({project['file_count']}):
             return str(dt)
     
     def _copy_uploaded_files_to_project(self, project_path, files):
-        """Copy uploaded files to project structure"""
+        """Copy uploaded files to project structure (delegiert an FileOperations)."""
         try:
-            input_folder = os.path.join(project_path, "01_Ausgangstext")
-            os.makedirs(input_folder, exist_ok=True)
-            
-            copied_count = 0
-            def _unique_target(folder: str, filename: str) -> str:
+            if hasattr(self, 'file_ops') and self.file_ops:
                 try:
-                    os.makedirs(folder, exist_ok=True)
+                    if hasattr(self, 'logger') and self.logger:
+                        self.logger.info(f"[Upload] Copy to {project_path} | files={len(files) if files else 0}")
                 except Exception:
                     pass
-                base, ext = os.path.splitext(filename)
-                candidate = os.path.join(folder, filename)
-                if not os.path.exists(candidate):
-                    return candidate
-                i = 1
-                while True:
-                    new_name = f"{base}-{i:02d}{ext}"
-                    candidate = os.path.join(folder, new_name)
-                    if not os.path.exists(candidate):
-                        return candidate
-                    i += 1
-
-            for file_path in files:
+                return self.file_ops.copy_uploaded_files_to_project(project_path, files)
+            # Fallback: simple copy into 01_Ausgangstext
+            input_folder = os.path.join(project_path, "01_Ausgangstext")
+            from shutil import copy2
+            os.makedirs(input_folder, exist_ok=True)
+            copied_count = 0
+            for file_path in files or []:
                 try:
-                    file_name = os.path.basename(file_path)
-                    dest_path = _unique_target(input_folder, file_name)
-                    shutil.copy2(file_path, dest_path)
+                    if not file_path or not os.path.exists(file_path):
+                        continue
+                    fname = os.path.basename(file_path)
+                    dest_path = os.path.join(input_folder, fname)
+                    if os.path.exists(dest_path):
+                        # einfache Konfliktlösung
+                        base, ext = os.path.splitext(fname)
+                        i = 1
+                        while os.path.exists(os.path.join(input_folder, f"{base}-{i:02d}{ext}")):
+                            i += 1
+                        dest_path = os.path.join(input_folder, f"{base}-{i:02d}{ext}")
+                    copy2(file_path, dest_path)
                     copied_count += 1
                 except Exception as file_error:
                     print(f"⚠️ File copy error for {file_path}: {file_error}")
-            
-            print(f"📋 {copied_count} files copied to project structure")
             return copied_count
-            
         except Exception as e:
             print(f"⚠️ Project file copy error: {e}")
             return 0
+
+    # === Index/Refresh convenience hooks ======================================
+    def reindex_projects(self, customer_name: str):
+        """Best-effort Reindex stub. Falls ein echter Indexer existiert, wird dieser bevorzugt.
+
+        Kann gefahrlos überschrieben werden. Diese Default-Implementierung nutzt
+        die Dateisystem-Quelle (keine Persistenz) und invalidiert lediglich Caches.
+        """
+        try:
+            # Invalidate calendar customer paths cache so fresh FS state is read
+            self._calendar_customer_paths_cache = None
+            if hasattr(self, 'logger') and self.logger:
+                self.logger.info(f"[Indexer] Reindex requested for customer: {customer_name}")
+        except Exception:
+            pass
+
+    def _refresh_actions_calendar(self):
+        """Einheitlicher Hook, um den Mini‑Kalender neu zu zeichnen (falls Section existiert)."""
+        try:
+            if hasattr(self, 'actions_section') and hasattr(self.actions_section, 'refresh_mini_calendar'):
+                self.actions_section.refresh_mini_calendar()
+        except Exception:
+            pass
     
     def _apply_current_state(self):
         """Apply current application state"""
@@ -9610,9 +10686,23 @@ DATEIEN ({project['file_count']}):
             # Update header displays (ohne Emojis, No-Icons-Policy)
             if hasattr(self, 'header_customer_status'):
                 if self.current_customer:
-                    self.header_customer_status.configure(text=f"Kunde: {self.current_customer}")
+                    try:
+                        self.header_customer_status.configure(
+                            text=f"{self.current_customer if len(self.current_customer)<=18 else self.current_customer[:15] + '...'}",
+                            fg_color=self.get_color('primary_dark'),
+                            text_color=self.get_color('white')
+                        )
+                    except Exception:
+                        self.header_customer_status.configure(text=f"{self.current_customer}")
                 else:
-                    self.header_customer_status.configure(text="Kein Kunde")
+                    try:
+                        self.header_customer_status.configure(
+                            text="Kein Kunde",
+                            fg_color=self.get_color('gray_100'),
+                            text_color=self.get_color('gray_500')
+                        )
+                    except Exception:
+                        self.header_customer_status.configure(text="Kein Kunde")
             
             if hasattr(self, 'header_files_count'):
                 file_count = len(self.uploaded_files) if hasattr(self, 'uploaded_files') else 0

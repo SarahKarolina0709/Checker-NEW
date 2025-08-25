@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# DEPRECATED (Konsolidierung): Funktionalität perspektivisch in main App/start_checker integrieren.
 """
 🚀 INTEGRATED STARTUP - WELCOME SCREEN KOORDINATION
 ===============================================

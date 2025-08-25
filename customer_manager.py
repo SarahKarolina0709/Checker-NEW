@@ -163,13 +163,46 @@ class CustomerManager:
 
     def ensure_customer_project_structure(self, customer_name: str, use_date_folder: bool = True) -> str:
         """Erstellt die Standard-Projektstruktur für den Kunden (idempotent). Rückgabe: Basispfad."""
-        safe_name = customer_name.strip().replace("/", "_").replace("\\", "_") or "Unbekannt"
+        # Bevorzugt zentrale FileOps nutzen (falls im Welcome Screen bereitgestellt)
+        try:
+            from src.utils.file_operations import FileOperations  # type: ignore
+            # Optional: Nutzung ohne App-Instanz
+            file_ops = FileOperations()
+        except Exception:
+            file_ops = None  # type: ignore
+
+        safe_name = None
+        if file_ops and hasattr(file_ops, 'sanitize_name'):
+            try:
+                safe_name = file_ops.sanitize_name(customer_name or "Unbekannt", max_length=100)
+            except Exception:
+                safe_name = None
+        if not safe_name:
+            safe_name = customer_name.strip().replace("/", "_").replace("\\", "_") or "Unbekannt"
+
         base = os.path.join(self.projects_base_path, safe_name)
         try:
+            if file_ops and hasattr(file_ops, 'ensure_customer_project_structure'):
+                # Nutze zentrale Struktur-Erstellung (inkl. Datum-Normalisierung und Sanitizing)
+                structure = ["01_Ausgangstext", "02_Angebot", "03_Prüfung", "04_Finalisierung"]
+                ensured = file_ops.ensure_customer_project_structure(
+                    base_path=self.projects_base_path,
+                    customer_name=customer_name,
+                    workflow_folders=structure,
+                    use_date_folder=use_date_folder,
+                )
+                if ensured:
+                    return ensured
+            # Fallback: lokale Erstellung
             os.makedirs(base, exist_ok=True)
             folder = base
             if use_date_folder:
                 date_str = datetime.now().strftime("%Y-%m-%d")
+                try:
+                    if file_ops and hasattr(file_ops, 'normalize_date_folder'):
+                        date_str = file_ops.normalize_date_folder(date_str)
+                except Exception:
+                    pass
                 folder = os.path.join(base, date_str)
                 os.makedirs(folder, exist_ok=True)
             # Standard-Struktur anlegen
