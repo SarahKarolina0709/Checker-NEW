@@ -223,7 +223,7 @@ class CheckerApp(ctk.CTk):
         ctk.CTkButton(
             content,
             text="Einstellungen",
-            font=ctk.CTkFont(*get_typography("button")),
+            font=ctk.CTkFont(*get_typography("body_bold")),
             command=self.show_settings,
         ).pack(anchor="w")
 

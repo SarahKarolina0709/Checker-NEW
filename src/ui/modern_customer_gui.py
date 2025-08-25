@@ -58,7 +58,7 @@ class ModernCustomerGUI(ctk.CTkFrame):
         header_frame = ctk.CTkFrame(
             self,
             height=90,
-            fg_color=["#2196F3", "#1976D2"],  # Schöner blauer Gradient
+            fg_color=["#1F4E79", "#1A3F65"],  # Vereinheitlichtes Brand-Blau Gradient
             corner_radius=15
         )
         header_frame.grid(row=0, column=0, sticky="ew", padx=15, pady=(15, 10))
@@ -299,7 +299,7 @@ class ModernCustomerGUI(ctk.CTkFrame):
         # Elegante Hover-Effekte
         def on_enter(event):
             card.configure(
-                border_color=["#3b82f6", "#60a5fa"],
+                border_color=["#1F4E79", "#1A3F65"],
                 fg_color=["#f8fafc", "#0f172a"]
             )
 
@@ -318,9 +318,9 @@ class ModernCustomerGUI(ctk.CTkFrame):
             width=80,
             height=80,
             corner_radius=40,
-            fg_color=["#dbeafe", "#1e40af"],
+            fg_color=["#F0F7FF", "#1A3F65"],
             border_width=3,
-            border_color=["#3b82f6", "#60a5fa"]
+            border_color=["#1F4E79", "#1A3F65"]
         )
         avatar_container.grid(row=0, column=0, padx=25, pady=20)
         avatar_container.grid_propagate(False)
@@ -391,7 +391,7 @@ class ModernCustomerGUI(ctk.CTkFrame):
                 info_container,
                 text="🕒 Aktiv",
                 font=ctk.CTkFont(size=12),
-                fg_color=["#3b82f6", "#2563eb"],
+                fg_color=["#1F4E79", "#1A3F65"],
                 text_color="#ffffff",
                 corner_radius=15,
                 padx=12,
@@ -709,12 +709,21 @@ class ModernCustomerGUI(ctk.CTkFrame):
                 )
             else:
                 # Neues Projekt anbieten
-                result = messagebox.askyesno(
-                    f"Projekte von {customer_name}",
-                    "Keine Projekte gefunden.\n\nMöchten Sie ein neues Projekt erstellen?"
-                )
-                if result:
-                    self._create_new_project(customer_name)
+                if hasattr(self.app, 'ui_helpers') and hasattr(self.app.ui_helpers, 'show_non_blocking_confirm'):
+                    self.app.ui_helpers.show_non_blocking_confirm(
+                        title=f"Projekte von {customer_name}",
+                        message="Keine Projekte gefunden.\n\nMöchten Sie ein neues Projekt erstellen?",
+                        confirm_text="Erstellen",
+                        cancel_text="Abbrechen",
+                        on_confirm=lambda: self._create_new_project(customer_name)
+                    )
+                else:
+                    result = messagebox.askyesno(
+                        f"Projekte von {customer_name}",
+                        "Keine Projekte gefunden.\n\nMöchten Sie ein neues Projekt erstellen?"
+                    )
+                    if result:
+                        self._create_new_project(customer_name)
 
         except Exception as e:
             messagebox.showerror("Fehler", f"Projekte konnten nicht geladen werden: {e}")
@@ -740,12 +749,21 @@ class ModernCustomerGUI(ctk.CTkFrame):
                 )
 
                 # Fragen ob Ordner geöffnet werden soll
-                result = messagebox.askyesno(
-                    "Ordner öffnen",
-                    "Möchten Sie den Projektordner im Explorer öffnen?"
-                )
-                if result:
-                    subprocess.run(['explorer', project_path], check=True)
+                if hasattr(self.app, 'ui_helpers') and hasattr(self.app.ui_helpers, 'show_non_blocking_confirm'):
+                    self.app.ui_helpers.show_non_blocking_confirm(
+                        title="Ordner öffnen",
+                        message="Möchten Sie den Projektordner im Explorer öffnen?",
+                        confirm_text="Öffnen",
+                        cancel_text="Abbrechen",
+                        on_confirm=lambda: subprocess.run(['explorer', project_path], check=True)
+                    )
+                else:
+                    result = messagebox.askyesno(
+                        "Ordner öffnen",
+                        "Möchten Sie den Projektordner im Explorer öffnen?"
+                    )
+                    if result:
+                        subprocess.run(['explorer', project_path], check=True)
 
         except Exception as e:
             messagebox.showerror("Fehler", f"Projekt konnte nicht erstellt werden: {e}")
@@ -844,23 +862,35 @@ class ModernCustomerGUI(ctk.CTkFrame):
 
     def _delete_customer(self, customer_name: str):
         """Kunde löschen (nach Bestätigung)"""
-        result = messagebox.askyesno(
-            "Kunde löschen",
-            f"Möchten Sie '{customer_name}' wirklich löschen?\n\n"
-            "ACHTUNG: Alle Daten und Projekte des Kunden werden gelöscht!\n"
-            "Diese Aktion kann nicht rückgängig gemacht werden.",
-            icon="warning"
-        )
-
-        if result:
+        def _delete_stub():
             try:
-                # Hier würde die Löschfunktion implementiert werden
                 messagebox.showinfo(
                     "Kunde löschen",
                     f"Löschfunktion für '{customer_name}' wird in einer zukünftigen Version implementiert."
                 )
             except Exception as e:
                 messagebox.showerror("Fehler", f"Kunde konnte nicht gelöscht werden: {e}")
+        text_msg = (
+            f"Möchten Sie '{customer_name}' wirklich löschen?\n\n"
+            "ACHTUNG: Alle Daten und Projekte des Kunden werden gelöscht!\n"
+            "Diese Aktion kann nicht rückgängig gemacht werden."
+        )
+        if hasattr(self.app, 'ui_helpers') and hasattr(self.app.ui_helpers, 'show_non_blocking_confirm'):
+            self.app.ui_helpers.show_non_blocking_confirm(
+                title="Kunde löschen",
+                message=text_msg,
+                confirm_text="Löschen",
+                cancel_text="Abbrechen",
+                on_confirm=_delete_stub
+            )
+        else:
+            result = messagebox.askyesno(
+                "Kunde löschen",
+                text_msg,
+                icon="warning"
+            )
+            if result:
+                _delete_stub()
 
     def _edit_customer(self, customer_name: str):
         """Bearbeite Kundeninformationen"""

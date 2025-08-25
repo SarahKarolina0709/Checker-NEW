@@ -1,0 +1,70 @@
+#############################
+# Python Bytecode / Caches  #
+#############################
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+#############################
+# Virtual Environments      #
+#############################
+.venv/
+venv/
+env/
+ENV/
+
+#############################
+# Logs / Runtime Artifacts  #
+#############################
+logs/*.log*
+*.log
+*.tmp
+
+#############################
+# Local Databases / State   #
+#############################
+*.db
+*.sqlite*
+
+#############################
+# Backups / Archives        #
+#############################
+backups/
+py_backup_*/
+*.zip
+ARCHIVE_UNUSED_PY_*/
+ARCHIVE_REMOVED_*/
+ARCHIVE_*/
+
+#############################
+# Reports (keep sources)    #
+#############################
+# Uncomment to ignore generated HTML reports
+# Bericht_*.html
+
+#############################
+# Node / Frontend leftovers #
+#############################
+node_modules/
+
+#############################
+# VS Code                   #
+#############################
+.vscode/*
+!.vscode/tasks.json
+
+#############################
+# System                    #
+#############################
+Thumbs.db
+Desktop.ini
+
+#############################
+# Tool specific             #
+#############################
+coverage.xml
+*.coverage
