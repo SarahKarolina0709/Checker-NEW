@@ -1,0 +1,105 @@
+{
+  "created_ts": 1768990710.7718353,
+  "overall_score": 44.58,
+  "plugins_run": 0,
+  "findings": [
+    {
+      "rule": "pair_similarity",
+      "message": "Sehr niedrige Ähnlichkeit in Übersetzung: 1.6% (Segment 76e81672)",
+      "severity": "error",
+      "metadata": {}
+    },
+    {
+      "rule": "whitespace",
+      "message": "Trailing Whitespace in target",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "structure",
+      "message": "Schließende Klammer ohne Öffnung in target: )",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "style",
+      "message": "Satzanfang Großschreibung fehlt im Ziel",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "consistency",
+      "message": "Neue Zahlen im Ziel: ['2', '2025', '1', '3', '4', '5', '6', '7', '39', '41', '70736', '25000.00', '16', '06', '1965', '07', '09', '26', '04', '2011', '19', '12', '2019', '13', '01', '1954', '25', '2021', '14', '1986', '05', '10', '2023', '11', '1964', '30', '2024']",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "consistency",
+      "message": "Einheiten-Differenzen: fehlend=[] neu=['eur']",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "terminology",
+      "message": "Eigennamen/Akronyme fehlen oder verändert: ['PDF', 'Text', 'Auszug Marinetrans Germany']",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "style",
+      "message": "6 sehr lange Sätze (>220 Zeichen)",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "readability",
+      "message": "Hohe durchschnittliche Satzlänge (204)",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "readability",
+      "message": "Viele sehr lange Sätze (8)",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "readability",
+      "message": "Hoher LIX Index (64.6)",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "grammar",
+      "message": "Satz endet nicht mit Punkt/!/?",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "grammar",
+      "message": "Mehrfache Leerzeichen",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "completeness",
+      "message": "Längenverhältnis Deutsch->Englisch liegt über dem erwarteten Bereich. Ist: 3267% · Erwartet: 88% ±8%",
+      "severity": "warning",
+      "metadata": {}
+    }
+  ],
+  "context": {
+    "source_files": [
+      "C:\\Users\\sarah\\Desktop\\Texte\\HR-Auszug Marinetrans Germany GmbH.pdf"
+    ],
+    "translation_files": [
+      "C:\\Users\\sarah\\Desktop\\Texte\\HR-Auszug Marinetrans Germany GmbH.docx"
+    ],
+    "ui_completed_ts": 1768990710.7718353,
+    "phase": "ui"
+  },
+  "file_counts": {
+    "source": 1,
+    "translation": 1
+  }
+}

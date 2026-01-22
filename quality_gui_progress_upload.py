@@ -11,6 +11,7 @@ import logging
 # import sys  # FIXME: Invalid syntax fixed
 import tkinter as tk
 import customtkinter as ctk
+import shlex
 
 # Design-System Farbzugriff mit sicherem Fallback (transparent Token Nutzung)
 try:
@@ -46,9 +47,43 @@ def get_safe_aggressive_color(color_name, fallback=None):
     return color_name if color_name else fallback
 
 
-class ModernProgressBar:
+class BaseProgressWidget:
+    """Gemeinsame Basis für Progress-Widgets (reduziert Redundanz).
+
+    Contract:
+    - set_progress(value: float, status: Optional[str], animate: bool = False)
+    - set_error(message: str)
+    - reset()
+    Subklassen implementieren die Hook-Methoden für visuelle Updates.
+    """
+
+    def set_progress(self, value: float, status: str | None = None, animate: bool = False):
+        value = max(0.0, min(1.0, float(value)))
+        self._set_progress_value(value, animate)
+        self._update_percentage_label(int(value * 100))
+        if status:
+            self._update_status_label(status)
+
+    # Hooks – müssen in Subklassen implementiert werden
+    def _set_progress_value(self, value: float, animate: bool):  # pragma: no cover - abstract
+        raise NotImplementedError
+
+    def _update_percentage_label(self, percentage: int):  # pragma: no cover - abstract
+        raise NotImplementedError
+
+    def _update_status_label(self, text: str):  # pragma: no cover - abstract
+        raise NotImplementedError
+
+    def set_error(self, message: str):  # pragma: no cover - abstract
+        raise NotImplementedError
+
+    def reset(self):  # pragma: no cover - abstract
+        raise NotImplementedError
+
+
+class ModernProgressBar(BaseProgressWidget):
     """Enhanced progress bar with animations and status text"""
-    
+
     def __init__(self, parent, width=400, height=24):
         self.parent = parent
         self.width = width  
@@ -75,7 +110,7 @@ class ModernProgressBar:
             width=width,
             height=height,
             progress_color=self.get_color('primary'),
-            fg_color=self.get_color('background')
+            fg_color=self.get_color('surface_border')
         )
         self.progress_bar.pack(pady=(0, 8))
         self.progress_bar.set(0)
@@ -83,22 +118,22 @@ class ModernProgressBar:
         # Percentage label
         self.percentage_label = ctk.CTkLabel(
             self.frame,
-            text="Ready - F1=Help, F5=Analyze, Ctrl+O=Upload",
+            text="Bereit - F1=Hilfe, F5=Analyse, Strg+O=Upload",
             font=ctk.CTkFont(family="Segoe UI", size=10, weight="normal"),
             text_color=self.get_color('text_secondary')
         )
         self.percentage_label.pack(pady=(0, 8))
     
     def get_color(self, color_name):
-        """Basic color fallback method"""
-        colors = {
+        """Design-System Farben mit Fallbacks (keine hartcodierten Hexe im Codepfad)."""
+        fallbacks = {
             'surface': '#FFFFFF',
             'text_primary': '#374151',
             'text_secondary': '#6B7280',
-            'primary': '#1F4E79',  # vereinheitlichtes Brand-Blau
-            'background': '#F8FAFC'
+            'primary': '#1F4E79',
+            'surface_border': '#E5E7EB',
         }
-        return colors.get(color_name, '#FFFFFF')
+        return design_get_color(color_name, fallbacks.get(color_name, '#FFFFFF'))
     
     def pack(self, **kwargs):
         """Pack the progress frame"""
@@ -106,17 +141,13 @@ class ModernProgressBar:
     
     def update_progress(self, progress: float, status: str = None):
         """Update progress bar value and status"""
-        self.progress = max(0.0, min(1.0, progress))
-        self.progress_bar.set(self.progress)
-        
-        if status:
-            self.status_text = status
-            self.label.configure(text=status)
-        
-        percentage = int(self.progress * 100)
-        self.percentage_label.configure(text=f"{percentage}%")
-        
-        self.parent.update_idletasks()
+        self.set_progress(progress, status)
+        # Begrenze Scope der UI-Updates auf das eigene Frame
+        try:
+            if self.frame.winfo_exists():
+                self.frame.update_idletasks()
+        except Exception:
+            pass
     
     def set_indeterminate(self, active: bool = True):
         """Set indeterminate progress mode"""
@@ -129,9 +160,37 @@ class ModernProgressBar:
 
         # =========================== CONTEXT MENU SYSTEM ===========================
 
+    # Base hooks
+    def _set_progress_value(self, value: float, animate: bool):
+        self.progress = value
+        self.progress_bar.set(value)
+
+    def _update_percentage_label(self, percentage: int):
+        self.percentage_label.configure(text=f"{percentage}%")
+
+    def _update_status_label(self, text: str):
+        self.status_text = text
+        self.label.configure(text=text)
+
+    def set_error(self, message: str):
+        try:
+            self.progress_bar.set(0)
+            self.progress_bar.configure(progress_color=self.get_color('error'))
+            self.label.configure(text=message, text_color=self.get_color('error'))
+            self.percentage_label.configure(text="0%", text_color=self.get_color('error'))
+        except Exception:
+            logger.exception("Fehler beim Setzen des Fehlerzustands")
+
+    def reset(self):
+        try:
+            self.progress_bar.configure(progress_color=self.get_color('primary'))
+            self.set_progress(0.0, "Bereit...", animate=False)
+        except Exception:
+            logger.exception("Fehler beim Reset des Progress Bars")
 
 
-class ProgressIndicator(ctk.CTkFrame):
+
+class ProgressIndicator(ctk.CTkFrame, BaseProgressWidget):
     """Beautiful Progress Indicator with Premium Animations & Styling"""
     
     def __init__(self, parent, **kwargs):
@@ -144,7 +203,7 @@ class ProgressIndicator(ctk.CTkFrame):
             self,
             height=12,  # Slightly thicker for premium feel
             progress_color=self.get_ui_color('primary'),
-            fg_color=self.get_ui_color('neutral_200'),
+            fg_color=self.get_ui_color('surface_border'),
             corner_radius=6
         )
         self.progress_bar.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 8))
@@ -155,13 +214,9 @@ class ProgressIndicator(ctk.CTkFrame):
         status_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
         status_frame.grid_columnconfigure(1, weight=1)
 
-        # Premium status icon with animation support
-        self.status_icon = ctk.CTkLabel(
-            status_frame,
-            text="●",
-            font=ctk.CTkFont(family="Segoe UI", size=14, weight="bold")
-        )
-        self.status_icon.grid(row=0, column=0, padx=(0, 8), sticky="w")
+        # Canvas-basierter Status-Indikator (keine Emoji-Icons im Text)
+        self.status_canvas = tk.Canvas(status_frame, width=16, height=16, highlightthickness=0, bg=self.cget("fg_color"))
+        self.status_canvas.grid(row=0, column=0, padx=(0, 8), sticky="w")
 
         # Beautiful status text with premium typography
         self.status_label = ctk.CTkLabel(
@@ -183,48 +238,22 @@ class ProgressIndicator(ctk.CTkFrame):
         self.percentage_label.grid(row=0, column=2, sticky="e")
     
     def get_ui_color(self, color_name):
-        """Basic color mapping"""
-        colors = {
-            'primary': '#1F4E79',  # vereinheitlichtes Brand-Blau
-            'neutral_200': '#E5E7EB',
+        """Design-System Farben mit Fallbacks."""
+        fallbacks = {
+            'primary': '#1F4E79',
+            'surface_border': '#E5E7EB',
             'text_primary': '#374151',
             'text_secondary': '#6B7280',
             'success': '#059669',
             'error': '#DC2626'
         }
-        return colors.get(color_name, '#FFFFFF')
+        return design_get_color(color_name, fallbacks.get(color_name, '#FFFFFF'))
     
     def set_progress(self, value: float, status: str = "", animate: bool = True):
         """Update progress with beautiful smooth animation"""
-        # Beautiful progress animation
-        if animate and hasattr(self, '_current_progress'):
-            self._animate_progress(self._current_progress, value)
-        else:
-            self.progress_bar.set(value)
-        
-        self._current_progress = value
-        
-        # Update percentage
-        percentage = int(value * 100)
-        self.percentage_label.configure(text=f"{percentage}%")
-        
-        # Update status text
-        if status:
-            self.status_label.configure(text=status)
-        
-        # Update status icon based on progress
-        if value >= 1.0:
-            self.status_icon.configure(text="✓")
-            self.status_label.configure(text_color=self.get_ui_color('success'))
-            self.percentage_label.configure(text_color=self.get_ui_color('success'))
-        elif value > 0:
-            self.status_icon.configure(text="●")
-            self.status_label.configure(text_color=self.get_ui_color('primary'))
-            self.percentage_label.configure(text_color=self.get_ui_color('primary'))
-        else:
-            self.status_icon.configure(text="○")
-            self.status_label.configure(text_color=self.get_ui_color('text_secondary'))
-            self.percentage_label.configure(text_color=self.get_ui_color('text_secondary'))
+        super().set_progress(value, status, animate)
+        # Update Status-Indikator (Canvas)
+        self._draw_status_indicator(value)
     
     def _animate_progress(self, start: float, end: float, duration: int = 300):
         """Smooth progress animation"""
@@ -244,15 +273,54 @@ class ProgressIndicator(ctk.CTkFrame):
         """Set error state with visual feedback"""
         self.progress_bar.set(0)
         self.progress_bar.configure(progress_color=self.get_ui_color('error'))
-        self.status_icon.configure(text="✗")
         self.status_label.configure(text=message, text_color=self.get_ui_color('error'))
         self.percentage_label.configure(text="0%", text_color=self.get_ui_color('error'))
+        self._draw_error_indicator()
     
     def reset(self):
         """Reset progress indicator to initial state"""
         self.progress_bar.configure(progress_color=self.get_ui_color('primary'))
         self.set_progress(0, "Bereit für Upload", animate=False)
         self._current_progress = 0
+        self._draw_status_indicator(0)
+
+    # Base hooks for BaseProgressWidget
+    def _set_progress_value(self, value: float, animate: bool):
+        if animate and hasattr(self, '_current_progress'):
+            self._animate_progress(getattr(self, '_current_progress', 0.0), value)
+        else:
+            self.progress_bar.set(value)
+        self._current_progress = value
+
+    def _update_percentage_label(self, percentage: int):
+        self.percentage_label.configure(text=f"{percentage}%")
+
+    def _update_status_label(self, text: str):
+        self.status_label.configure(text=text)
+
+    def _draw_status_indicator(self, value: float):
+        try:
+            self.status_canvas.delete("all")
+            if value >= 1.0:
+                # grüner Kreis (fertig)
+                self.status_canvas.create_oval(2, 2, 14, 14, fill=self.get_ui_color('success'), outline="")
+            elif value > 0:
+                # blauer Kreis (laufend)
+                self.status_canvas.create_oval(2, 2, 14, 14, fill=self.get_ui_color('primary'), outline="")
+            else:
+                # grauer Kreis (bereit)
+                self.status_canvas.create_oval(2, 2, 14, 14, fill=self.get_ui_color('text_secondary'), outline="")
+        except Exception:
+            logger.debug("Status-Indicator konnte nicht gezeichnet werden", exc_info=True)
+
+    def _draw_error_indicator(self):
+        try:
+            self.status_canvas.delete("all")
+            # rotes X
+            self.status_canvas.create_line(3, 3, 13, 13, fill=self.get_ui_color('error'), width=2)
+            self.status_canvas.create_line(13, 3, 3, 13, fill=self.get_ui_color('error'), width=2)
+        except Exception:
+            logger.debug("Error-Indicator konnte nicht gezeichnet werden", exc_info=True)
 
     # =========================== ENHANCED FILE UPLOAD SYSTEM ===========================
 
@@ -265,6 +333,7 @@ class DragDropFrame(ctk.CTkFrame):
         super().__init__(parent, **kwargs)
         self.drop_callback = drop_callback
         self.is_drag_active = False
+        self._base_fg_color = self.cget("fg_color")
         
         # Bind drag and drop events
         self.bind("<Button-1>", self.on_click)
@@ -285,18 +354,34 @@ class DragDropFrame(ctk.CTkFrame):
     
     def on_enter(self, event):
         """Visual feedback on mouse enter"""
-        self.configure(border_color='#1F4E79')
+        try:
+            self.configure(border_color=design_get_color('primary', '#1F4E79'))
+            # zusätzliches visuelles Feedback (Hintergrund leicht hervorheben)
+            self.configure(fg_color=design_get_color('surface_hover', '#F0F9FF'))
+        except Exception:
+            pass
         self.is_drag_active = True
     
     def on_leave(self, event):
         """Reset visual feedback on mouse leave"""
-        self.configure(border_color='#E5E7EB')
+        try:
+            self.configure(border_color=design_get_color('surface_border', '#E5E7EB'))
+            self.configure(fg_color=self._base_fg_color)
+        except Exception:
+            pass
         self.is_drag_active = False
     
     def on_drop(self, event):
         """Handle file drop"""
         if self.drop_callback:
-            files = event.data.split()
+            try:
+                # Robustere Zerlegung (Paths mit Leerzeichen)
+                try:
+                    files = self.tk.splitlist(event.data)
+                except Exception:
+                    files = shlex.split(event.data)
+            except Exception:
+                files = [event.data]
             self.drop_callback(files)
     
     def set_active(self, active: bool):
@@ -322,9 +407,9 @@ class FileUploadCard(DragDropFrame):
     
     def __init__(self, parent, upload_callback=None, **kwargs):
         card_kwargs = {
-            'fg_color': '#F8FAFC',        # Neutrale Oberfläche
+            'fg_color': design_get_color('surface', '#F8FAFC'),        # Neutrale Oberfläche
             'border_width': 2,
-            'border_color': '#E5E7EB',    # Neutraler Rand
+            'border_color': design_get_color('surface_border', '#E5E7EB'),    # Neutraler Rand
             'corner_radius': 16,
             'height': 120,
             **kwargs
@@ -333,6 +418,8 @@ class FileUploadCard(DragDropFrame):
         super().__init__(parent, drop_callback=self.handle_file_drop, **card_kwargs)
         
         self.upload_callback = upload_callback
+        self.ALLOWED_EXTS = {".pdf", ".docx", ".doc", ".txt", ".rtf", ".odt"}
+        self.MAX_SIZE = 100 * 1024 * 1024  # 100 MB
         self.setup_upload_area()
     
     def setup_upload_area(self):
@@ -344,9 +431,9 @@ class FileUploadCard(DragDropFrame):
         # Upload card
         upload_card = ctk.CTkFrame(
             container,
-            fg_color='#F8FAFC',
+            fg_color=design_get_color('surface', '#F8FAFC'),
             border_width=2,
-            border_color='#E5E7EB',
+            border_color=design_get_color('surface_border', '#E5E7EB'),
             corner_radius=24,
             height=300
         )
@@ -356,19 +443,11 @@ class FileUploadCard(DragDropFrame):
         content_frame = ctk.CTkFrame(upload_card, fg_color=design_get_color('transparent'))
         content_frame.place(relx=0.5, rely=0.5, anchor="center")
 
-        upload_icon = ctk.CTkLabel(
-            content_frame,
-            text="📁",
-            font=ctk.CTkFont(family="Segoe UI", size=48),
-            text_color='#1F4E79'
-        )
-        upload_icon.pack()
-
         main_text = ctk.CTkLabel(
             content_frame,
-            text="📄 Datei hier ablegen oder klicken zum Durchsuchen",
+            text="Datei hier ablegen oder klicken zum Durchsuchen",
             font=ctk.CTkFont(family="Segoe UI", size=16, weight="bold"),
-            text_color='#374151'
+            text_color=design_get_color('text_primary', '#374151')
         )
         main_text.pack(pady=(16, 8))
 
@@ -376,13 +455,13 @@ class FileUploadCard(DragDropFrame):
             content_frame,
             text="Ziehen & Ablegen oder Klicken für Dateiauswahl",
             font=ctk.CTkFont(family="Segoe UI", size=12),
-            text_color='#6B7280'
+            text_color=design_get_color('text_secondary', '#6B7280')
         )
         subtitle_text.pack(pady=(0, 16))
 
         formats_frame = ctk.CTkFrame(
             content_frame,
-            fg_color='#F3F4F6',
+            fg_color=design_get_color('gray_100', '#F3F4F6'),
             corner_radius=12,
             height=60
         )
@@ -392,7 +471,7 @@ class FileUploadCard(DragDropFrame):
             formats_frame,
             text="Unterstützte Formate:",
             font=ctk.CTkFont(family="Segoe UI", size=12, weight="bold"),
-            text_color='#374151'
+            text_color=design_get_color('text_primary', '#374151')
         )
         formats_title.pack(pady=(8, 4))
 
@@ -400,10 +479,10 @@ class FileUploadCard(DragDropFrame):
         formats_container.pack()
 
         for fmt in [
-            {"name": "PDF", "color": '#DC2626'},
-            {"name": "DOCX", "color": '#1F4E79'},
-            {"name": "TXT", "color": '#059669'},
-            {"name": "DOC", "color": '#D97706'}
+            {"name": "PDF", "color": design_get_color('error', '#DC2626')},
+            {"name": "DOCX", "color": design_get_color('primary', '#1F4E79')},
+            {"name": "TXT", "color": design_get_color('success', '#059669')},
+            {"name": "DOC", "color": design_get_color('warning', '#D97706')}
         ]:
             badge = ctk.CTkFrame(
                 formats_container,
@@ -417,14 +496,14 @@ class FileUploadCard(DragDropFrame):
                 badge,
                 text=fmt['name'],
                 font=ctk.CTkFont(family="Segoe UI", size=10, weight="bold"),
-                text_color="white"
+                text_color=design_get_color('white', '#FFFFFF')
             ).place(relx=0.5, rely=0.5, anchor="center")
 
         size_info = ctk.CTkLabel(
             content_frame,
-            text="📊 Maximale Dateigröße: 100 MB",
+            text="Maximale Dateigröße: 100 MB",
             font=ctk.CTkFont(family="Segoe UI", size=11),
-            text_color='#6B7280'
+            text_color=design_get_color('text_secondary', '#6B7280')
         )
         size_info.pack(pady=(16, 0))
     
@@ -433,10 +512,23 @@ class FileUploadCard(DragDropFrame):
         try:
             if files:
                 # Beautiful file drop handling with animation feedback
-                self.configure(border_color='#059669', border_width=3)
+                self.configure(border_color=design_get_color('success', '#059669'), border_width=3)
                 
                 for file_path in files:
                     if os.path.isfile(file_path):
+                        # Dateityp-Whitelist prüfen
+                        ext = os.path.splitext(file_path)[1].lower()
+                        if ext not in self.ALLOWED_EXTS:
+                            self.set_error("Nicht unterstütztes Format")
+                            return
+                        # Größenlimit prüfen
+                        try:
+                            if os.path.getsize(file_path) > self.MAX_SIZE:
+                                logger.warning("File too large: %s", file_path)
+                                self.set_error("Datei zu groß (max. 100 MB)")
+                                return
+                        except OSError:
+                            logger.warning("Konnte Dateigröße nicht ermitteln: %s", file_path)
                         # Visual success feedback
                         self._animate_upload_success()
                         
@@ -447,19 +539,32 @@ class FileUploadCard(DragDropFrame):
                 # Beautiful file dialog with enhanced options
                 from tkinter import filedialog
                 file_path = filedialog.askopenfilename(
-                    title="📄 Professionelle Übersetzungsdatei auswählen",
+                    title="Datei auswählen",
                     filetypes=[
-                        ("🔗 Alle unterstützten", "*.pdf;*.docx;*.doc;*.txt;*.rtf;*.odt"),
-                        ("📄 PDF-Dateien", "*.pdf"),
-                        ("📝 Word-Dokumente", "*.docx;*.doc"),
-                        ("📋 Textdateien", "*.txt"),
-                        ("📑 Rich Text", "*.rtf"),
-                        ("📓 OpenDocument", "*.odt"),
-                        ("📁 Alle Dateien", "*.*")
+                        ("Alle unterstützten", "*.pdf;*.docx;*.doc;*.txt;*.rtf;*.odt"),
+                        ("PDF-Dateien", "*.pdf"),
+                        ("Word-Dokumente", "*.docx;*.doc"),
+                        ("Textdateien", "*.txt"),
+                        ("Rich Text", "*.rtf"),
+                        ("OpenDocument", "*.odt"),
+                        ("Alle Dateien", "*.*")
                     ]
                 )
                 
                 if file_path and self.upload_callback:
+                    # Dateityp-Whitelist prüfen
+                    ext = os.path.splitext(file_path)[1].lower()
+                    if ext not in self.ALLOWED_EXTS:
+                        self.set_error("Nicht unterstütztes Format")
+                        return
+                    # Größenlimit prüfen
+                    try:
+                        if os.path.getsize(file_path) > self.MAX_SIZE:
+                            logger.warning("File too large: %s", file_path)
+                            self.set_error("Datei zu groß (max. 100 MB)")
+                            return
+                    except OSError:
+                        logger.warning("Konnte Dateigröße nicht ermitteln: %s", file_path)
                     # Beautiful success animation
                     self._animate_upload_success()
                     self.upload_callback(file_path)
@@ -470,13 +575,16 @@ class FileUploadCard(DragDropFrame):
         """Beautiful upload success animation"""
         try:
             # Change border to success color
-            self.configure(border_color='#059669', border_width=3)
+            self.configure(border_color=design_get_color('success', '#059669'), border_width=3)
             
             # Schedule reset after animation
-            self.after(1500, lambda: self.configure(
-                border_color='#E5E7EB',
-                border_width=2
-            ))
+            def _reset_border():
+                if self.winfo_exists():
+                    self.configure(
+                        border_color=design_get_color('surface_border', '#E5E7EB'),
+                        border_width=2
+                    )
+            self.after(1500, _reset_border)
         except Exception as e:
             logger.error("Animation error: %s", e, exc_info=True)
     
@@ -485,9 +593,9 @@ class FileUploadCard(DragDropFrame):
         try:
             # Enhanced visual feedback with success styling
             self.configure(
-                border_color='#059669',
+                border_color=design_get_color('success', '#059669'),
                 border_width=3,
-                fg_color='#F0FDF4'  # Light success background
+                fg_color=design_get_color('success_light', '#F0FDF4')  # Light success background
             )
             
             # Add success checkmark icon
@@ -501,65 +609,97 @@ class FileUploadCard(DragDropFrame):
             # Create success overlay
             success_frame = ctk.CTkFrame(
                 self,
-                fg_color='#059669',
+                fg_color=design_get_color('success', '#059669'),
                 corner_radius=12,
                 height=80
             )
-            success_frame.place(relx=0.5, rely=0.1, anchor="center")
+            success_frame.place(relx=0.95, rely=0.05, anchor="ne")
             
             # Success content
             success_content = ctk.CTkFrame(success_frame, fg_color=design_get_color('transparent'))
             success_content.pack(expand=True, fill="both", padx=16, pady=8)
-            
-            # Success icon
-            success_icon = ctk.CTkLabel(
-                success_content,
-                text="✓",
-                font=ctk.CTkFont(family="Segoe UI", size=20, weight="bold"),
-                text_color="white"
-            )
-            success_icon.pack(side="left")
             
             # Success message
             success_label = ctk.CTkLabel(
                 success_content,
                 text=f"Datei erfolgreich geladen: {os.path.basename(filename)[:30]}{'...' if len(filename) > 30 else ''}",
                 font=ctk.CTkFont(family="Segoe UI", size=11),
-                text_color="white"
+                text_color=design_get_color('white', '#FFFFFF')
             )
-            success_label.pack(side="left", padx=(8, 0))
+            success_label.pack(side="left")
             
             # Auto-hide success indicator
-            self.after(3000, lambda: success_frame.destroy() if success_frame.winfo_exists() else None)
+            def _safe_destroy():
+                if success_frame.winfo_exists():
+                    success_frame.destroy()
+            self.after(3000, _safe_destroy)
         except Exception as e:
             logger.error("Success indicator error: %s", e, exc_info=True)
+
+    # Fehleranzeige auf der Karte
+    def set_error(self, message: str):
+        try:
+            error_frame = ctk.CTkFrame(
+                self,
+                fg_color=design_get_color('error', '#DC2626'),
+                corner_radius=12,
+                height=80
+            )
+            error_frame.place(relx=0.95, rely=0.05, anchor="ne")
+            error_content = ctk.CTkFrame(error_frame, fg_color=design_get_color('transparent'))
+            error_content.pack(expand=True, fill="both", padx=16, pady=8)
+            error_label = ctk.CTkLabel(
+                error_content,
+                text=message,
+                font=ctk.CTkFont(family="Segoe UI", size=11),
+                text_color=design_get_color('white', '#FFFFFF')
+            )
+            error_label.pack(side="left")
+            def _safe_destroy():
+                if error_frame.winfo_exists():
+                    error_frame.destroy()
+            self.after(3000, _safe_destroy)
+        except Exception:
+            logger.exception("Fehleranzeige konnte nicht erstellt werden")
 
 # =========================== MAIN APPLICATION CLASS ===========================
 
 # Fallback UI Theme Definitionen
 class UITheme:
+    """Design-System Wrapper - delegiert an zentrale design_system.py"""
+    
     @staticmethod
     def get_color(color_name, fallback='#FFFFFF'):
-        color_map = {
-            'primary': '#1F4E79',  # vereinheitlichtes Brand-Blau
-            'secondary': '#64748B',
-            'success': '#059669',
-            'warning': '#D97706',
-            'danger': '#DC2626',
-            'info': '#1F4E79',  # Info mapped to primary
-            'text_primary': '#1F2937',
-            'background': '#FFFFFF',
-            'surface': '#F8FAFC'
-        }
-        return color_map.get(color_name, fallback)
+        """Wrapper für design_system.get_color mit lokalen Fallbacks."""
+        try:
+            return design_get_color(color_name, fallback)
+        except Exception:
+            # Final fallback für kritische Farben
+            critical_fallbacks = {
+                'primary': '#1F4E79',
+                'text_primary': '#1F2937',
+                'background': '#FFFFFF',
+                'surface': '#F8FAFC'
+            }
+            return critical_fallbacks.get(color_name, fallback)
 
     @staticmethod
-    def get_font(font_name, fallback=('Arial', 12)):
-        return fallback
+    def get_font(font_name, fallback=('Segoe UI', 12, 'normal')):
+        """Wrapper für design_system.get_font mit Fallback."""
+        try:
+            from design_system import get_font as ds_get_font
+            return ds_get_font(font_name)
+        except Exception:
+            return fallback
 
     @staticmethod
     def get_spacing(spacing_name, fallback=8):
-        return fallback
+        """Wrapper für design_system.get_spacing mit Fallback."""
+        try:
+            from design_system import get_spacing as ds_get_spacing
+            return ds_get_spacing(spacing_name)
+        except Exception:
+            return fallback
 
 
 # Fallback Component Definitionen

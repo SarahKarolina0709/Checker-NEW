@@ -1,0 +1,18 @@
+# Core UI Framework
+customtkinter
+
+# Image Processing
+Pillow
+
+# PDF Reading
+PyMuPDF
+
+# Language Detection
+langdetect
+
+# Drag and Drop for Tkinter
+tkinterdnd2-universal
+
+# Language Checking Tool
+language-tool-python
+filelock==3.14.0

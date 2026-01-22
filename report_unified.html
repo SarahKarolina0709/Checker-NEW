@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Unified Report</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin:20px; background:#f6f8fa; }
+    header { display:flex; flex-wrap:wrap; gap:16px; align-items:baseline; margin:0 0 18px; }
+    header h1 { margin:0; font-size:1.25rem; }
+    .mode-badge { font-size:.65rem; background:#1F4E79; color:#fff; padding:4px 8px; border-radius:4px; letter-spacing:.5px; text-transform:uppercase; }
+    .meta-line { font-size:.7rem; color:#475569; display:flex; gap:14px; flex-wrap:wrap; }
+    .export-hint { margin-left:auto; font-size:.65rem; color:#334155; }
+    @media print { .mode-badge, .export-hint, .team-only { display:none !important; } body { background:#fff; } }
+  </style>
+  <script type="module">
+    import { loadReportData, normalizeData, renderReport, createStateManager, ensureBaseStyles } from './report_core.js';
+    const params = new URLSearchParams(location.search);
+    const mode = params.get('mode') === 'export' ? 'export' : 'team';
+    const src = params.get('src') || 'report_sample.json';
+    const app = document.getElementById('app');
+    const badge = document.getElementById('modeBadge');
+    badge.textContent = mode === 'team' ? 'TEAM' : 'EXPORT';
+    ensureBaseStyles();
+    (async function(){
+      try {
+        const raw = await loadReportData({ source: src });
+        const data = normalizeData(raw);
+        document.getElementById('metaCount').textContent = data.issues.length + ' Issues';
+        document.getElementById('metaGen').textContent = new Date(data.meta.generatedAt || Date.now()).toLocaleString('de-DE');
+        if(mode === 'export') {
+          renderReport({ container: app, data, mode: 'export' });
+        } else {
+          // Dynamisch team-module nachladen (on-demand) um Export-Leichtgewicht zu halten
+          const teamMod = await import('./report_team.js');
+          // BootTeam erwartet fetch-Quelle; wir wollen vorhandene Daten nutzen -> kurzer Patch
+          const state = createStateManager(data, { persist:true });
+          renderReport({ container: app, data, mode: 'team' });
+          teamMod.default ? teamMod.default({ container: app, state }) : injectTeamLayer(teamMod, app, state);
+        }
+      } catch (e) {
+        app.innerHTML = '<p style="color:#DC2626;">Fehler beim Laden: '+ (e.message||e) +'</p>';
+      }
+    })();
+
+    // Fallback falls kein default Export vorhanden – nutzt vorhandene Funktionen des Modules
+    function injectTeamLayer(teamMod, container, state){
+      if(teamMod.mountControls && teamMod.updateBadges){
+        teamMod.mountControls(container, state); // Falls öffentlich
+        state.subscribe(()=>teamMod.updateBadges(container, state));
+      } else {
+        console.warn('Team Funktionen nicht gefunden – bitte report_team.js prüfen');
+      }
+    }
+  </script>
+</head>
+<body>
+  <header>
+    <h1>Qualitätsreport</h1>
+    <span id="modeBadge" class="mode-badge"></span>
+    <div class="meta-line">
+      <span id="metaCount"></span>
+      <span>Generiert: <span id="metaGen"></span></span>
+    </div>
+    <div class="export-hint">?mode=export oder ?mode=team verwenden</div>
+  </header>
+  <main id="app" aria-live="polite" aria-label="Report Container"></main>
+</body>
+</html>

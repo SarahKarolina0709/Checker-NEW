@@ -119,7 +119,14 @@ else:
 # Optional: DPI Awareness (Windows High DPI)
 try:  # pragma: no cover - Plattform spezifisch
     import ctypes  # noqa
-    ctypes.windll.shcore.SetProcessDpiAwareness(1)  # type: ignore[attr-defined]
+    # Defensive Windows-Only: APIs sind erst ab Windows 8.1 zuverlässig
+    if os.name == 'nt':
+        try:
+            shcore = ctypes.windll.shcore  # type: ignore[attr-defined]
+            if hasattr(shcore, 'SetProcessDpiAwareness'):
+                shcore.SetProcessDpiAwareness(1)  # PROCESS_SYSTEM_DPI_AWARE
+        except AttributeError:
+            pass
 except Exception:
     pass
 
@@ -131,7 +138,8 @@ try:
         log.info("Aggressiver Anti-Dark-Mode aktiv")
 except ImportError:
     os.environ['CUSTOMTKINTER_APPEARANCE_MODE'] = 'light'
-    log.debug("Aggressive Anti-Dark-Mode Modul nicht gefunden – Fallback Light")
+    # Feature-Ausfall → warning statt debug
+    log.warning("Aggressive Anti-Dark-Mode Modul nicht gefunden – Fallback Light")
 
 
 _ICON_TEXT = {
@@ -147,8 +155,10 @@ class IconManager:
     @classmethod
     def get_icon(cls, icon_name) -> None:
         if not ICONS_ENABLED:
+            # Icons sind global deaktiviert → immer None
             return None
-        return None  # Placeholder für zukünftige echte Bild-Icons
+        # Wenn Icons explizit aktiviert sind, aber kein Loader existiert, klarer Fehler
+        raise NotImplementedError("ICONS_ENABLED=1, aber get_icon Loader ist nicht implementiert")
 
     @classmethod
     def get_icon_text(cls, icon_name: str) -> str:
@@ -168,19 +178,105 @@ except Exception:
     AsyncQualityAnalyzer = None
     ASYNC_QUALITY_AVAILABLE = False
 
+class AsyncHandle:
+    """Einheitlicher Handle für asynchrone Ausführungen (Task oder Thread).
+
+    - done() → bool: abgeschlossen?
+    - join(timeout=None) → bool: bis Abschluss oder Timeout warten, Rückgabe = done()
+    - cancel() → versucht Abbruch (nur bei asyncio.Task möglich)
+    """
+
+    def __init__(self, obj: Union[asyncio.Task, threading.Thread]):
+        self._task: asyncio.Task | None = None
+        self._thread: threading.Thread | None = None
+        self._event: threading.Event | None = None
+        if isinstance(obj, asyncio.Task):
+            self._task = obj
+            self._event = threading.Event()
+
+            def _set_done(_t):
+                try:
+                    if self._event:
+                        self._event.set()
+                except Exception:
+                    pass
+
+            obj.add_done_callback(_set_done)
+        elif isinstance(obj, threading.Thread):
+            self._thread = obj
+        else:
+            raise TypeError("AsyncHandle requires asyncio.Task or threading.Thread")
+
+    def done(self) -> bool:
+        if self._task is not None:
+            return self._task.done()
+        if self._thread is not None:
+            return not self._thread.is_alive()
+        return True
+
+    def join(self, timeout: float | None = None) -> bool:
+        if self._task is not None:
+            # Blockierender Join via threading.Event, unabhängig vom Event-Loop
+            if self._event is not None:
+                self._event.wait(timeout)
+            return self.done()
+        if self._thread is not None:
+            self._thread.join(timeout)
+            return self.done()
+        return True
+
+    def cancel(self) -> bool:
+        if self._task is not None:
+            try:
+                self._task.cancel()
+                return True
+            except Exception:
+                return False
+        return False
+
+    def result(self, timeout: float | None = None):
+        """Liefert das Ergebnis der Task (nur für asyncio.Task). Optional mit Timeout.
+
+        - Bei gesetztem timeout wird bis zur Fertigstellung (oder Timeout) gewartet.
+        - Wirft TimeoutError, falls nach timeout noch nicht abgeschlossen.
+        - Gibt None zurück, wenn kein asyncio.Task hinterlegt ist.
+        """
+        if self._task is None:
+            return None
+        if timeout is not None and not self._task.done():
+            if self._event is not None:
+                self._event.wait(timeout)
+            if not self._task.done():
+                raise TimeoutError("AsyncHandle.result() timeout")
+        return self._task.result()
+
+
 def run_async_task(coro_or_fn: Union[Awaitable, Callable[[], Awaitable]]):
-    """Startet Coroutine oder Factory robust und liefert Task/Thread Handle zurück."""
+    """Startet Coroutine oder Factory robust und liefert AsyncHandle zurück.
+
+    Erwartet entweder direkt eine Coroutine oder ein Callable, das eine Coroutine zurückgibt.
+    """
     import inspect
-    coro = coro_or_fn() if callable(coro_or_fn) and not inspect.isawaitable(coro_or_fn) else coro_or_fn
+    if inspect.isawaitable(coro_or_fn):
+        coro = coro_or_fn
+    elif callable(coro_or_fn):
+        coro = coro_or_fn()
+        if not inspect.isawaitable(coro):
+            raise TypeError("Callable did not return coroutine")
+    else:
+        raise TypeError("Expected coroutine or callable returning coroutine")
     try:
         loop = asyncio.get_event_loop_policy().get_event_loop()
     except Exception:
         loop = None
     if loop and loop.is_running():
-        return asyncio.create_task(coro)  # type: ignore[arg-type]
-    th = threading.Thread(target=lambda: asyncio.run(coro), daemon=True)
+        task = asyncio.create_task(coro)  # type: ignore[arg-type]
+        return AsyncHandle(task)
+    def _runner():
+        asyncio.run(coro)
+    th = threading.Thread(target=_runner, daemon=True)
     th.start()
-    return th
+    return AsyncHandle(th)
 
 def dispatch_ui(root: ctk.CTk, func, *args, **kwargs):
     """Thread-sicherer Dispatch mit vollständigem Traceback-Logging bei Fehlern."""
@@ -188,11 +284,13 @@ def dispatch_ui(root: ctk.CTk, func, *args, **kwargs):
         try:
             func(*args, **kwargs)
         except Exception:
-            log.exception("UI Dispatch fehlgeschlagen")
+            # UI-Problem → info statt error
+            log.info("UI Dispatch fehlgeschlagen", exc_info=True)
     try:
         root.after(0, _safe)
     except Exception:
-        log.exception("root.after fehlgeschlagen")
+        # UI-Problem → info statt error
+        log.info("root.after fehlgeschlagen", exc_info=True)
 
 
 # =========================== TOOLTIP SYSTEM ===========================
@@ -254,7 +352,8 @@ class ToolTip:
             label = ctk.CTkLabel(
                 tw,
                 text=self.text,
-                font=font_from_token('caption'),
+                # Konsistenter Font-Token für Tooltips
+                font=font_from_token('tooltip', ("Segoe UI", 10, "normal")),
                 fg_color=ds_color('gray_700', '#374151'),
                 text_color=ds_color('white', '#FFFFFF'),
                 corner_radius=radius,
@@ -268,10 +367,13 @@ class ToolTip:
             tw.geometry(f"+{x}+{y}")
             tw.deiconify()
         except Exception as e:
-            log.debug("Tooltip Fehler: %s", e)
+            # UI-Problem → info statt warning
+            log.info("Tooltip Fehler: %s", e)
             self.hide_tooltip()
 
     def hide_tooltip(self):
+        # Ausstehende Timer abbrechen um Leaks zu vermeiden
+        self.cancel_tooltip()
         if self.tooltip_window:
             try:
                 self.tooltip_window.destroy()
@@ -306,85 +408,69 @@ class EnhancedButton:
         except Exception:
             return 8
 
-    @staticmethod
-    def create_primary_button(parent, text: str, command=None, width=180, height=44, **kwargs):
-        return ctk.CTkButton(
-            parent,
-            text=text,
-            command=command,
-            width=width,
-            height=height,
-            fg_color=ds_color('button_primary', PRIMARY),
-            hover_color=ds_color('button_primary_hover', PRIMARY),
-            text_color=ds_color('button_primary_text', '#FFFFFF'),
-            font=font_from_token('button_md'),
-            corner_radius=EnhancedButton._radius(),
-            **kwargs
-        )
+    STYLES = {
+        'primary': {
+            'fg_color': ds_color('button_primary', PRIMARY),
+            'hover_color': ds_color('button_primary_hover', PRIMARY),
+            'text_color': ds_color('button_primary_text', '#FFFFFF'),
+        },
+        'secondary': {
+            'fg_color': ds_color('button_secondary', '#6C757D'),
+            'hover_color': ds_color('button_secondary_hover', '#5B636A'),
+            'text_color': ds_color('button_secondary_text', '#FFFFFF'),
+        },
+        'success': {
+            'fg_color': ds_color('success', '#2E8B57'),
+            'hover_color': ds_color('success_hover', '#27754A'),
+            'text_color': ds_color('white', '#FFFFFF'),
+        },
+        'warning': {
+            'fg_color': ds_color('warning', '#F2994A'),
+            'hover_color': ds_color('warning_hover', '#D8833F'),
+            'text_color': ds_color('white', '#FFFFFF'),
+        },
+        'danger': {
+            'fg_color': ds_color('error', '#DC2626'),
+            'hover_color': ds_color('error_hover', '#B91C1C'),
+            'text_color': ds_color('white', '#FFFFFF'),
+        },
+    }
 
-    @staticmethod
-    def create_secondary_button(parent, text: str, command=None, width=180, height=44, **kwargs):
-        return ctk.CTkButton(
-            parent,
-            text=text,
-            command=command,
-            width=width,
-            height=height,
-            fg_color=ds_color('button_secondary', '#6C757D'),
-            hover_color=ds_color('button_secondary_hover', '#5B636A'),
-            text_color=ds_color('button_secondary_text', '#FFFFFF'),
-            font=font_from_token('button_md'),
-            corner_radius=EnhancedButton._radius(),
-            **kwargs
-        )
+    @classmethod
+    def create(cls, parent, text: str, style: str = 'primary', command=None, width=180, height=44, **kwargs):
+        cfg = dict(cls.STYLES.get(style, cls.STYLES['primary']))
+        base = {
+            'text': text,
+            'command': command,
+            'width': width,
+            'height': height,
+            'font': font_from_token('button_md'),
+            'corner_radius': cls._radius(),
+        }
+        base.update(cfg)
+        base.update(kwargs)
+        return ctk.CTkButton(parent, **base)
 
-    @staticmethod
-    def create_success_button(parent, text: str, command=None, width=180, height=44, **kwargs):
-        return ctk.CTkButton(
-            parent,
-            text=text,
-            command=command,
-            width=width,
-            height=height,
-            fg_color=ds_color('success', '#2E8B57'),
-            hover_color=ds_color('success_hover', '#27754A'),
-            text_color=ds_color('white', '#FFFFFF'),
-            font=font_from_token('button_md'),
-            corner_radius=EnhancedButton._radius(),
-            **kwargs
-        )
+    # Rückwärtskompatible Convenience-Methoden
+    @classmethod
+    def create_primary_button(cls, parent, text: str, command=None, width=180, height=44, **kwargs):
+        return cls.create(parent, text=text, style='primary', command=command, width=width, height=height, **kwargs)
 
-    @staticmethod
-    def create_warning_button(parent, text: str, command=None, width=180, height=44, **kwargs):
-        return ctk.CTkButton(
-            parent,
-            text=text,
-            command=command,
-            width=width,
-            height=height,
-            fg_color=ds_color('warning', '#F2994A'),
-            hover_color=ds_color('warning_hover', '#D8833F'),
-            text_color=ds_color('white', '#FFFFFF'),
-            font=font_from_token('button_md'),
-            corner_radius=EnhancedButton._radius(),
-            **kwargs
-        )
+    @classmethod
+    def create_secondary_button(cls, parent, text: str, command=None, width=180, height=44, **kwargs):
+        return cls.create(parent, text=text, style='secondary', command=command, width=width, height=height, **kwargs)
 
-    @staticmethod
-    def create_danger_button(parent, text: str, command=None, width=180, height=44, **kwargs):
-        return ctk.CTkButton(
-            parent,
-            text=text,
-            command=command,
-            width=width,
-            height=height,
-            fg_color=ds_color('error', '#DC2626'),
-            hover_color=ds_color('error_hover', '#B91C1C'),
-            text_color=ds_color('white', '#FFFFFF'),
-            font=font_from_token('button_md'),
-            corner_radius=EnhancedButton._radius(),
-            **kwargs
-        )
+    @classmethod
+    def create_success_button(cls, parent, text: str, command=None, width=180, height=44, **kwargs):
+        return cls.create(parent, text=text, style='success', command=command, width=width, height=height, **kwargs)
+
+    @classmethod
+    def create_warning_button(cls, parent, text: str, command=None, width=180, height=44, **kwargs):
+        return cls.create(parent, text=text, style='warning', command=command, width=width, height=height, **kwargs)
+
+    @classmethod
+    def create_danger_button(cls, parent, text: str, command=None, width=180, height=44, **kwargs):
+        return cls.create(parent, text=text, style='danger', command=command, width=width, height=height, **kwargs)
 
 # =========================== PROFESSIONAL CARD SYSTEM ===========================
 
@@ -402,17 +488,27 @@ class ProfessionalCard(ctk.CTkFrame):
         self._setup_card(title, icon_name)
 
     def _setup_card(self, title: str, icon_name: str):  # icon_name reserviert für zukünftige Aktivierung
-        if title:
+        # Header-Container auch bei icon_name vorsehen (API-kompatibel für spätere Aktivierung)
+        if title or icon_name:
             header_frame = ctk.CTkFrame(self, fg_color=ds_color('transparent', 'transparent'))
             header_frame.pack(fill='x', padx=16, pady=(16, 8))
-            title_label = ctk.CTkLabel(
-                header_frame,
-                text=title,
-                font=font_from_token('heading_sm'),
-                text_color=ds_color('gray_700', '#374151'),
-                anchor='w'
-            )
-            title_label.pack(side='left', fill='x', expand=True)
+            # Optionales Icon-Placeholder-Label (nur wenn Icon-Text verfügbar)
+            try:
+                icon_text = IconManager.get_icon_text(icon_name) if icon_name else ""
+                if icon_text:
+                    icon_lbl = ctk.CTkLabel(header_frame, text=icon_text)
+                    icon_lbl.pack(side='left', padx=(0, 8))
+            except Exception:
+                pass
+            if title:
+                title_label = ctk.CTkLabel(
+                    header_frame,
+                    text=title,
+                    font=font_from_token('heading_sm'),
+                    text_color=ds_color('gray_700', '#374151'),
+                    anchor='w'
+                )
+                title_label.pack(side='left', fill='x', expand=True)
         self.content_frame = ctk.CTkFrame(self, fg_color=ds_color('transparent', 'transparent'))
         self.content_frame.pack(fill='both', expand=True, padx=16, pady=(0, 16))
 
@@ -470,7 +566,7 @@ class ProfessionalButton(ctk.CTkButton):
                 'corner_radius': _radius(),
             },
             'outline': {
-                'fg_color': ds_color('transparent', 'transparent'),
+                'fg_color': ds_color('surface', SURFACE),
                 'hover_color': ds_color('surface_hover', '#F1F5F9'),
                 'text_color': ds_color('primary', PRIMARY),
                 'border_width': _bw(),
@@ -517,9 +613,13 @@ class ProfessionalButton(ctk.CTkButton):
 class UITheme:
     """Wrapper für konsistente Nutzung der ds_* Helper."""
 
+    TOKENS = TOKENS
+
     @staticmethod
     def get_color(color_name: str, fallback: str = '#FFFFFF'):
-        return ds_color(color_name, fallback)
+        # Erst aus Design-System, sonst aus Token-Defaults, zuletzt übergebenes Fallback
+        default = UITheme.TOKENS.get(color_name, fallback)
+        return ds_color(color_name, default)
 
     @staticmethod
     def get_font(font_name: str, fallback=('Segoe UI', 12, 'normal')):
@@ -530,16 +630,23 @@ class UITheme:
     def get_spacing(spacing_name, fallback=8):
         return ds_space(spacing_name, fallback)
 
+    @staticmethod
+    def font(token: str, fallback=("Segoe UI", 12, "normal")):
+        """Shortcut: liefert immer ein CTkFont über font_from_token."""
+        return font_from_token(token, fallback)
+
 
 # =========================== FALLBACK COMPONENTS ===========================
 
 class ModernProgressBarFallback(ctk.CTkProgressBar):
     def __init__(self, parent, **kwargs):
+        log.warning("ModernProgressBarFallback instanziiert – Design-System ProgressBar nicht verfügbar")
         super().__init__(parent, **kwargs)
 
 
 class EnhancedButtonFallback(ctk.CTkButton):
     def __init__(self, parent, **kwargs):
+        log.warning("EnhancedButtonFallback instanziiert – Design-System Button nicht verfügbar")
         super().__init__(parent, **kwargs)
     
     @classmethod
@@ -549,16 +656,19 @@ class EnhancedButtonFallback(ctk.CTkButton):
 
 class ProfessionalCardFallback(ctk.CTkFrame):
     def __init__(self, parent, title='', icon=None, **kwargs):
+        log.warning("ProfessionalCardFallback instanziiert – Design-System Card nicht verfügbar")
         super().__init__(parent, **kwargs)
 
 
 class ProfessionalButtonFallback(ctk.CTkButton):
     def __init__(self, parent, **kwargs):
+        log.warning("ProfessionalButtonFallback instanziiert – Design-System ProfessionalButton nicht verfügbar")
         super().__init__(parent, **kwargs)
 
 
 class ProgressIndicatorFallback(ctk.CTkFrame):
     def __init__(self, parent, **kwargs):
+        log.warning("ProgressIndicatorFallback instanziiert – Design-System ProgressIndicator nicht verfügbar")
         super().__init__(parent, **kwargs)
 
 # --- Öffentliche API ---------------------------------------------------------
@@ -574,6 +684,9 @@ __all__ = [
     'ProfessionalButtonFallback',
     'ProgressIndicatorFallback',
     'enforce_light_mode',
+    'AsyncHandle',
     'run_async_task',
     'dispatch_ui',
+    'FORCE_LIGHT',
+    'ICONS_ENABLED',
 ]

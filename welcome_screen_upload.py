@@ -18,10 +18,11 @@ Enthält:
 
 
 from pathlib import Path
-
 from tkinter import filedialog, messagebox
 import customtkinter as ctk
 import shutil
+import re
+import os
 
 try:
     from async_file_operations import copy_files_async, move_files_async, analyze_files_async, cleanup_async_operations
@@ -42,6 +43,14 @@ class WelcomeScreenUpload:
         self.uploaded_files = {'source': [], 'translation': []}
         self.upload_progress = {}
         self.current_upload_task = None
+        self.failed_uploads = []  # fehlgeschlagene Dateien des letzten Uploads
+        self.last_upload_mode_key = None  # merkt sich den Modus beim Uploadstart
+
+        # Upload-Modus Variable (Quelle vs Übersetzung)
+        try:
+            self.upload_mode_var = ctk.StringVar(value='source')  # 'source' oder 'translation'
+        except Exception:
+            self.upload_mode_var = None
 
         # Upload statistics
         self.upload_stats = {
@@ -57,8 +66,20 @@ class WelcomeScreenUpload:
         self.progress_label = None
         self.file_list_frame = None
         self.upload_button = None
+        self.retry_button = None
+        self.stats_label = None  # dynamisches Statistik-Label
 
         print("✅ Upload Module initialized")
+
+    def _refresh_stats_header(self):
+        """Aktualisiert das Statistik-Label falls vorhanden."""
+        try:
+            if self.stats_label:
+                self.stats_label.configure(
+                    text=f"Dateien: {self.upload_stats['total_files']} | Größe: {self.upload_stats['total_size_mb']:.1f} MB"
+                )
+        except Exception:
+            pass
 
     def create_upload_card(self, parent, column: int) -> ctk.CTkFrame:
         """📁 Create upload card in main grid.
@@ -127,11 +148,13 @@ class WelcomeScreenUpload:
 
         # Upload stats
         stats_text = f"Dateien: {self.upload_stats['total_files']} | Größe: {self.upload_stats['total_size_mb']:.1f} MB"
-        stats_label = ctk.CTkLabel(header_frame,
-                                  text=stats_text,
-                                  font=ctk.CTkFont(*self.parent.get_font('body_sm')),
-                                  text_color=self.parent.get_color('gray_500'))
-        stats_label.pack(anchor="w")
+        self.stats_label = ctk.CTkLabel(
+            header_frame,
+            text=stats_text,
+            font=ctk.CTkFont(*self.parent.get_font('body_sm')),
+            text_color=self.parent.get_color('gray_500')
+        )
+        self.stats_label.pack(anchor="w")
 
     def _setup_upload_drag_drop_area(self, content):
         """🎯 DRAG & DROP AREA - Interaktive Upload-Zone"""
@@ -195,7 +218,11 @@ class WelcomeScreenUpload:
         # File drop handler (simplified for now)
         def on_file_drop(event):
             try:
-                files = event.data.split()
+                raw = event.data or ''
+                matches = re.findall(r'\{([^}]+)\}|(\S+)', raw)
+                files = [m[0] if m[0] else m[1] for m in matches]
+                if not files:
+                    files = raw.split()
                 self._handle_dropped_files(files)
             except Exception as e:
                 print(f"❌ File drop error: {e}")
@@ -210,10 +237,14 @@ class WelcomeScreenUpload:
     def _setup_drag_drop(self, widget, drop_callback):
         """🎯 Setup drag and drop functionality"""
         try:
-            # Basic drag and drop setup
-            # This is a simplified version - full implementation would require tkdnd
-            widget.bind("<Button-1>", lambda e: self._browse_files())
-            print("✅ Basic drag-drop setup completed")
+            try:
+                import tkinterdnd2  # type: ignore
+                widget.drop_target_register('*')
+                widget.dnd_bind('<<Drop>>', drop_callback)
+                print("✅ Erweiterte Drag&Drop-Unterstützung aktiv (tkinterdnd2)")
+            except Exception:
+                widget.bind("<Button-1>", lambda e: self._browse_files())
+                print("ℹ️ Drag&Drop Bibliothek fehlt – Fallback (Klick) aktiv")
         except Exception as e:
             print(f"⚠️ Drag-drop setup failed: {e}")
 
@@ -260,6 +291,49 @@ class WelcomeScreenUpload:
         buttons_frame = ctk.CTkFrame(content, fg_color="transparent")
         buttons_frame.pack(fill="x", pady=(self.parent.get_spacing('lg'), 0))
 
+        # Modus-Umschalter (SegmentedButton falls vorhanden, sonst Radio-Fallback)
+        try:
+            mode_frame = ctk.CTkFrame(buttons_frame, fg_color="transparent")
+            mode_frame.pack(fill="x", pady=(0, self.parent.get_spacing('sm')))
+            segmented_ok = hasattr(ctk, 'CTkSegmentedButton') and self.upload_mode_var is not None
+            if segmented_ok:
+                def _on_mode_change():
+                    self._on_mode_changed()
+                self.mode_selector = ctk.CTkSegmentedButton(
+                    mode_frame,
+                    values=['Ausgangstext', 'Übersetzung'],
+                    variable=self.upload_mode_var,
+                    command=_on_mode_change,
+                    fg_color=self.parent.get_color('surface'),
+                    selected_color=self.parent.get_color('primary'),
+                    selected_hover_color=self.parent.get_color('primary_hover'),
+                    unselected_color=self.parent.get_color('surface_hover'),
+                    unselected_hover_color=self.parent.get_color('surface_hover'),
+                    text_color=self.parent.get_color('white')
+                )
+                self.mode_selector.pack(fill="x")
+            else:
+                radio_container = ctk.CTkFrame(mode_frame, fg_color="transparent")
+                radio_container.pack(anchor='w')
+                self.mode_source_rb = ctk.CTkRadioButton(
+                    radio_container,
+                    text='Ausgangstext',
+                    value='source',
+                    variable=self.upload_mode_var,
+                    command=lambda: self._on_mode_changed()
+                )
+                self.mode_trans_rb = ctk.CTkRadioButton(
+                    radio_container,
+                    text='Übersetzung',
+                    value='translation',
+                    variable=self.upload_mode_var,
+                    command=lambda: self._on_mode_changed()
+                )
+                self.mode_source_rb.pack(side='left', padx=(0, self.parent.get_spacing('md')))
+                self.mode_trans_rb.pack(side='left')
+        except Exception as e:
+            print(f"⚠️ Mode toggle init failed: {e}")
+
         # Buttons container
         button_container = ctk.CTkFrame(buttons_frame, fg_color="transparent")
         button_container.pack(anchor="center")
@@ -278,10 +352,10 @@ class WelcomeScreenUpload:
         )
         browse_btn.pack(side="left", padx=(0, self.parent.get_spacing('md')))
 
-        # Upload button
+        # Upload button (dynamischer Text abhängig vom Modus)
         self.upload_button = ctk.CTkButton(
             button_container,
-            text="Upload starten",
+            text="Upload starten (Ausgangstext)",
             command=self._start_upload,
             font=ctk.CTkFont(*self.parent.get_font('button_md')),
             fg_color=self.parent.get_color('secondary'),
@@ -296,6 +370,21 @@ class WelcomeScreenUpload:
             self._refresh_upload_button_state()
         except Exception:
             pass
+
+        # Retry Button (initial disabled)
+        self.retry_button = ctk.CTkButton(
+            button_container,
+            text="Erneut versuchen",
+            command=self._retry_failed_uploads,
+            font=ctk.CTkFont(*self.parent.get_font('button_md')),
+            fg_color=self.parent.get_color('primary'),
+            hover_color=self.parent.get_color('primary_hover'),
+            text_color=self.parent.get_color('white'),
+            width=140,
+            height=36,
+            state='disabled'
+        )
+        self.retry_button.pack(side='left', padx=(0, self.parent.get_spacing('md')))
 
         # Clear button
         clear_btn = ctk.CTkButton(
@@ -318,8 +407,19 @@ class WelcomeScreenUpload:
     def _browse_files(self):
         """📁 Open file browser for file selection"""
         try:
+            initialdir = None
+            try:
+                if self.upload_mode_var and self.upload_mode_var.get() == 'translation':
+                    current_customer = self.parent.get_current_customer()
+                    if current_customer:
+                        base = Path(self.parent.projects_base_path) / current_customer / 'Übersetzungen'
+                        base.mkdir(parents=True, exist_ok=True)
+                        initialdir = str(base)
+            except Exception:
+                pass
             filenames = filedialog.askopenfilenames(
                 title="Dateien für Upload auswählen",
+                initialdir=initialdir if initialdir else None,
                 filetypes=[
                     ("Alle unterstützten", "*.pdf;*.txt;*.docx;*.xlsx"),
                     ("PDF Dateien", "*.pdf"),
@@ -349,9 +449,16 @@ class WelcomeScreenUpload:
             if validation_result['valid_files']:
                 # Add to uploaded files
                 for file_path in validation_result['valid_files']:
-                    if file_path not in [f['path'] for f in self.uploaded_files['source']]:
+                    key = 'source'
+                    try:
+                        if self.upload_mode_var and self.upload_mode_var.get() == 'translation':
+                            key = 'translation'
+                    except Exception:
+                        pass
+                    existing = [f['path'] for f in self.uploaded_files[key]]
+                    if file_path not in existing:
                         file_info = self._get_file_info(file_path)
-                        self.uploaded_files['source'].append(file_info)
+                        self.uploaded_files[key].append(file_info)
 
                 # Update UI
                 self._update_file_list_display()
@@ -389,12 +496,27 @@ class WelcomeScreenUpload:
         valid_files = []
         invalid_files = []
 
-        # Config lesen mit robustem Fallback
+        # Config lesen mit robustem Fallback und Normalisierung
         try:
             exts = self.parent.get_config_value('upload_settings.allowed_extensions', ['.pdf', '.txt', '.docx', '.xlsx', '.doc'])
             if not isinstance(exts, (list, tuple, set)):
                 exts = ['.pdf', '.txt', '.docx', '.xlsx', '.doc']
-            supported_extensions = {str(e).lower() for e in exts}
+            # Normalisieren und auf bekannte Whitelist begrenzen
+            known = {'.pdf', '.txt', '.docx', '.xlsx', '.doc', '.rtf', '.odt', '.xls', '.pptx', '.ppt'}
+            norm = []
+            seen = set()
+            for it in exts:
+                s = str(it).strip().lower()
+                if not s:
+                    continue
+                if not s.startswith('.'):
+                    s = f'.{s}'
+                if s in seen:
+                    continue
+                if s in known:
+                    seen.add(s)
+                    norm.append(s)
+            supported_extensions = set(norm) if norm else {'.pdf', '.txt', '.docx', '.xlsx', '.doc'}
         except Exception:
             supported_extensions = {'.pdf', '.txt', '.docx', '.xlsx', '.doc'}
 
@@ -465,9 +587,23 @@ class WelcomeScreenUpload:
         for widget in self.file_list_frame.winfo_children():
             widget.destroy()
 
-        # Add file items
-        for i, file_info in enumerate(self.uploaded_files['source']):
+        # Add file items der aktiven Liste
+        key = 'source'
+        try:
+            if self.upload_mode_var and self.upload_mode_var.get() == 'translation':
+                key = 'translation'
+        except Exception:
+            pass
+        for i, file_info in enumerate(self.uploaded_files[key]):
             self._create_file_list_item(self.file_list_frame, file_info, i)
+
+        # Dynamische Höhe (besseres Scroll-Verhalten)
+        try:
+            files_current = self.uploaded_files[key]
+            dynamic_height = min(300, max(180, len(files_current) * 44))
+            self.file_list_frame.configure(height=dynamic_height)
+        except Exception:
+            pass
 
         # Nach UI-Update Button-State synchronisieren
         try:
@@ -519,8 +655,9 @@ class WelcomeScreenUpload:
 
     def _update_upload_stats(self):
         """📊 Update upload statistics"""
-        total_files = len(self.uploaded_files['source'])
-        total_size = sum(f['size'] for f in self.uploaded_files['source'])
+        total_files = len(self.uploaded_files['source']) + len(self.uploaded_files['translation'])
+        total_size = (sum(f['size'] for f in self.uploaded_files['source']) +
+                      sum(f['size'] for f in self.uploaded_files['translation']))
         total_size_mb = round(total_size / (1024*1024), 2)
 
         self.upload_stats.update({
@@ -531,7 +668,13 @@ class WelcomeScreenUpload:
     def _refresh_upload_button_state(self):
         """🔄 Enable/Disable Upload-Button abhängig von vorhandenen Dateien."""
         try:
-            state = "normal" if self.uploaded_files['source'] else "disabled"
+            key = 'source'
+            try:
+                if self.upload_mode_var and self.upload_mode_var.get() == 'translation':
+                    key = 'translation'
+            except Exception:
+                pass
+            state = "normal" if self.uploaded_files[key] else "disabled"
             if self.upload_button:
                 self.upload_button.configure(state=state)
         except Exception:
@@ -543,7 +686,13 @@ class WelcomeScreenUpload:
 
     def _start_upload(self):
         """🚀 Start upload process"""
-        if not self.uploaded_files['source']:
+        key = 'source'
+        try:
+            if self.upload_mode_var and self.upload_mode_var.get() == 'translation':
+                key = 'translation'
+        except Exception:
+            pass
+        if not self.uploaded_files[key]:
             if getattr(self.parent, 'toast_manager', None):
                 self.parent.toast_manager.show_warning("Keine Dateien ausgewählt")
             else:
@@ -571,9 +720,9 @@ class WelcomeScreenUpload:
     def _process_upload(self):
         """⚡ Process the actual upload"""
         try:
-            # Update UI
-            self.progress_label.configure(text="Upload wird vorbereitet...")
-            self.upload_button.configure(state="disabled", text="Uploading...")
+            mode_txt = 'Übersetzung' if (self.upload_mode_var and self.upload_mode_var.get() == 'translation') else 'Ausgangstext'
+            self.progress_label.configure(text=f"Upload ({mode_txt}) wird vorbereitet...")
+            self.upload_button.configure(state="disabled", text="Lade...")
 
             # Get customer info
             current_customer = self.parent.get_current_customer()
@@ -583,7 +732,6 @@ class WelcomeScreenUpload:
             # Create project path
             project_path = self._create_project_path(current_customer)
 
-            # Start upload process
             if ASYNC_AVAILABLE:
                 self._start_async_upload(project_path)
             else:
@@ -596,15 +744,20 @@ class WelcomeScreenUpload:
     def _create_project_path(self, customer_name):
         """📂 Create project directory path"""
         from datetime import datetime
-
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        project_name = f"{customer_name}_{timestamp}"
+        safe_customer = self._slugify(customer_name)
+        project_name = f"{safe_customer}_{timestamp}"
         project_path = Path(self.parent.projects_base_path) / customer_name / project_name
 
         # Create directory structure mit robustem Fallback
         structure = getattr(self.parent, 'project_structure', ["01_Ausgangstext"])
         if not structure:
             structure = ["01_Ausgangstext"]
+        try:
+            if self.upload_mode_var and self.upload_mode_var.get() == 'translation' and 'Übersetzungen' not in structure:
+                structure = list(structure) + ['Übersetzungen']
+        except Exception:
+            pass
         for folder in structure:
             folder_path = project_path / folder
             folder_path.mkdir(parents=True, exist_ok=True)
@@ -614,12 +767,19 @@ class WelcomeScreenUpload:
     def _start_async_upload(self, project_path):
         """🚀 Start asynchronous upload"""
         try:
-            source_files = [f['path'] for f in self.uploaded_files['source']]
-            target_path = project_path / "01_Ausgangstext"
+            key = 'source'
+            try:
+                if self.upload_mode_var and self.upload_mode_var.get() == 'translation':
+                    key = 'translation'
+            except Exception:
+                pass
+            source_files = [f['path'] for f in self.uploaded_files[key]]
+            target_path = project_path / ('Übersetzungen' if key == 'translation' else '01_Ausgangstext')
 
             # Progress callback
             def progress_callback(current_file, completed, total, percentage):
-                self.parent.after(0, lambda: self._update_progress(percentage, f"Uploading {current_file}..."))
+                file_name = os.path.basename(str(current_file))
+                self.parent.after(0, lambda: self._update_progress(percentage, f"Upload {file_name} ({percentage:.0f}%)"))
 
             # Completion callback
             def completion_callback(success_files, failed_files):
@@ -640,6 +800,13 @@ class WelcomeScreenUpload:
 
             self.current_upload_task = task_id
             print(f"🚀 Async upload started - Task ID: {task_id}")
+            try:
+                if getattr(self.parent, 'toast_manager', None):
+                    self.parent.toast_manager.show_info("Async Upload gestartet")
+                else:
+                    self.parent.toast_show("Async Upload gestartet", "info")
+            except Exception:
+                pass
 
         except Exception as e:
             print(f"❌ Async upload error: {e}")
@@ -648,8 +815,14 @@ class WelcomeScreenUpload:
     def _start_sync_upload(self, project_path):
         """⚡ Start synchronous upload (fallback)"""
         try:
-            source_files = [f['path'] for f in self.uploaded_files['source']]
-            target_path = project_path / "01_Ausgangstext"
+            key = 'source'
+            try:
+                if self.upload_mode_var and self.upload_mode_var.get() == 'translation':
+                    key = 'translation'
+            except Exception:
+                pass
+            source_files = [f['path'] for f in self.uploaded_files[key]]
+            target_path = project_path / ('Übersetzungen' if key == 'translation' else '01_Ausgangstext')
 
             total_files = len(source_files)
             success_files = []
@@ -658,9 +831,9 @@ class WelcomeScreenUpload:
             for i, source_file in enumerate(source_files):
                 try:
                     # Update progress
-                    percentage = (i / total_files) * 100
+                    percentage = ((i + 1) / total_files) * 100  # (i+1) damit letzte Datei 100% erreicht
                     file_name = Path(source_file).name
-                    self._update_progress(percentage, f"Uploading {file_name}...")
+                    self._update_progress(percentage, f"Upload {file_name} ({percentage:.0f}%)")
 
                     # Copy file
                     target_file = target_path / file_name
@@ -671,6 +844,11 @@ class WelcomeScreenUpload:
                     print(f"❌ Error copying {source_file}: {e}")
                     failed_files.append({'file': source_file, 'error': str(e)})
 
+            # Sicherstellen, dass Progress auf 100% steht
+            try:
+                self._update_progress(100, "Upload abgeschlossen (100%)")
+            except Exception:
+                pass
             # Complete upload
             self._upload_completed(success_files, failed_files, project_path)
 
@@ -694,8 +872,9 @@ class WelcomeScreenUpload:
 
             # Update UI
             self.progress_bar.set(1.0)
-            self.progress_label.configure(text=f"Upload abgeschlossen: {success_count} erfolgreich, {failed_count} fehlgeschlagen")
-            self.upload_button.configure(state="normal", text="Upload starten")
+            mode_txt = 'Übersetzung' if (self.upload_mode_var and self.upload_mode_var.get() == 'translation') else 'Ausgangstext'
+            self.progress_label.configure(text=f"Upload ({mode_txt}) abgeschlossen: {success_count} erfolgreich, {failed_count} fehlgeschlagen")
+            self.upload_button.configure(state="normal", text=f"Upload starten ({mode_txt})")
 
             # Show completion message
             if getattr(self.parent, 'toast_manager', None):
@@ -709,11 +888,37 @@ class WelcomeScreenUpload:
                 else:
                     self.parent.toast_show(f"Upload teilweise erfolgreich: {success_count}/{success_count + failed_count} Dateien", "warning")
 
-            # Reset upload state
-            self._reset_upload_state()
+            # Partielle Fehlerbehandlung / Retry-Unterstützung
+            key = 'translation' if (self.upload_mode_var and self.upload_mode_var.get() == 'translation') else 'source'
+            if failed_count > 0:
+                failed_paths = set()
+                for f in failed_files:
+                    if isinstance(f, dict) and 'file' in f:
+                        failed_paths.add(f['file'])
+                    elif isinstance(f, str):
+                        failed_paths.add(f)
+                # Nur fehlgeschlagene Elemente behalten und markieren
+                new_list = []
+                for item in self.uploaded_files.get(key, []):
+                    if item['path'] in failed_paths:
+                        item['upload_failed'] = True
+                        new_list.append(item)
+                self.uploaded_files[key] = new_list
+                self.failed_uploads = list(failed_paths)
+                self._update_file_list_display()
+                if self.retry_button:
+                    self.retry_button.configure(state='normal')
+            else:
+                self._reset_upload_state()
 
-            # Update statistics
-            self.upload_stats['success_rate'] = (success_count / (success_count + failed_count)) * 100 if (success_count + failed_count) > 0 else 100
+            # Update statistics (Erfolgsrate nur über letzte Operation)
+            total = success_count + failed_count
+            self.upload_stats['success_rate'] = (success_count / total) * 100 if total > 0 else 100
+            try:
+                if self.stats_label:
+                    self.stats_label.configure(text=f"Dateien: {self.upload_stats['total_files']} | Größe: {self.upload_stats['total_size_mb']:.1f} MB")
+            except Exception:
+                pass
 
             print(f"✅ Upload completed: {success_count} success, {failed_count} failed")
 
@@ -727,6 +932,14 @@ class WelcomeScreenUpload:
             self.progress_bar.set(0)
             self.progress_label.configure(text="Upload fehlgeschlagen")
             self.upload_button.configure(state="normal", text="Upload starten")
+            # Alle Dateien im aktuellen Modus als fehlgeschlagen markieren
+            key = 'translation' if (self.upload_mode_var and self.upload_mode_var.get() == 'translation') else 'source'
+            for item in self.uploaded_files.get(key, []):
+                item['upload_failed'] = True
+            self.failed_uploads = [it['path'] for it in self.uploaded_files.get(key, [])]
+            self._update_file_list_display()
+            if self.retry_button and self.failed_uploads:
+                self.retry_button.configure(state='normal')
 
             # Show error message
             if getattr(self.parent, 'toast_manager', None):
@@ -744,11 +957,66 @@ class WelcomeScreenUpload:
         self.current_upload_task = None
         # Keep files for potential retry, but reset progress
         self.progress_bar.set(0)
-        self.progress_label.configure(text="Bereit für Upload")
+        mode_txt = 'Übersetzung' if (self.upload_mode_var and self.upload_mode_var.get() == 'translation') else 'Ausgangstext'
+        self.progress_label.configure(text=f"Bereit für Upload ({mode_txt})")
         try:
             self._refresh_upload_button_state()
         except Exception:
             pass
+        if self.retry_button:
+            self.retry_button.configure(state='disabled')
+        self.failed_uploads = []
+
+    def _retry_failed_uploads(self):
+        """♻️ Erneuter Versuch für fehlgeschlagene Dateien"""
+        try:
+            if not self.failed_uploads:
+                return
+            key = 'translation' if (self.upload_mode_var and self.upload_mode_var.get() == 'translation') else 'source'
+            # Flags zurücksetzen
+            for item in self.uploaded_files.get(key, []):
+                if item.get('upload_failed'):
+                    item.pop('upload_failed', None)
+            if getattr(self.parent, 'toast_manager', None):
+                self.parent.toast_manager.show_info('Retry gestartet')
+            else:
+                self.parent.toast_show('Retry gestartet', 'info')
+            self._process_upload()
+        except Exception as e:
+            print(f"❌ Retry error: {e}")
+
+    # ===============================
+    # HELPER
+    # ===============================
+    def _slugify(self, text: str) -> str:
+        """Konvertiert Kundennamen in sicheren Ordner-Slug."""
+        try:
+            text = text.strip().lower()
+            mapping = {'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss'}
+            for k, v in mapping.items():
+                text = text.replace(k, v)
+            text = re.sub(r"[^a-z0-9\-_]+", "_", text)
+            text = re.sub(r"_+", "_", text).strip('_')
+            return text or 'projekt'
+        except Exception:
+            return 'projekt'
+
+    # ===============================
+    # MODE CHANGE HANDLER
+    # ===============================
+    def _on_mode_changed(self):
+        """Aktualisiert UI bei Wechsel des Upload-Modus."""
+        try:
+            mode_txt = 'Übersetzung' if (self.upload_mode_var and self.upload_mode_var.get() == 'translation') else 'Ausgangstext'
+            if self.upload_button:
+                self.upload_button.configure(text=f"Upload starten ({mode_txt})")
+            # Dateiliste für getrennte Kontexte aktualisieren
+            self._update_file_list_display()
+            self._refresh_upload_button_state()
+            if self.progress_label:
+                self.progress_label.configure(text=f"Bereit für Upload ({mode_txt})")
+        except Exception as e:
+            print(f"⚠️ Mode change handling error: {e}")
 
     # ===============================
     # FILE MANAGEMENT METHODS
@@ -757,8 +1025,9 @@ class WelcomeScreenUpload:
     def _remove_file(self, index):
         """🗑️ Remove file from upload list"""
         try:
-            if 0 <= index < len(self.uploaded_files['source']):
-                removed_file = self.uploaded_files['source'].pop(index)
+            key = 'translation' if (self.upload_mode_var and self.upload_mode_var.get() == 'translation') else 'source'
+            if 0 <= index < len(self.uploaded_files[key]):
+                removed_file = self.uploaded_files[key].pop(index)
                 self._update_file_list_display()
                 self._update_upload_stats()
 
@@ -776,16 +1045,18 @@ class WelcomeScreenUpload:
     def _clear_files(self):
         """🧹 Clear all uploaded files"""
         try:
-            count = len(self.uploaded_files['source'])
-            self.uploaded_files = {'source': [], 'translation': []}
+            key = 'translation' if (self.upload_mode_var and self.upload_mode_var.get() == 'translation') else 'source'
+            count = len(self.uploaded_files[key])
+            self.uploaded_files[key] = []
             self._update_file_list_display()
             self._update_upload_stats()
 
             if count > 0:
+                msg = f"{count} Datei(en) entfernt ({'Übersetzung' if key == 'translation' else 'Ausgangstext'})"
                 if getattr(self.parent, 'toast_manager', None):
-                    self.parent.toast_manager.show_info(f"{count} Datei(en) entfernt")
+                    self.parent.toast_manager.show_info(msg)
                 else:
-                    self.parent.toast_show(f"{count} Datei(en) entfernt", "info")
+                    self.parent.toast_show(msg, "info")
             try:
                 self._refresh_upload_button_state()
             except Exception:
@@ -811,5 +1082,45 @@ class WelcomeScreenUpload:
         return self.upload_stats.copy()
 
 if __name__ == "__main__":
-    print("📁 Upload Module - Testing not implemented")
-    print("    Use as part of WelcomeScreen application")
+    # Minimaler Selbsttest
+    class _DummyParent:
+        def __init__(self):
+            self.projects_base_path = Path("_upload_test_tmp")
+            self.projects_base_path.mkdir(exist_ok=True)
+        def get_color(self, token): return "#CCCCCC"
+        def get_font(self, token): return ("Segoe UI", 12, "normal")
+        def get_spacing(self, token): return 8
+        def get_component_value(self, key): return 32
+        def get_config_value(self, key, default=None):
+            if key == 'upload_settings.max_file_size_mb':
+                return 1  # 1MB Limit für Test
+            if key == 'upload_settings.allowed_extensions':
+                return ['.txt']
+            return default
+        def get_current_customer(self): return "Demo Kunde"
+        def toast_show(self, msg, t, duration=2000): print(f"TOAST[{t}]: {msg}")
+        def after(self, ms, fn): fn()
+
+    p = _DummyParent()
+    up = WelcomeScreenUpload(p)
+    # Dummy Dateien erzeugen
+    test_dir = Path("_upload_test_tmp_files"); test_dir.mkdir(exist_ok=True)
+    for i in range(2):
+        f = test_dir / f"Dokument_{i}.txt"
+        with open(f, 'w', encoding='utf-8') as fh: fh.write('TEST')
+        up.uploaded_files['source'].append({'path': str(f), 'name': f.name, 'size': f.stat().st_size, 'size_mb': 0.0, 'extension': '.txt', 'modified': f.stat().st_mtime})
+    # Gültige Statistik aktualisieren
+    up._update_upload_stats()
+    # Ungültige Dateien erzeugen
+    bad_exe = test_dir / 'programm.exe'
+    with open(bad_exe, 'w', encoding='utf-8') as fh: fh.write('BIN')
+    big_file = test_dir / 'gross.txt'
+    with open(big_file, 'wb') as fh: fh.write(b'0' * (2 * 1024 * 1024))  # 2MB
+    validation = up._validate_selected_files([str(bad_exe), str(big_file)])
+    print('Validation invalid count:', len(validation['invalid_files']))
+    assert len(validation['valid_files']) == 0, 'Erwarte keine validen Dateien'
+    assert len(validation['invalid_files']) == 2, 'Erwarte zwei invalide Dateien (.exe & zu groß)'
+    print("Slugify 'Muster Kunde GmbH' ->", up._slugify('Muster Kunde GmbH'))
+    proj_path = up._create_project_path('Muster Kunde GmbH')
+    print("Projektpfad:", proj_path)
+    print("📁 Self-Test abgeschlossen")

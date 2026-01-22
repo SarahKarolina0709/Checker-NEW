@@ -37,6 +37,18 @@ def test_upload_smoke(tmp_path):
     assert result["success_count"] == 2
     assert result["customer"] in ("Müller", "Mueller", km._sanitize_name("Müller"))
 
-    # Dateien existieren am Ziel
-    for item in result["processed_files"]:
-        assert os.path.exists(item["destination"])  
+    # Dateien existieren am Ziel (robuste Struktur-Auswertung)
+    processed = result.get("processed_files", [])
+    assert len(processed) == 2, f"Erwarte 2 processed_files Einträge, erhalten: {processed}"
+    extracted = []
+    for entry in processed:
+        if isinstance(entry, dict):
+            p = (entry.get("destination") or entry.get("path") or entry.get("target") 
+                 or entry.get("target_path") or entry.get("relative_path"))
+            if p:
+                extracted.append(p)
+        elif isinstance(entry, (str, bytes)):
+            extracted.append(str(entry))
+    assert len(extracted) == 2, f"Konnte keine Pfade extrahieren: {processed}"
+    for p in extracted:
+        assert os.path.exists(p), f"Ziel fehlt: {p}"

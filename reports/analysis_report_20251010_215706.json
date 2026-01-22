@@ -1,0 +1,273 @@
+{
+  "created_ts": 1760133426.5250113,
+  "overall_score": 83.56,
+  "plugins_run": 0,
+  "findings": [
+    {
+      "rule": "pair_similarity",
+      "message": "Niedrige Ähnlichkeit: 83.4% (Segment 8d1992c3)",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "placeholders",
+      "message": "Fehlende Platzhalter: ['%A', '%1i', '%d', '%g', '%i', '%8c', ':VA', ':S4䔎M', ':MuVv0', '%p', ':q_O', ':nQ7', ':_']",
+      "severity": "error",
+      "metadata": {}
+    },
+    {
+      "rule": "placeholders",
+      "message": "Zusätzliche Platzhalter: ['%S', '%5p', '%E', ':Z']",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "whitespace",
+      "message": "Doppelte Leerzeichen in source",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "whitespace",
+      "message": "Trailing Whitespace in source",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "whitespace",
+      "message": "Führende Leerzeichen in source",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "whitespace",
+      "message": "Unsichtbare/geschützte Zeichen in source: ['NBSP(\\\\u00A0)', 'BOM/ZWNBSP(\\\\uFEFF)']",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "whitespace",
+      "message": "Doppelte Leerzeichen in target",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "whitespace",
+      "message": "Trailing Whitespace in target",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "whitespace",
+      "message": "Führende Leerzeichen in target",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "whitespace",
+      "message": "Unsichtbare/geschützte Zeichen in target: ['NBSP(\\\\u00A0)', 'BOM/ZWNBSP(\\\\uFEFF)']",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "structure",
+      "message": "Klammer-Mismatch <->) in source",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "structure",
+      "message": "Klammer-Mismatch <->) in target",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "quotes",
+      "message": "Deutsche/typographische Anführungszeichen unausgeglichen («») in source",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "quotes",
+      "message": "Ungerade Anzahl von \" in target",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "quotes",
+      "message": "Deutsche/typographische Anführungszeichen unausgeglichen («») in target",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "html",
+      "message": "Nicht balancierte/verschachtelte Tags: [('UNCLOSED', 'pa'), ('UNCLOSED', 'wqx'), ('UNCLOSED', 'k3'), ('UNCLOSED', 'g-'), ('UNCLOSED', 'sjynid'), ('UNCLOSED', 'a'), ('UNCLOSED', 'xc'), ('UNCLOSED', 'r'), ('UNCLOSED', 'd'), ('UNCLOSED', 'ep'), ('UNCLOSED', 'u'), ('UNCLOSED', 'xc'), ('UNCLOSED', 'r'), ('UNCLOSED', 'd'), ('UNCLOSED', 'ep'), ('UNCLOSED', 'u'), ('UNCLOSED', 'r'), ('UNCLOSED', 's0uq'), (",
+      "severity": "error",
+      "metadata": {}
+    },
+    {
+      "rule": "html",
+      "message": "Fehlende Tags: ['beg', 'f', 'i', 'ibs', 'ic', 'n', 'nc', 'onb', 'q', 'w', 'yz']",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "html",
+      "message": "Zusätzliche Tags: ['g-', 'gz9', 'jts', 'k', 'k3', 'kp', 'm', 'sjynid', 'wqx']",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "html",
+      "message": "Fehlende Attribute: ['core.xml', 'f', 'g9', 'gj', 'i-', 'is', 'j', 'js', 'jvq', 'l3', 'lv', 'r', 'rh8hl', 'settings.xmlwo8', 't', 'uo', 'vd', 'vmf', 'w-qy', 'x', 'y4hd', 'yma']",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "html",
+      "message": "Zusätzliche Attribute: ['bp', 'bq', 'bw', 'c', 'ff', 'ft', 'fu', 'im', 'j4', 'jc', 'kwr', 'm', 'me', 'na', 'nb', 'nud', 'o', 'oo', 'p', 'p5', 'pn', 'q', 'qp', 're', 'ryv', 'tp', 'twh', 'typp', 'u', 'ul', 'vqi4z', 'vqlwi', 'vy', 'w', 'x3l', 'y8', 'z']",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "punctuation",
+      "message": "Mehrfache Satzzeichen",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "punctuation",
+      "message": "Einfache Anführungszeichen statt typografischer",
+      "severity": "info",
+      "metadata": {}
+    },
+    {
+      "rule": "consistency",
+      "message": "Zahlen fehlen im Ziel: ['1', '9', '꣔', '0', '7', '628', '߂', '97', '43', '53', '63']",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "consistency",
+      "message": "Neue Zahlen im Ziel: ['3', '5', '4', '2505', '8', '28', '߁7']",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "consistency",
+      "message": "Einheiten-Differenzen: fehlend=['mm', 'g'] neu=['%', 't', 'mb', 's']",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "terminology",
+      "message": "Eigennamen/Akronyme fehlen oder verändert: ['Intrbool', 'Grn', 'Tu', '8821', 'OO4', '6ZZ', 'NNH0W', 'Clbrbool', 'Ngtvbool', 'Loo', 'Ni', 'Qg', 'B8GU', 'LT7', 'Ch', '3740', 'Vd', 'Uh', 'UY4', 'HC7', 'Clrm', '8BJSY', '197Z3', 'History', 'Rd', 'Img', 'RGBC', 'Btomlong', 'BEG', 'Fmi', 'Prc', 'Rlt', 'RDF', 'Ol', 'Ahf', '2019', 'Zf', 'Jkmx', 'Jg', 'Jj', 'Gx', 'PTC', 'Qo', 'Bltnenum', 'Inteenum', 'M5DR',",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "locale",
+      "message": "Zahlenformat erwartet ꣔",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "locale",
+      "message": "Zahlenformat erwartet 628",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "locale",
+      "message": "Zahlenformat erwartet ߂",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "locale",
+      "message": "Zahlenformat erwartet 3,0",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "locale",
+      "message": "Zahlenformat erwartet 26,0",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "locale",
+      "message": "Zahlenformat erwartet 1,0",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "locale",
+      "message": "Zahlenformat erwartet 9,1",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "locale",
+      "message": "Zahlenformat erwartet 1,0",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "locale",
+      "message": "Zahlenformat erwartet 1,0",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "locale",
+      "message": "Zahlenformat erwartet 1,0",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "locale",
+      "message": "Zahlenformat erwartet 1,0",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "locale",
+      "message": "Zahlenformat erwartet 1,1",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "locale",
+      "message": "Zahlenformat erwartet 1,0",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "locale",
+      "message": "Zahlenformat erwartet 26,0",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "metadata",
+      "message": "Metadaten fehlen (['id'])",
+      "severity": "error",
+      "metadata": {}
+    }
+  ],
+  "context": {
+    "source_files": [
+      "C:\\Users\\sarah\\Desktop\\Texte\\Ausgang.docx"
+    ],
+    "translation_files": [
+      "C:\\Users\\sarah\\Desktop\\Texte\\Ziel.docx"
+    ],
+    "ui_completed_ts": 1760133426.5250113,
+    "phase": "ui"
+  },
+  "file_counts": {
+    "source": 1,
+    "translation": 1
+  }
+}

@@ -529,7 +529,7 @@ class WelcomeScreen(ctk.CTkFrame):
         file_menu_btn = ctk.CTkButton(
             menu_buttons,
             text="📁 Datei",
-            font=ctk.CTkFont(*self.get_typography('menu')),  # ✅ ZENTRALE FONT-DEFINITION
+            font=ctk.CTkFont(*self.get_typography('caption')),  # use allowed token instead of deprecated 'menu'
             fg_color="transparent",
             hover_color=self.get_color('anthracite_600'),
             text_color=self.get_color('white'),
@@ -543,7 +543,7 @@ class WelcomeScreen(ctk.CTkFrame):
         settings_menu_btn = ctk.CTkButton(
             menu_buttons,
             text="⚙️ Einstellungen",
-            font=ctk.CTkFont(*self.get_typography("small")),  # Zentralisierte Font-Definition
+            font=ctk.CTkFont(*self.get_typography("caption")),  # replace deprecated 'small'
             fg_color="transparent",
             hover_color=self.get_color('anthracite_600'),
             text_color=self.get_color('white'),
@@ -557,7 +557,7 @@ class WelcomeScreen(ctk.CTkFrame):
         help_menu_btn = ctk.CTkButton(
             menu_buttons,
             text="❓ Hilfe",
-            font=ctk.CTkFont(*self.get_typography("small")),  # Zentralisierte Font-Definition
+            font=ctk.CTkFont(*self.get_typography("caption")),  # replace deprecated 'small'
             fg_color="transparent",
             hover_color=self.get_color('anthracite_600'),
             text_color=self.get_color('white'),
@@ -573,7 +573,7 @@ class WelcomeScreen(ctk.CTkFrame):
         status_info = ctk.CTkLabel(
             menu_content,
             text="🟢 System bereit",
-            font=ctk.CTkFont(*self.get_typography("small")),  # Zentralisierte Font-Definition
+            font=ctk.CTkFont(*self.get_typography("caption")),  # replace deprecated 'small'
             text_color=self.get_color('success')
         )
         status_info.pack(side="right", pady=4)

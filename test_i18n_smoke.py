@@ -5,11 +5,11 @@ Test ist robust: Falls UI-Konstruktion Fenster benötigt, wird sie übersprungen
 import inspect
 import sys
 
-from quality_gui_main_app import ProfessionelleUebersetzungsqualitaetsApp
+from quality_gui_main_app import QualityGuiMainApp
 
 
 def test_all_i18n_keys_have_german_translation():
-    app = ProfessionelleUebersetzungsqualitaetsApp()
+    app = QualityGuiMainApp()
     # Force German (sollte bereits default sein)
     app.current_language = 'de'
     app._initialize_localization()

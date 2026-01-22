@@ -64,6 +64,83 @@
 			"command": "${workspaceFolder}/final_test.bat",
 			"isBackground": false,
 			"group": "build"
+		},
+		{
+			"label": "Run Welcome Screen Test",
+			"type": "shell",
+			"command": "${workspaceFolder}/final_test.bat",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Welcome Screen Test",
+			"type": "shell",
+			"command": "${workspaceFolder}/final_test.bat",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Welcome Screen Test",
+			"type": "shell",
+			"command": "${workspaceFolder}/final_test.bat",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Backup all .py files",
+			"type": "shell",
+			"command": "${workspaceFolder}/backup_py.bat",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Welcome Screen Test",
+			"type": "shell",
+			"command": "${workspaceFolder}/final_test.bat",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Welcome Screen Test",
+			"type": "shell",
+			"command": "${workspaceFolder}/final_test.bat",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Welcome Screen Test",
+			"type": "shell",
+			"command": "${workspaceFolder}/final_test.bat",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Python Tests (pytest)",
+			"type": "shell",
+			"command": "C:/Users/sarah/AppData/Local/Programs/Python/Python312/python.exe -m pytest -q",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Pytest (dashboard)",
+			"type": "shell",
+			"command": "C:/Users/sarah/AppData/Local/Programs/Python/Python312/python.exe -m pytest -q",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Pytest (dashboard)",
+			"type": "shell",
+			"command": "C:/Users/sarah/AppData/Local/Programs/Python/Python312/python.exe -m pytest -q",
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Pytest (dashboard)",
+			"type": "shell",
+			"command": "C:/Users/sarah/AppData/Local/Programs/Python/Python312/python.exe -m pytest -q",
+			"isBackground": false,
+			"group": "build"
 		}
 	]
 }

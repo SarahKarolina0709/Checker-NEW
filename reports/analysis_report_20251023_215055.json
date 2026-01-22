@@ -1,0 +1,35 @@
+{
+  "created_ts": 1761256255.917212,
+  "overall_score": 23.53,
+  "plugins_run": 0,
+  "findings": [
+    {
+      "rule": "pair_similarity",
+      "message": "Sehr niedrige Ähnlichkeit in Übersetzung: 0.0% (Segment 39a7be3e)",
+      "severity": "error",
+      "metadata": {}
+    },
+    {
+      "rule": "pair_similarity",
+      "message": "Sehr niedrige Ähnlichkeit in Übersetzung: 0.0% (Segment 39a7be3e)",
+      "severity": "error",
+      "metadata": {}
+    },
+    {
+      "rule": "completeness",
+      "message": "Längenverhältnis Auto-Erkennung->Deutsch liegt unter dem erwarteten Bereich. Ist: 100% · Erwartet: 110% ±8%",
+      "severity": "warning",
+      "metadata": {}
+    }
+  ],
+  "context": {
+    "source_files": [],
+    "translation_files": [],
+    "ui_completed_ts": 1761256255.917212,
+    "phase": "ui"
+  },
+  "file_counts": {
+    "source": 0,
+    "translation": 0
+  }
+}

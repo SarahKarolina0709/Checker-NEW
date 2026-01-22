@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-🎨 Typography Unification - Vereinheitlicht alle Schriftarten
+🎨 Typography Unification (Legacy)
 ==============================================================
 
-Dieses Script:
-• Standardisiert alle Typography-Namen auf konsistente Größen
-• Entfernt nicht-existierende Typography-Varianten
-• Verwendet einheitliche Schriftgrößen-Hierarchie
-• Optimiert für professionelle Benutzeroberfläche
+DEPRECATED: Bitte stattdessen `unify_typography_pro.py` verwenden.
+Grund: Die Pro-Version unterstützt rekursiven Ordnerlauf, Dry-Run, Undo,
+robuste Regex für Anführungszeichen/Whitespace, atomisches Schreiben und Statistik.
+
+Dieses Legacy-Script bleibt unverändert für rückwärtskompatible Automationen.
 """
 
 import re

@@ -40,9 +40,19 @@ def test_upload_same_filename_collision(tmp_path):
     assert result["success"], f"Upload fehlgeschlagen: {result}"
     assert result["success_count"] == 2
 
-    destinations = [item["destination"] for item in result["processed_files"]]
-    assert len(destinations) == 2
-    assert all(os.path.exists(p) for p in destinations)
+    processed = result.get("processed_files", [])
+    assert len(processed) == 2, f"Erwarte 2 processed_files Einträge, erhalten: {processed}"
+    destinations = []
+    for entry in processed:
+        if isinstance(entry, dict):
+            p = (entry.get("destination") or entry.get("path") or entry.get("target") 
+                 or entry.get("target_path") or entry.get("relative_path"))
+            if p:
+                destinations.append(p)
+        elif isinstance(entry, (str, bytes)):
+            destinations.append(str(entry))
+    assert len(destinations) == 2, f"Konnte keine Zielpfade extrahieren: {processed}"
+    assert all(os.path.exists(p) for p in destinations), f"Nicht alle Ziele existieren: {destinations}"
 
     # Basenames müssen sich unterscheiden: same_name.docx und same_name-01.docx
     basenames = [os.path.basename(p) for p in destinations]

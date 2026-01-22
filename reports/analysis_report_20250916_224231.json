@@ -1,0 +1,33 @@
+{
+  "created_ts": 1758062551.1358767,
+  "overall_score": 23.53,
+  "plugins_run": 0,
+  "findings": [
+    {
+      "rule": "pair_similarity",
+      "message": "Sehr niedrige Ähnlichkeit: 0.0% (Segment 39a7be3e)",
+      "severity": "error",
+      "metadata": {}
+    },
+    {
+      "rule": "pair_similarity",
+      "message": "Sehr niedrige Ähnlichkeit: 0.0% (Segment 39a7be3e)",
+      "severity": "error",
+      "metadata": {}
+    }
+  ],
+  "context": {
+    "source_files": [
+      "C:/Users/sarah/Desktop/Texte/Ausgang.docx"
+    ],
+    "translation_files": [
+      "C:/Users/sarah/Desktop/Texte/Ziel.docx"
+    ],
+    "ui_completed_ts": 1758062551.1358767,
+    "phase": "ui"
+  },
+  "file_counts": {
+    "source": 1,
+    "translation": 1
+  }
+}

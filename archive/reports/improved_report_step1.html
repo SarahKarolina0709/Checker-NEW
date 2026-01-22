@@ -1,0 +1,119 @@
+<!-- ARCHIVE: Ehemalige Ausgangsversion (improved_report_step1.html) archiviert am 2025-08-24. Kanon jetzt: Bericht_Basis.html -->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qualitätsbericht - Global Communications GmbH</title>
+    <!-- Hinweis: Emojis/Icons entfernt gemäß interner No-Icons-Policy -->
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #16a34a;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-600: #4b5563;
+            --gray-800: #1f2937;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            /* Severity-Variablen */
+            --sev-high-bg: #fef2f2;  --sev-high-border: var(--danger);
+            --sev-med-bg:  #fffbeb;  --sev-med-border: var(--warning);
+            --sev-low-bg:  #f0fdf4;  --sev-low-border: var(--success);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; line-height:1.6; color:var(--gray-800); background:var(--gray-50); }
+        .container { max-width:1200px; margin:0 auto; padding:20px; }
+        .header { background:linear-gradient(135deg,var(--primary), #3b82f6); color:white; padding:40px; border-radius:12px; text-align:center; margin-bottom:30px; box-shadow:var(--shadow); }
+        .header h1 { font-size:2.5rem; margin-bottom:10px; }
+        .meta { display:flex; justify-content:center; gap:16px; margin-top:20px; flex-wrap:wrap; list-style:none; }
+        .meta__label { font-weight:600; color:var(--gray-600); }
+        .project-info { background:white; padding:30px; border-radius:12px; margin-bottom:30px; box-shadow:var(--shadow); border-left:4px solid var(--primary); }
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:20px; margin-bottom:30px; }
+        .stat-card { background:white; padding:25px; border-radius:10px; text-align:center; box-shadow:var(--shadow); }
+        .stat-number { font-size:2rem; font-weight:bold; color:var(--primary); }
+        .document { background:white; border-radius:12px; margin-bottom:30px; box-shadow:var(--shadow); overflow:hidden; }
+        .doc-header { background:var(--gray-100); padding:20px; border-bottom:1px solid #e5e7eb; }
+        /* Issues BEM */
+        .issue { padding:25px; margin:20px; border-radius:10px; border-left:4px solid var(--gray-600); background:white; }
+        .issue--high { border-left-color: var(--sev-high-border); background: var(--sev-high-bg); }
+        .issue--medium { border-left-color: var(--sev-med-border); background: var(--sev-med-bg); }
+        .issue--low { border-left-color: var(--sev-low-border); background: var(--sev-low-bg); }
+        .priority { display:inline-block; padding:4px 12px; border-radius:20px; font-size:0.8rem; font-weight:600; text-transform:uppercase; }
+        .priority--high { background: var(--danger); color:#fff; }
+        .priority--medium { background: var(--warning); color:#fff; }
+        .priority--low { background: var(--success); color:#fff; }
+        .comparison { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:15px; margin:20px 0; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; }
+        .text-box { padding:15px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:0.9rem; overflow-wrap:anywhere; }
+        .current { background:#fef2f2; }
+        .original { background:#f9fafb; }
+        .suggested { background:#f0fdf4; }
+        .recommendation { background:#eff6ff; border:1px solid var(--primary); border-radius:8px; padding:20px; margin-top:15px; }
+        @media (max-width:768px){ .comparison{grid-template-columns:1fr;} .meta{flex-direction:column; gap:15px;} .header h1{font-size:2rem;} }
+        .row-between { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+        @media print { @page { margin:16mm; } body { background:#fff; color:#000; } .header{ background:#fff; color:#000; border:1px solid #ddd; } .header,.project-info,.stat-card,.document,.issue,.recommendation,.report-footer { box-shadow:none !important; } .issue,.stat-card,.document { page-break-inside:avoid; } }
+        @media (prefers-reduced-motion:reduce){ * { transition:none !important; animation:none !important; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header" role="banner">
+            <h1 class="header__title">Qualitätsbericht</h1>
+            <ul class="meta" role="list">
+                <li><span class="meta__label">Datum:</span> <time datetime="2025-07-18">18.07.2025</time></li>
+                <li><span class="meta__label">Sprachen:</span> Deutsch → Englisch</li>
+                <li><span class="meta__label">Projekt:</span> Produktkatalog Internationalisierung</li>
+            </ul>
+        </header>
+        <main id="main" role="main">
+            <section class="project-info" aria-labelledby="project-title">
+                <h2 id="project-title">Global Communications GmbH</h2>
+                <p><strong>Projekt:</strong> Produktkatalog Internationalisierung</p>
+                <p><strong>Erstellt:</strong> <time datetime="2025-07-18T13:43:00">18.07.2025 um 13:43</time></p>
+            </section>
+            <section class="stats" aria-label="Statistik">
+                <div class="stat-card" data-documents="1"><div class="stat-number">1</div><div>Dokumente</div></div>
+                <div class="stat-card" data-improvements="2"><div class="stat-number">2</div><div>Verbesserungen</div></div>
+                <div class="stat-card" data-words="2847"><div class="stat-number">2 847</div><div>Wörter</div></div>
+            </section>
+            <article class="document" aria-labelledby="doc-1-title" data-words="2847">
+                <header class="doc-header">
+                    <h3 id="doc-1-title">Marketing_Broschuere_DE.docx → Marketing_Brochure_EN.docx</h3>
+                    <p><strong>Wortanzahl:</strong> 2 847</p>
+                </header>
+                <section class="issue issue--high" aria-labelledby="issue-1-title">
+                    <div class="row-between">
+                        <h4 id="issue-1-title">Genauigkeit – Fachbegriff „Nachhaltigkeit“ inkonsistent</h4>
+                        <span class="priority priority--high" aria-label="Priorität: hoch">hoch</span>
+                    </div>
+                    <p><strong>Fundstelle:</strong> Seite 3, Absatz 2</p>
+                    <div class="comparison" role="group" aria-label="Vergleich">
+                        <div class="text-box current"><strong>Aktuell:</strong><br>Our sustainability is in the foreground</div>
+                        <div class="text-box original"><strong>Original:</strong><br>Unsere Nachhaltigkeit steht im Vordergrund</div>
+                        <div class="text-box suggested"><strong>Vorschlag:</strong><br>Our sustainability commitment is at the forefront</div>
+                    </div>
+                    <div class="recommendation" role="note"><strong>Empfehlung:</strong> Verwenden Sie „sustainability commitment“ für Marketing-Kontexte.</div>
+                </section>
+                <section class="issue issue--medium" aria-labelledby="issue-2-title">
+                    <div class="row-between">
+                        <h4 id="issue-2-title">Sprachfluss – Satzstruktur wirkt unnatürlich</h4>
+                        <span class="priority priority--medium" aria-label="Priorität: mittel">mittel</span>
+                    </div>
+                    <p><strong>Fundstelle:</strong> Seite 1, Einleitung</p>
+                    <div class="comparison" role="group" aria-label="Vergleich">
+                        <div class="text-box current"><strong>Aktuell:</strong><br>We are a company that has specialized</div>
+                        <div class="text-box original"><strong>Original:</strong><br>Wir sind ein Unternehmen, das sich spezialisiert hat</div>
+                        <div class="text-box suggested"><strong>Vorschlag:</strong><br>We specialize in innovative solutions</div>
+                    </div>
+                    <div class="recommendation" role="note"><strong>Empfehlung:</strong> Verwenden Sie aktivere, direktere Formulierungen.</div>
+                </section>
+            </article>
+            <footer class="report-footer" role="contentinfo">
+                <p><strong>Erstellt mit Checker Professional</strong></p>
+                <p>© 2025 – Qualitätssicherung für Übersetzungen</p>
+            </footer>
+        </main>
+    </div>
+</body>
+</html>

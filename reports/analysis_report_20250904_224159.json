@@ -1,0 +1,20 @@
+{
+  "created_ts": 1757025719.3200226,
+  "overall_score": null,
+  "plugins_run": 0,
+  "findings": [],
+  "context": {
+    "source_files": [
+      "C:/Users/sarah/Desktop/Texte/Ausgang.docx"
+    ],
+    "translation_files": [
+      "C:/Users/sarah/Desktop/Texte/Ziel.docx"
+    ],
+    "ui_completed_ts": 1757025719.3200226,
+    "phase": "ui"
+  },
+  "file_counts": {
+    "source": 1,
+    "translation": 1
+  }
+}

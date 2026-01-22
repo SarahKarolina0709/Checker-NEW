@@ -111,6 +111,8 @@ class DesignSystem:
     # Text aliases for clearer semantics
     'text_primary': '#374151',      # Alias for gray_700
     'text_secondary': '#6B7280',    # Alias for gray_500
+    # Inverse Text (hell auf dunklen Hintergründen wie primary / anthracite Header)
+    'text_inverse': '#FFFFFF',
 
         # 🔲 ANTHRACITE THEME - Header & Dark Elements
         'anthracite_700': '#374151',    # Header background
@@ -194,7 +196,7 @@ class DesignSystem:
         'primary_dark': '#132C44'
     }
 
-    # 📐 SPACING SYSTEM
+    # 📐 SPACING SYSTEM - Professional Harmonious Scale
     _SPACING = {
         'xs': 4,                        # Extra small spacing
         'sm': 8,                        # Small spacing
@@ -204,24 +206,40 @@ class DesignSystem:
         '2xl': 40,                      # 2x Extra large
         '3xl': 48,                      # 3x Extra large
         '4xl': 64,                      # 4x Extra large
-        '5xl': 80                       # 5x Extra large
+        '5xl': 80,                      # 5x Extra large
+        # Professional card spacing
+        'card_padding': 20,             # Card inner padding
+        'card_margin': 12,              # Card outer margin
+        'section_spacing': 28,          # Space between major sections
+        'element_spacing': 12,          # Space between related elements
+        'tight_spacing': 6,             # Tight spacing for grouped items
+        'loose_spacing': 32             # Loose spacing for separated sections
     }
 
-    # 📝 TYPOGRAPHY SYSTEM
+    # 📝 TYPOGRAPHY SYSTEM - Professional Hierarchy
     _TYPOGRAPHY = {
-        'heading_lg': ('Segoe UI', 24, 'bold'),     # Large headings
-        'heading_md': ('Segoe UI', 20, 'bold'),     # Medium headings
-        'heading_sm': ('Segoe UI', 16, 'bold'),     # Small headings
-        'body_lg': ('Segoe UI', 16, 'normal'),      # Large body text
-        'body_md': ('Segoe UI', 14, 'normal'),      # Medium body text
-        'body_sm': ('Segoe UI', 12, 'normal'),      # Small body text
-        'caption': ('Segoe UI', 11, 'normal'),      # Caption text
-        'button_lg': ('Segoe UI', 14, 'bold'),      # Large button text
-        'button_md': ('Segoe UI', 12, 'bold'),      # Medium button text
-    'button_sm': ('Segoe UI', 11, 'bold'),      # Small button text
-    # Report-spezifische Serif-Varianten (für PDF/HTML, optional)
-    'report_heading': ('Times New Roman', 14, 'bold'),
-    'report_body': ('Times New Roman', 12, 'normal')
+        'heading_lg': ('Segoe UI', 26, 'bold'),     # Large headings (Main titles)
+        'heading_md': ('Segoe UI', 22, 'bold'),     # Medium headings (Section titles)
+        'heading_sm': ('Segoe UI', 18, 'bold'),     # Small headings (Subsection titles)
+        'title': ('Segoe UI', 20, 'bold'),          # Professional card titles
+        'subtitle': ('Segoe UI', 16, 'bold'),       # Professional subtitles
+        'body_lg': ('Segoe UI', 16, 'normal'),      # Large body text (Primary content)
+        'body_md': ('Segoe UI', 14, 'normal'),      # Medium body text (Standard content)
+        'body_sm': ('Segoe UI', 12, 'normal'),      # Small body text (Secondary content)
+        'caption': ('Segoe UI', 11, 'normal'),      # Caption text (Hints, metadata)
+        'label': ('Segoe UI', 13, 'bold'),          # Form labels and small headers
+        # Unified section label (zwischen heading_sm und body_md)
+        'section_label': ('Segoe UI', 14, 'bold'),  # Section headers / Karten-Titel
+        'button_lg': ('Segoe UI', 15, 'bold'),      # Large button text (Primary actions)
+        'button_md': ('Segoe UI', 13, 'bold'),      # Medium button text (Secondary actions)
+        'button_sm': ('Segoe UI', 11, 'bold'),      # Small button text (Tertiary actions)
+        # Professional status indicators
+        'status': ('Segoe UI', 12, 'bold'),         # Status badges and indicators
+        'counter': ('Segoe UI', 11, 'bold'),        # Counters and metrics
+        # Report-spezifische Serif-Varianten (für PDF/HTML, optional)
+        'report_heading': ('Times New Roman', 16, 'bold'),
+        'report_body': ('Times New Roman', 12, 'normal'),
+        'report_caption': ('Times New Roman', 10, 'normal')
     }
 
     # 🧩 COMPONENT PROPERTIES
@@ -261,13 +279,30 @@ class DesignSystem:
             'py': 8
         },
         'heights': {
-            'input': 40,                # Standard input height
-            'button_sm': 32,            # Small button height
-            'button_md': 38,            # Medium button height
-            'button_lg': 44,            # Large button height
-            'header': 110,              # Header height
-            'footer': 55,               # Footer height
-            'menu': 30                  # Menu bar height
+            'input': 42,                # Standard input height (increased for better touch)
+            'button_sm': 34,            # Small button height (increased)
+            'button_md': 40,            # Medium button height (increased)
+            'button_lg': 46,            # Large button height (increased)
+            'header': 120,              # Header height (increased for better presence)
+            'section_header': 56,       # Section header height
+            'card_header': 48,          # Card header height
+            'footer': 60,               # Footer height (increased)
+            'menu': 32,                 # Menu bar height (increased)
+            'toolbar': 44,              # Toolbar height
+            'status_bar': 28            # Status bar height
+        },
+        # Professional shadows for depth
+        'shadows': {
+            'card': 'rgba(0, 0, 0, 0.08)',      # Card shadow
+            'elevated': 'rgba(0, 0, 0, 0.12)',  # Elevated element shadow
+            'dropdown': 'rgba(0, 0, 0, 0.15)',  # Dropdown shadow
+            'modal': 'rgba(0, 0, 0, 0.2)'       # Modal shadow
+        },
+        # Animation timings
+        'transitions': {
+            'fast': '0.15s',
+            'normal': '0.2s',
+            'slow': '0.3s'
         }
     }
 
@@ -353,8 +388,8 @@ class DesignSystem:
         if isinstance(color_name, Enum):
             color_name = color_name.value  # type: ignore
         if not color_name:
-            _log.warning("Empty color token requested – fallback #000000")
-            return '#000000'
+            _log.warning("Empty color token requested – fallback #FFFFFF (Light Mode Safe)")
+            return '#FFFFFF'
         cached = cls._COLOR_CACHE.get(color_name)
         if cached is not None:
             return cached
@@ -364,8 +399,8 @@ class DesignSystem:
             cls._COLOR_CACHE[color_name] = value
             return value
         if color_name not in cls._COLORS:
-            _log.warning("Unknown color token: %s – fallback #000000", color_name)
-        value = cls._COLORS.get(color_name, '#000000')
+            _log.warning("Unknown color token: %s – fallback #FFFFFF (Light Mode Safe)", color_name)
+        value = cls._COLORS.get(color_name, '#FFFFFF')
         cls._COLOR_CACHE[color_name] = value
         return value
 
@@ -373,6 +408,191 @@ class DesignSystem:
     def get_spacing(cls) -> Dict[str, int]:
         """Gibt das vollständige Abstände-System zurück."""
         return cls._SPACING.copy()
+
+    @classmethod
+    def create_professional_card(cls, parent, title: str = "", content_padding: int = 20, 
+                                has_header: bool = True, shadow: bool = True) -> ctk.CTkFrame:
+        """
+        Creates a professional card with modern styling.
+        
+        Args:
+            parent: Parent widget
+            title: Optional card title
+            content_padding: Inner content padding
+            has_header: Whether to include a header section
+            shadow: Whether to add shadow effect (visual only)
+            
+        Returns:
+            CTkFrame configured as professional card
+        """
+        card = ctk.CTkFrame(
+            parent,
+            fg_color=cls.get_color('surface'),
+            corner_radius=cls.get_component_property('borders', 'radius_lg'),
+            border_width=cls.get_component_property('borders', 'width_thin'),
+            border_color=cls.get_color('surface_border')
+        )
+        
+        if has_header and title:
+            header = ctk.CTkFrame(
+                card,
+                fg_color=cls.get_color('gray_50'),
+                corner_radius=(cls.get_component_property('borders', 'radius_lg'), 
+                             cls.get_component_property('borders', 'radius_lg'), 0, 0),
+                height=cls.get_component_property('heights', 'card_header')
+            )
+            header.pack(fill="x", padx=0, pady=0)
+            header.pack_propagate(False)
+            
+            title_label = ctk.CTkLabel(
+                header,
+                text=title,
+                font=ctk.CTkFont(*cls.get_font('title')),
+                text_color=cls.get_color('text_primary')
+            )
+            title_label.pack(padx=content_padding, pady=12, anchor="w")
+        
+        return card
+
+    @classmethod  
+    def create_professional_button(cls, parent, text: str, style: str = 'primary', 
+                                 size: str = 'md', width: int = None, command=None) -> ctk.CTkButton:
+        """
+        Creates a professional button with consistent styling.
+        
+        Args:
+            parent: Parent widget
+            text: Button text
+            style: Button style ('primary', 'secondary', 'warning', 'danger')
+            size: Button size ('sm', 'md', 'lg')
+            width: Optional fixed width
+            command: Button command callback
+            
+        Returns:
+            CTkButton with professional styling
+        """
+        # Size configurations
+        size_config = {
+            'sm': {
+                'height': cls.get_component_property('heights', 'button_sm'),
+                'font': cls.get_font('button_sm'),
+                'min_width': cls.get_component_property('buttons', 'min_width_sm')
+            },
+            'md': {
+                'height': cls.get_component_property('heights', 'button_md'),
+                'font': cls.get_font('button_md'),
+                'min_width': cls.get_component_property('buttons', 'min_width_md')
+            },
+            'lg': {
+                'height': cls.get_component_property('heights', 'button_lg'),
+                'font': cls.get_font('button_lg'),
+                'min_width': cls.get_component_property('buttons', 'min_width_lg')
+            }
+        }
+        
+        config = size_config.get(size, size_config['md'])
+        
+        # Style configurations
+        style_config = {
+            'primary': {
+                'fg_color': cls.get_color('button_primary'),
+                'hover_color': cls.get_color('button_primary_hover'),
+                'text_color': cls.get_color('button_primary_text')
+            },
+            'secondary': {
+                'fg_color': cls.get_color('button_secondary'),
+                'hover_color': cls.get_color('button_secondary_hover'),
+                'text_color': cls.get_color('button_secondary_text')
+            },
+            'success': {
+                'fg_color': cls.get_color('success'),
+                'hover_color': cls.get_color('success_hover'),
+                'text_color': cls.get_color('white')
+            },
+            'warning': {
+                'fg_color': cls.get_color('button_warning'),
+                'hover_color': cls.get_color('button_warning_hover'),
+                'text_color': cls.get_color('button_warning_text')
+            },
+            'danger': {
+                'fg_color': cls.get_color('button_danger'),
+                'hover_color': cls.get_color('button_danger_hover'),
+                'text_color': cls.get_color('button_danger_text')
+            }
+        }
+        
+        colors = style_config.get(style, style_config['primary'])
+        
+        return ctk.CTkButton(
+            parent,
+            text=text,
+            font=ctk.CTkFont(*config['font']),
+            height=config['height'],
+            width=width or config['min_width'],
+            corner_radius=cls.get_component_property('borders', 'radius_md'),
+            command=command,
+            **colors
+        )
+
+    @classmethod
+    def create_professional_section_header(cls, parent, title: str, subtitle: str = "", 
+                                         color_accent: str = 'primary') -> ctk.CTkFrame:
+        """
+        Creates a professional section header with title and optional subtitle.
+        
+        Args:
+            parent: Parent widget
+            title: Main title text
+            subtitle: Optional subtitle text
+            color_accent: Accent color for visual emphasis
+            
+        Returns:
+            CTkFrame containing the section header
+        """
+        header_frame = ctk.CTkFrame(
+            parent,
+            fg_color=cls.get_color('gray_50'),
+            height=cls.get_component_property('heights', 'section_header'),
+            corner_radius=cls.get_component_property('borders', 'radius_md')
+        )
+        header_frame.pack_propagate(False)
+        
+        # Accent line
+        accent_line = ctk.CTkFrame(
+            header_frame,
+            fg_color=cls.get_color(color_accent),
+            width=4,
+            corner_radius=2
+        )
+        accent_line.pack(side="left", fill="y", padx=(0, cls.get_spacing_value('md')))
+        
+        # Content area
+        content_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
+        content_frame.pack(fill="both", expand=True, padx=cls.get_spacing_value('md'), 
+                          pady=cls.get_spacing_value('sm'))
+        
+        # Title
+        title_label = ctk.CTkLabel(
+            content_frame,
+            text=title,
+            font=ctk.CTkFont(*cls.get_font('title')),
+            text_color=cls.get_color('text_primary'),
+            anchor="w"
+        )
+        title_label.pack(fill="x")
+        
+        # Subtitle (if provided)
+        if subtitle:
+            subtitle_label = ctk.CTkLabel(
+                content_frame,
+                text=subtitle,
+                font=ctk.CTkFont(*cls.get_font('caption')),
+                text_color=cls.get_color('text_secondary'),
+                anchor="w"
+            )
+            subtitle_label.pack(fill="x", pady=(2, 0))
+        
+        return header_frame
 
     @classmethod
     def get_spacing_value(cls, spacing_name: str) -> int:

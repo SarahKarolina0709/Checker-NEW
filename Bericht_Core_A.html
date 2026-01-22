@@ -1,0 +1,188 @@
+<!-- Migrated on 2025-08-23 from improved_report_step3a.html for parity. -->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Qualitätsbericht - Global Communications GmbH</title>
+	<!-- PERFORMANCE OPTIMIERUNGEN -->
+	<meta name="description" content="Professioneller Qualitätsbericht für Übersetzungen">
+	<meta name="keywords" content="Qualität, Übersetzung, Bericht">
+	<link rel="preload" href="data:font/woff2;base64," as="font" type="font/woff2" crossorigin>
+	<style>
+		/* OPTIMIERTE CSS-VARIABLEN */
+		:root {
+			--primary: #2563eb;
+			--success: #16a34a;
+			--warning: #d97706;
+			--danger: #dc2626;
+			--info: #0891b2;
+			--gray-50: #f9fafb;
+			--gray-100: #f3f4f6;
+			--gray-200: #e5e7eb;
+			--gray-600: #4b5563;
+			--gray-800: #1f2937;
+			--shadow: 0 2px 4px rgba(0,0,0,0.1);
+			--transition: all 0.2s ease;
+		}
+		*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+		body { font-family: system-ui, -apple-system, sans-serif; line-height:1.5; color:var(--gray-800); background:var(--gray-50); }
+		.container { max-width:1200px; margin:0 auto; padding:20px; }
+		.header { background:linear-gradient(135deg,var(--primary),#3b82f6); color:#fff; padding:30px; border-radius:10px; text-align:center; margin-bottom:25px; box-shadow:var(--shadow); }
+		.header h1 { font-size:2.2rem; margin-bottom:10px; font-weight:700; }
+		.meta { display:flex; justify-content:center; gap:25px; margin-top:15px; flex-wrap:wrap; font-size:.95rem; }
+		.controls { background:#fff; padding:20px; border-radius:10px; margin-bottom:25px; box-shadow:var(--shadow); border-left:3px solid var(--primary); }
+		.controls-title { font-size:1.1rem; font-weight:600; margin-bottom:15px; color:var(--gray-800); }
+		.controls-buttons { display:flex; gap:10px; flex-wrap:wrap; }
+		.btn { padding:8px 16px; border:none; border-radius:6px; cursor:pointer; font-weight:500; font-size:.9rem; transition:var(--transition); display:inline-flex; align-items:center; gap:6px; }
+		.btn:hover { transform:translateY(-1px); box-shadow:var(--shadow); }
+		.btn-primary{background:var(--primary);color:#fff;} .btn-success{background:var(--success);color:#fff;} .btn-warning{background:var(--warning);color:#fff;} .btn-info{background:var(--info);color:#fff;} .btn-danger{background:var(--danger);color:#fff;}
+		.search-container{display:flex; gap:10px; margin-bottom:15px; align-items:center;}
+		.search-box{flex:1; padding:10px; border:2px solid var(--gray-200); border-radius:6px; font-size:1rem;}
+		.search-box:focus{outline:none; border-color:var(--primary);}
+		.filter-group{display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; align-items:center;}
+		.filter-label{font-weight:600; margin-right:10px; color:var(--gray-600);}
+		.filter-btn{padding:6px 12px; border:1px solid var(--gray-200); background:#fff; border-radius:16px; cursor:pointer; transition:var(--transition); font-size:.85rem;}
+		.filter-btn:hover{background:var(--gray-100);} .filter-btn.active{background:var(--primary); color:#fff; border-color:var(--primary);}
+		.stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:15px; margin-bottom:25px;}
+		.stat-card{background:#fff; padding:20px; border-radius:8px; text-align:center; box-shadow:var(--shadow);} .stat-number{font-size:1.8rem; font-weight:700; color:var(--primary); display:block;} .stat-label{font-size:.9rem; color:var(--gray-600); margin-top:5px;}
+		.document{background:#fff; border-radius:10px; margin-bottom:25px; box-shadow:var(--shadow); overflow:hidden;}
+		.doc-header{background:var(--gray-100); padding:15px 20px; border-bottom:1px solid var(--gray-200);} .doc-title{font-size:1.1rem; font-weight:600; margin-bottom:5px;} .doc-meta{font-size:.9rem; color:var(--gray-600);}
+		.issue{padding:20px; margin:15px; border-radius:8px; border-left:4px solid var(--gray-600); transition:var(--transition); position:relative; will-change:transform;}
+		.issue:hover{transform:translateX(2px);} .issue.hidden{display:none;} .issue.high{border-left-color:var(--danger); background:#fef2f2;} .issue.medium{border-left-color:var(--warning); background:#fffbeb;} .issue.low{border-left-color:var(--success); background:#f0fdf4;}
+		.issue.marked{border-left-width:6px; background:linear-gradient(90deg,#fef3c7,#fef9e3);} .issue.resolved{opacity:.6; background:linear-gradient(90deg,#dcfce7,#f0fdf4);} 
+		.issue-controls{position:absolute; top:12px; right:12px; display:flex; gap:6px;}
+		.issue-btn{width:28px; height:28px; border:none; border-radius:4px; cursor:pointer; font-size:.8rem; transition:var(--transition); display:flex; align-items:center; justify-content:center;}
+		.issue-btn:hover{transform:scale(1.1);} .issue-btn.active{box-shadow:0 0 0 2px currentColor;}
+		.status-badges{display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap;}
+		.status-badge{font-size:.7rem; padding:3px 8px; border-radius:10px; font-weight:500; text-transform:uppercase;}
+		.badge-marked{background:var(--warning); color:#fff;} .badge-resolved{background:var(--success); color:#fff;} .badge-notes{background:var(--info); color:#fff;} .badge-comments{background:var(--primary); color:#fff;}
+		.comparison{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin:15px 0; border:1px solid var(--gray-200); border-radius:6px; overflow:hidden;}
+		.text-box{padding:12px; font-family:monospace; font-size:.85rem; line-height:1.4; overflow-wrap:anywhere;}
+		.current{background:#fef2f2;} .original{background:var(--gray-50);} .suggested{background:#f0fdf4;}
+		.text-label{font-weight:600; margin-bottom:6px; font-size:.8rem; text-transform:uppercase;}
+		.recommendation{background:#eff6ff; border:1px solid var(--primary); border-radius:6px; padding:15px; margin-top:12px;}
+		.notes-section{margin-top:15px; padding-top:15px; border-top:1px solid var(--gray-200);} .note,.comment{padding:10px; border-radius:6px; margin-bottom:8px; font-size:.9rem;} .note{background:#fff3cd; border:1px solid #ffeaa7;} .comment{background:#e3f2fd; border:1px solid #90caf9;}
+		.note-header{display:flex; justify-content:space-between; margin-bottom:6px; font-size:.8rem;} .note-author{font-weight:600;} .note-time{color:var(--gray-600);} .note-delete{background:none; border:none; color:var(--danger); cursor:pointer;}
+		.add-form{display:none; margin-top:10px; padding:12px; background:var(--gray-50); border-radius:6px; border:1px solid var(--gray-200);} .add-form.show{display:block;}
+		.form-input{width:100%; padding:8px; border:1px solid var(--gray-300); border-radius:4px; resize:vertical; min-height:60px; font-family:inherit; font-size:.9rem;}
+		.form-buttons{display:flex; gap:8px; margin-top:8px;}
+		.results-count{background:var(--primary); color:#fff; padding:8px 15px; border-radius:6px; margin-bottom:15px; text-align:center; font-size:.9rem;}
+		.no-results{text-align:center; padding:30px; color:var(--gray-600); background:#fff; border-radius:10px; margin-bottom:25px;}
+		.toast{position:fixed; top:20px; right:20px; background:var(--success); color:#fff; padding:12px 16px; border-radius:6px; box-shadow:var(--shadow); z-index:1000; transform:translateX(100%); transition:transform .3s ease;}
+		.toast.show{transform:translateX(0);} @media (max-width:768px){ .comparison{grid-template-columns:1fr;} .meta{flex-direction:column; gap:10px;} .header h1{font-size:1.8rem;} .search-container,.filter-group,.controls-buttons{flex-direction:column; align-items:stretch;} .issue-controls{position:static; margin-bottom:10px; justify-content:flex-start;} }
+		@media print{ body{background:#fff; font-size:11pt;} .controls, .toast{display:none;} .issue{page-break-inside:avoid;} .document{margin-bottom:15pt;} }
+		.filter-btn[aria-pressed="true"]{ background:var(--primary); color:#fff; border-color:var(--primary);} .filter-btn.priority-high[aria-pressed="true"]{background:var(--danger); border-color:var(--danger);} .filter-btn.priority-medium[aria-pressed="true"]{background:var(--warning); border-color:var(--warning);} .filter-btn.priority-low[aria-pressed="true"]{background:var(--success); border-color:var(--success);}        
+	</style>
+</head>
+<body>
+	<div class="container">
+		<div class="header">
+			<h1>📋 Qualitätsbericht</h1>
+			<div class="meta"><div>📅 18.07.2025</div><div>🌍 Deutsch → Englisch</div><div>📁 Produktkatalog Internationalisierung</div></div>
+		</div>
+		<div class="controls"><div class="controls-title">🔧 Aktionen</div><div class="controls-buttons"><button class="btn btn-success" onclick="saveProgress()">💾 Speichern</button><button class="btn btn-info" onclick="loadProgress()">📂 Laden</button><button class="btn btn-primary" onclick="exportData()">📤 Export</button><button class="btn btn-warning" onclick="clearAll()">🗑️ Reset</button></div></div>
+		<div class="controls">
+			<div class="controls-title">🔍 Filter</div>
+			<div class="search-container"><input type="text" class="search-box" id="searchBox" placeholder="Suche..." onkeyup="filterIssues()"><button class="btn btn-primary" onclick="clearFilters()">Reset</button></div>
+			<div class="filter-group"><span class="filter-label">Priorität:</span>
+				<button type="button" class="filter-btn priority-high" data-priority="high" aria-pressed="false" onclick="togglePriorityFilter('high', this)">🔴 Kritisch</button>
+				<button type="button" class="filter-btn priority-medium" data-priority="medium" aria-pressed="false" onclick="togglePriorityFilter('medium', this)">🟡 Wichtig</button>
+				<button type="button" class="filter-btn priority-low" data-priority="low" aria-pressed="false" onclick="togglePriorityFilter('low', this)">🟢 Hinweis</button>
+			</div>
+			<div class="filter-group"><span class="filter-label">Status:</span>
+				<button type="button" class="filter-btn" data-status="marked" aria-pressed="false" onclick="toggleStatusFilter('marked', this)">⭐ Markiert</button>
+				<button type="button" class="filter-btn" data-status="resolved" aria-pressed="false" onclick="toggleStatusFilter('resolved', this)">✅ Erledigt</button>
+				<button type="button" class="filter-btn" data-status="notes" aria-pressed="false" onclick="toggleStatusFilter('notes', this)">📝 Mit Notizen</button>
+				<button type="button" class="filter-btn" data-status="comments" aria-pressed="false" onclick="toggleStatusFilter('comments', this)">💬 Mit Kommentaren</button>
+			</div>
+			<div class="filter-group"><span class="filter-label">Kategorien:</span>
+				<button type="button" class="filter-btn" data-category="🎯 Genauigkeit" aria-pressed="false" onclick="toggleCategoryFilter('🎯 Genauigkeit', this)">🎯 Genauigkeit</button>
+				<button type="button" class="filter-btn" data-category="🌊 Sprachfluss" aria-pressed="false" onclick="toggleCategoryFilter('🌊 Sprachfluss', this)">🌊 Sprachfluss</button>
+				<button type="button" class="filter-btn" data-category="📚 Terminologie" aria-pressed="false" onclick="toggleCategoryFilter('📚 Terminologie', this)">📚 Terminologie</button>
+				<button type="button" class="filter-btn" data-category="🎨 Stil" aria-pressed="false" onclick="toggleCategoryFilter('🎨 Stil', this)">🎨 Stil</button>
+			</div>
+		</div>
+		<div class="results-count" id="resultsCount">Zeige alle 3 Issues</div>
+		<div class="stats">
+			<div class="stat-card"><span class="stat-number" id="totalIssues">3</span><div class="stat-label">Issues</div></div>
+			<div class="stat-card"><span class="stat-number" id="markedCount">0</span><div class="stat-label">Markiert</div></div>
+			<div class="stat-card"><span class="stat-number" id="resolvedCount">0</span><div class="stat-label">Erledigt</div></div>
+			<div class="stat-card"><span class="stat-number" id="notesCount">0</span><div class="stat-label">Notizen</div></div>
+			<div class="stat-card"><span class="stat-number">2,847</span><div class="stat-label">Wörter</div></div>
+		</div>
+		<div class="no-results" id="noResults" style="display:none;"><h3>🔍 Keine Ergebnisse</h3><p>Versuchen Sie andere Filter.</p></div>
+		<div class="document" id="document-0">
+			<div class="doc-header"><div class="doc-title">📄 Marketing_Broschuere_DE.docx → Marketing_Brochure_EN.docx</div><div class="doc-meta">💬 2,847 Wörter</div></div>
+			<div class="issue high" id="issue_1" data-priority="high" data-category="🎯 Genauigkeit" data-description="Fachbegriff 'Nachhaltigkeit' wird inkonsistent übersetzt" data-location="Seite 3, Absatz 2" data-recommendation="Verwenden Sie 'sustainability commitment' für Marketing-Kontext.">
+				<div class="issue-controls"><button class="issue-btn btn-warning" title="Markieren" onclick="toggleMark('issue_1')">⭐</button><button class="issue-btn btn-success" title="Erledigt" onclick="toggleResolve('issue_1')">✅</button><button class="issue-btn btn-info" title="Notiz" onclick="toggleNote('issue_1')">📝</button></div>
+				<div class="status-badges" id="badges-issue_1"></div>
+				<div style="margin-bottom:12px; padding-right:100px;"><h4>🎯 Genauigkeit - Fachbegriff 'Nachhaltigkeit' wird inkonsistent übersetzt</h4><span class="priority high" style="display:inline-block; padding:3px 8px; border-radius:12px; font-size:.75rem; font-weight:600; text-transform:uppercase;">high</span></div>
+				<p style="margin-bottom:12px;"><strong>📍 Fundstelle:</strong> Seite 3, Absatz 2</p>
+				<div class="comparison"><div class="text-box current"><div class="text-label">🔴 Aktuell</div>Our sustainability is in the foreground</div><div class="text-box original"><div class="text-label">📖 Original</div>Unsere Nachhaltigkeit steht im Vordergrund</div><div class="text-box suggested"><div class="text-label">✅ Vorschlag</div>Our sustainability commitment is at the forefront</div></div>
+				<div class="recommendation"><strong>💡 Empfehlung:</strong> Verwenden Sie 'sustainability commitment' für Marketing-Kontext.</div>
+				<div class="notes-section" id="notes-issue_1"></div>
+				<div class="add-form" id="note-form-issue_1"><textarea class="form-input" placeholder="Notiz hinzufügen..."></textarea><div class="form-buttons"><button class="btn btn-primary" onclick="addNote('issue_1')">Speichern</button><button class="btn btn-warning" onclick="toggleNote('issue_1')">Abbrechen</button></div></div>
+			</div>
+			<div class="issue medium" id="issue_2" data-priority="medium" data-category="🌊 Sprachfluss" data-description="Satzstruktur wirkt unnatürlich" data-location="Seite 1, Einleitung" data-recommendation="Verwenden Sie aktivere, direktere Formulierungen.">
+				<div class="issue-controls"><button class="issue-btn btn-warning" title="Markieren" onclick="toggleMark('issue_2')">⭐</button><button class="issue-btn btn-success" title="Erledigt" onclick="toggleResolve('issue_2')">✅</button><button class="issue-btn btn-info" title="Notiz" onclick="toggleNote('issue_2')">📝</button></div>
+				<div class="status-badges" id="badges-issue_2"></div>
+				<div style="margin-bottom:12px; padding-right:100px;"><h4>🌊 Sprachfluss - Satzstruktur wirkt unnatürlich</h4><span class="priority medium" style="display:inline-block; padding:3px 8px; border-radius:12px; font-size:.75rem; font-weight:600; text-transform:uppercase;">medium</span></div>
+				<p style="margin-bottom:12px;"><strong>📍 Fundstelle:</strong> Seite 1, Einleitung</p>
+				<div class="comparison"><div class="text-box current"><div class="text-label">🔴 Aktuell</div>We are a company that has specialized</div><div class="text-box original"><div class="text-label">📖 Original</div>Wir sind ein Unternehmen, das sich spezialisiert hat</div><div class="text-box suggested"><div class="text-label">✅ Vorschlag</div>We specialize in innovative solutions</div></div>
+				<div class="recommendation"><strong>💡 Empfehlung:</strong> Verwenden Sie aktivere, direktere Formulierungen.</div>
+				<div class="notes-section" id="notes-issue_2"></div>
+				<div class="add-form" id="note-form-issue_2"><textarea class="form-input" placeholder="Notiz hinzufügen..."></textarea><div class="form-buttons"><button class="btn btn-primary" onclick="addNote('issue_2')">Speichern</button><button class="btn btn-warning" onclick="toggleNote('issue_2')">Abbrechen</button></div></div>
+			</div>
+			<div class="issue high" id="issue_3" data-priority="high" data-category="📚 Terminologie" data-description="Inkonsistente Übersetzung von 'Qualitätssicherung'" data-location="Seite 5, Kapitel 2" data-recommendation="Unterscheiden Sie zwischen 'quality assurance' und 'quality control'.">
+				<div class="issue-controls"><button class="issue-btn btn-warning" title="Markieren" onclick="toggleMark('issue_3')">⭐</button><button class="issue-btn btn-success" title="Erledigt" onclick="toggleResolve('issue_3')">✅</button><button class="issue-btn btn-info" title="Notiz" onclick="toggleNote('issue_3')">📝</button></div>
+				<div class="status-badges" id="badges-issue_3"></div>
+				<div style="margin-bottom:12px; padding-right:100px;"><h4>📚 Terminologie - Inkonsistente Übersetzung von 'Qualitätssicherung'</h4><span class="priority high" style="display:inline-block; padding:3px 8px; border-radius:12px; font-size:.75rem; font-weight:600; text-transform:uppercase;">high</span></div>
+				<p style="margin-bottom:12px;"><strong>📍 Fundstelle:</strong> Seite 5, Kapitel 2</p>
+				<div class="comparison"><div class="text-box current"><div class="text-label">🔴 Aktuell</div>Quality control is our focus</div><div class="text-box original"><div class="text-label">📖 Original</div>Qualitätssicherung ist unser Fokus</div><div class="text-box suggested"><div class="text-label">✅ Vorschlag</div>Quality assurance is our focus</div></div>
+				<div class="recommendation"><strong>💡 Empfehlung:</strong> Unterscheiden Sie zwischen 'quality assurance' und 'quality control'.</div>
+				<div class="notes-section" id="notes-issue_3"></div>
+				<div class="add-form" id="note-form-issue_3"><textarea class="form-input" placeholder="Notiz hinzufügen..."></textarea><div class="form-buttons"><button class="btn btn-primary" onclick="addNote('issue_3')">Speichern</button><button class="btn btn-warning" onclick="toggleNote('issue_3')">Abbrechen</button></div></div>
+			</div>
+		</div>
+		<div style="background:#fff; padding:20px; border-radius:10px; margin-top:25px; text-align:center; box-shadow:var(--shadow);"><p><strong>Checker Professional - Performance Optimiert</strong></p><p>© 2025 - Schnell & Effizient</p></div>
+	</div>
+	<div class="toast" id="toast"></div>
+	<script>
+	let interactiveData={marked:new Set(),resolved:new Set(),notes:{},comments:{}}; let activeFilters={priorities:[],categories:[],statuses:[],search:''};
+	const $id=id=>document.getElementById(id); const allIssues=()=>Array.from(document.querySelectorAll('.issue')); const TOTAL=()=>allIssues().length;
+	const safeName=s=>String(s).normalize('NFD').replace(/[^a-zA-Z0-9._-]+/g,'_'); const debounce=(fn,ms=180)=>{let t; return(...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),ms)}}; const norm=s=>String(s).normalize('NFD').replace(/\p{Emoji_Presentation}|\p{Extended_Pictographic}/gu,'').toLowerCase();
+	function showToast(m,type='success'){const el=$id('toast'); el.textContent=m; el.className=`toast ${type}`; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),3000);} 
+	function extractIssueData(issue){const get=sel=>issue.querySelector(sel)?.textContent.trim()||''; return {id:issue.id,priority:issue.dataset.priority,category:issue.dataset.category,description:issue.dataset.description,location:issue.dataset.location,recommendation:issue.dataset.recommendation,current:get('.text-box.current'),original:get('.text-box.original'),suggested:get('.text-box.suggested')}}
+	function updateBadges(id){const c=$id(`badges-${id}`); if(!c) return; let h=''; if(interactiveData.marked.has(id)) h+='<span class="status-badge badge-marked">Markiert</span>'; if(interactiveData.resolved.has(id)) h+='<span class="status-badge badge-resolved">Erledigt</span>'; const n=(interactiveData.notes[id]||[]).length; const cm=(interactiveData.comments[id]||[]).length; if(n) h+=`<span class=\"status-badge badge-notes\">${n} Notiz(en)</span>`; if(cm) h+=`<span class=\"status-badge badge-comments\">${cm} Kommentar(e)</span>`; c.innerHTML=h; }
+	function updateAllCounts(){ $id('markedCount').textContent=interactiveData.marked.size; $id('resolvedCount').textContent=interactiveData.resolved.size; $id('notesCount').textContent=Object.values(interactiveData.notes).reduce((s,a)=>s+(a?.length||0),0); }
+	function toggleMark(id){const el=$id(id); const btn=el?.querySelector('.btn-warning'); if(!el) return; if(interactiveData.marked.has(id)){interactiveData.marked.delete(id); el.classList.remove('marked'); btn?.classList.remove('active'); showToast('Markierung entfernt');} else {interactiveData.marked.add(id); el.classList.add('marked'); btn?.classList.add('active'); showToast('Als wichtig markiert');} updateBadges(id); updateAllCounts();}
+	function toggleResolve(id){const el=$id(id); const btn=el?.querySelector('.btn-success'); if(!el) return; if(interactiveData.resolved.has(id)){interactiveData.resolved.delete(id); el.classList.remove('resolved'); btn?.classList.remove('active'); showToast('Als unerledigt markiert');} else {interactiveData.resolved.add(id); el.classList.add('resolved'); btn?.classList.add('active'); showToast('Als erledigt markiert');} updateBadges(id); updateAllCounts();}
+	function toggleNoteForm(id){const f=$id(`note-form-${id}`); f?.classList.toggle('show'); f?.classList.contains('show')&&f.querySelector('.form-input')?.focus();}
+	function toggleNote(id){toggleNoteForm(id);} function addNote(id){const input=document.querySelector(`#note-form-${id} .form-input`); const text=input?.value.trim(); if(!text) return; interactiveData.notes[id]??=[]; interactiveData.notes[id].push({id:Date.now(),text,author:'Sie',time:new Date().toLocaleString('de-DE')}); input.value=''; toggleNoteForm(id); renderNotes(id); updateBadges(id); updateAllCounts(); showToast('Notiz hinzugefügt');}
+	function renderNotes(id){const c=$id(`notes-${id}`); if(!c) return; const notes=interactiveData.notes[id]||[]; const existingComments=Array.from(c.querySelectorAll('.comment')).map(el=>el.outerHTML).join(''); c.innerHTML=notes.map(n=>`<div class=\"note\"><div class=\"note-header\"><span class=\"note-author\">${n.author}</span><span class=\"note-time\">${n.time}</span><button class=\"note-delete\" onclick=\"deleteNote('${id}',${n.id})\">🗑️</button></div><div>${n.text}</div></div>`).join('')+existingComments; }
+	function deleteNote(id,nid){const arr=interactiveData.notes[id]; if(!arr) return; interactiveData.notes[id]=arr.filter(n=>n.id!==nid); renderNotes(id); updateBadges(id); updateAllCounts(); showToast('Notiz gelöscht'); }
+	const searchBox=$id('searchBox'); searchBox.addEventListener('input', debounce(filterIssues,180));
+	function toggleStatusFilter(s,btn){const i=activeFilters.statuses.indexOf(s); if(i>-1){activeFilters.statuses.splice(i,1); btn?.classList.remove('active'); btn?.setAttribute('aria-pressed','false');} else {activeFilters.statuses.push(s); btn?.classList.add('active'); btn?.setAttribute('aria-pressed','true');} filterIssues(); }
+	function togglePriorityFilter(p,btn){const i=activeFilters.priorities.indexOf(p); if(i>-1){activeFilters.priorities.splice(i,1); btn?.classList.remove('active'); btn?.setAttribute('aria-pressed','false');} else {activeFilters.priorities.push(p); btn?.classList.add('active'); btn?.setAttribute('aria-pressed','true');} filterIssues(); }
+	function toggleCategoryFilter(c,btn){const i=activeFilters.categories.indexOf(c); if(i>-1){activeFilters.categories.splice(i,1); btn?.classList.remove('active'); btn?.setAttribute('aria-pressed','false');} else {activeFilters.categories.push(c); btn?.classList.add('active'); btn?.setAttribute('aria-pressed','true');} filterIssues(); }
+	function filterIssues(){const term=norm(searchBox.value); activeFilters.search=term; let visible=0; allIssues().forEach(issue=>{let show=true; const id=issue.id; if(activeFilters.priorities.length && !activeFilters.priorities.includes(issue.dataset.priority)) show=false; if(show && activeFilters.categories.length && !activeFilters.categories.includes(issue.dataset.category||'')) show=false; if(show && activeFilters.statuses.length){let ok=false; for(const s of activeFilters.statuses){ if(s==='marked'&&interactiveData.marked.has(id)) ok=true; if(s==='resolved'&&interactiveData.resolved.has(id)) ok=true; if(s==='notes'&&(interactiveData.notes[id]?.length>0)) ok=true; if(s==='comments'&&(interactiveData.comments[id]?.length>0)) ok=true;} if(!ok) show=false; } if(show && term){const fields=[issue.dataset.description,issue.dataset.location,issue.dataset.recommendation,issue.dataset.category].map(x=>norm(x||'')).join(' '); if(!fields.includes(term)) show=false;} issue.classList.toggle('hidden',!show); if(show) visible++; }); const total=TOTAL(); const rc=$id('resultsCount'); const nr=$id('noResults'); if(visible===0){rc.style.display='none'; nr.style.display='block';} else {rc.style.display='block'; nr.style.display='none'; rc.textContent= visible===total? `Zeige alle ${total} Verbesserungsvorschläge`:`Zeige ${visible} von ${total} Verbesserungsvorschlägen`; } $id('totalIssues').textContent=String(visible); }
+	function clearAllFilters(){activeFilters={priorities:[],categories:[],statuses:[],search:''}; searchBox.value=''; document.querySelectorAll('.filter-btn').forEach(b=>{b.classList.remove('active'); b.setAttribute('aria-pressed','false');}); filterIssues(); }
+	function clearFilters(){clearAllFilters();}
+	function exportData(){exportToExcel();}
+	function clearAllData(){if(!confirm('Möchten Sie wirklich alle Notizen, Kommentare und Markierungen löschen?')) return; interactiveData={marked:new Set(),resolved:new Set(),notes:{},comments:{}}; localStorage.removeItem('checkerReportProgress'); location.reload(); }
+	function clearAll(){clearAllData();}
+	function buildCSVRows(){const header=["Kategorie","Priorität","Beschreibung","Fundstelle","Original","Aktuell","Vorschlag","Empfehlung","Status"]; const rows=[header]; allIssues().forEach(issue=>{const d=extractIssueData(issue); const status=[interactiveData.marked.has(d.id)?'marked':'',interactiveData.resolved.has(d.id)?'resolved':'',(interactiveData.notes[d.id]?.length||0)?`notes(${interactiveData.notes[d.id].length})`:'',(interactiveData.comments[d.id]?.length||0)?`comments(${interactiveData.comments[d.id].length})`:''].filter(Boolean).join('|')||'open'; rows.push([d.category,d.priority,d.description,d.location,d.original,d.current,d.suggested,d.recommendation,status]);}); return rows; }
+	function toCSV(rows){return '\uFEFF'+rows.map(r=>r.map(f=>`"${String(f??'').replace(/"/g,'""')}"`).join(',')).join('\n'); }
+	function downloadBlob(content,mime,filename){const blob=new Blob([content],{type:mime}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},0); }
+	function exportToPDF(){window.print(); showToast('PDF wird über Druckdialog erstellt...');}
+	function exportToExcel(){const rows=buildCSVRows(); const csv=toCSV(rows); const base=safeName('qualitaetsbericht_'+(new Date().toISOString().slice(0,10))); downloadBlob(csv,'text/csv;charset=utf-8;',`${base}.csv`); showToast('CSV für Excel wurde heruntergeladen!'); }
+	function exportToCSV(){exportToExcel();}
+	function exportToJSON(){const issues=allIssues().map(extractIssueData); const payload={report:{title:document.title||'Qualitätsbericht',date:new Date().toISOString()}, totals:{issues:TOTAL(),marked:interactiveData.marked.size,resolved:interactiveData.resolved.size,notes:Object.values(interactiveData.notes).reduce((s,a)=>s+(a?.length||0),0)}, issues, progress:{marked:Array.from(interactiveData.marked),resolved:Array.from(interactiveData.resolved),notes:interactiveData.notes,comments:interactiveData.comments}}; const base=safeName('qualitaetsbericht_'+(new Date().toISOString().slice(0,10))); downloadBlob(JSON.stringify(payload,null,2),'application/json',`${base}.json`); showToast('JSON-Datei wurde heruntergeladen!'); }
+	async function copyToClipboard(){let txt='QUALITÄTSBERICHT\n\n'; allIssues().forEach((el,i)=>{const d=extractIssueData(el); txt+=`${i+1}. ${d.category} (${d.priority.toUpperCase()})\n   Beschreibung: ${d.description}\n   Fundstelle: ${d.location}\n   Original: ${d.original}\n   Aktuell: ${d.current}\n   Vorschlag: ${d.suggested}\n   Empfehlung: ${d.recommendation}\n\n`; }); try{await navigator.clipboard.writeText(txt); showToast('Text in Zwischenablage kopiert!');}catch{const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); showToast('Text kopiert (Fallback)!');}}
+	function saveProgress(){try{const data={marked:Array.from(interactiveData.marked),resolved:Array.from(interactiveData.resolved),notes:interactiveData.notes,comments:interactiveData.comments,timestamp:new Date().toISOString()}; localStorage.setItem('checkerReportProgress',JSON.stringify(data)); showToast('Fortschritt gespeichert!');}catch{showToast('Fehler beim Speichern!','error');}}
+	function loadProgress(){try{const raw=localStorage.getItem('checkerReportProgress'); if(!raw) return; const data=JSON.parse(raw); interactiveData.marked=new Set(data.marked||[]); interactiveData.resolved=new Set(data.resolved||[]); interactiveData.notes=data.notes||{}; interactiveData.comments=data.comments||{}; interactiveData.marked.forEach(id=>{$id(id)?.classList.add('marked'); $id(id)?.querySelector('.btn-warning')?.classList.add('active');}); interactiveData.resolved.forEach(id=>{$id(id)?.classList.add('resolved'); $id(id)?.querySelector('.btn-success')?.classList.add('active');}); Object.keys(interactiveData.notes).forEach(renderNotes); Object.keys(interactiveData.comments).forEach(()=>{}); allIssues().forEach(el=>updateBadges(el.id)); showToast('Fortschritt geladen!');}catch{showToast('Fehler beim Laden!','error');}}
+	window.addEventListener('load',()=>{loadProgress(); updateAllCounts(); const total=TOTAL(); $id('resultsCount').textContent=`Zeige alle ${total} Verbesserungsvorschläge`; $id('totalIssues').textContent=String(total); filterIssues();});
+	</script>
+</body>
+</html>

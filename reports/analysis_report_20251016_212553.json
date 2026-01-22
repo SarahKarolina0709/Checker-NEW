@@ -1,0 +1,29 @@
+{
+  "created_ts": 1760649953.2534223,
+  "overall_score": 23.53,
+  "plugins_run": 0,
+  "findings": [
+    {
+      "rule": "pair_similarity",
+      "message": "Sehr niedrige Ähnlichkeit: 0.0% (Segment 39a7be3e)",
+      "severity": "error",
+      "metadata": {}
+    },
+    {
+      "rule": "pair_similarity",
+      "message": "Sehr niedrige Ähnlichkeit: 0.0% (Segment 39a7be3e)",
+      "severity": "error",
+      "metadata": {}
+    }
+  ],
+  "context": {
+    "source_files": [],
+    "translation_files": [],
+    "ui_completed_ts": 1760649953.2534223,
+    "phase": "ui"
+  },
+  "file_counts": {
+    "source": 0,
+    "translation": 0
+  }
+}

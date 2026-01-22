@@ -11,8 +11,15 @@ Ersetzt ALLE potentiellen schwarzen/dunklen Fallbacks durch helle Alternativen.
 
 import os
 
+# Idempotenz-Guard um doppelte Aktivierungs-Logs zu verhindern
+_AGGRESSIVE_LIGHT_PATCH_APPLIED = globals().get('_AGGRESSIVE_LIGHT_PATCH_APPLIED', False)
+
 def apply_aggressive_light_mode_patches():
     """🔥 AGGRESSIVE Dark Mode Elimination - Patcht CustomTkinter vollständig"""
+
+    global _AGGRESSIVE_LIGHT_PATCH_APPLIED
+    if _AGGRESSIVE_LIGHT_PATCH_APPLIED:
+        return True  # Bereits aktiv → keine erneute Ausgabe
 
     # 🚨 KRITISCHE ENVIRONMENT VARIABLES
     os.environ['CUSTOMTKINTER_APPEARANCE_MODE'] = 'light'
@@ -141,16 +148,16 @@ def apply_aggressive_light_mode_patches():
         # 🔥 GLOBAL FUNCTION für andere Module
         globals()['get_safe_aggressive_color'] = get_safe_aggressive_color
 
-        print("🔥 SELECTIVE ANTI-BLACK-FALLBACK SYSTEM ACTIVATED!")
-        print("✅ Black fallbacks eliminated, design colors preserved")
-        print("✅ Header keeps anthracite color: #374151")
-        print("✅ Only true black colors (#000000, black) replaced")
-        print("✅ SELECTIVE: Design-Farben bleiben erhalten!")
-
+        print("[SELECTIVE ANTI-BLACK-FALLBACK SYSTEM ACTIVATED!]")
+        print("[OK] Black fallbacks eliminated, design colors preserved")
+        print("[OK] Header keeps anthracite color: #374151")
+        print("[OK] Only true black colors (#000000, black) replaced")
+        print("[OK] SELECTIVE: Design-Farben bleiben erhalten!")
+        _AGGRESSIVE_LIGHT_PATCH_APPLIED = True
         return True
 
     except Exception as e:
-        print(f"❌ Aggressive anti-dark-mode system failed: {e}")
+        print(f"[ERROR] Aggressive anti-dark-mode system failed: {e}")
         return False
 
 # 🔥 AUTO-EXECUTE beim Import

@@ -661,7 +661,25 @@ class WelcomeScreenUtils:
             allowed = self.get_config_value('upload_settings.allowed_extensions', ['.pdf', '.txt', '.docx', '.xlsx'])
             if not isinstance(allowed, (list, tuple, set)):
                 allowed = ['.pdf', '.txt', '.docx', '.xlsx']
-            allowed_set = {str(ext).lower() for ext in allowed}
+            # Normalisieren & auf bekannte Endungen begrenzen (duplikatfrei)
+            def _normalize_ext_list(items):
+                known = {'.pdf', '.txt', '.docx', '.xlsx', '.doc', '.rtf', '.odt', '.xls', '.pptx', '.ppt'}
+                seen = set()
+                out = []
+                for it in items:
+                    s = str(it).strip().lower()
+                    if not s:
+                        continue
+                    if not s.startswith('.'):
+                        s = f'.{s}'
+                    if s in seen:
+                        continue
+                    if s in known:
+                        seen.add(s)
+                        out.append(s)
+                return out
+            allowed_norm = _normalize_ext_list(list(allowed))
+            allowed_set = set(allowed_norm) if allowed_norm else {'.pdf', '.txt', '.docx', '.xlsx'}
 
             ext = path_obj.suffix.lower() if exists else ''
 

@@ -1298,6 +1298,46 @@ class WelcomeScreen(ctk.CTkFrame):
         """Erstellt die Upload-Karte mit professionellem Design."""
         card = self._create_content_card(parent, column, "Upload")
 
+        # Upload Modus Umschalter (Ausgangstext / Übersetzung)
+        try:
+            import customtkinter as ctk_local
+            if not hasattr(self, 'upload_mode_var'):
+                self.upload_mode_var = ctk_local.StringVar(value='source')
+            mode_frame = ctk.CTkFrame(card, fg_color="transparent")
+            mode_frame.pack(fill="x", pady=(0, self.get_spacing('md')))
+            segmented_ok = hasattr(ctk_local, 'CTkSegmentedButton')
+            if segmented_ok:
+                def _on_mode_change():
+                    self._on_upload_mode_changed()
+                self.upload_mode_selector = ctk_local.CTkSegmentedButton(
+                    mode_frame,
+                    values=['Ausgangstext', 'Übersetzung'],
+                    variable=self.upload_mode_var,
+                    command=_on_mode_change,
+                    fg_color=self.get_color('surface'),
+                    selected_color=self.get_color('primary'),
+                    selected_hover_color=self.get_color('primary_hover'),
+                    unselected_color=self.get_color('surface_hover'),
+                    unselected_hover_color=self.get_color('surface_hover'),
+                    text_color=self.get_color('white')
+                )
+                self.upload_mode_selector.pack(fill='x')
+            else:
+                rb_container = ctk.CTkFrame(mode_frame, fg_color="transparent")
+                rb_container.pack(anchor='w')
+                self.upload_mode_source_rb = ctk.CTkRadioButton(
+                    rb_container, text='Ausgangstext', value='source', variable=self.upload_mode_var,
+                    command=lambda: self._on_upload_mode_changed()
+                )
+                self.upload_mode_translation_rb = ctk.CTkRadioButton(
+                    rb_container, text='Übersetzung', value='translation', variable=self.upload_mode_var,
+                    command=lambda: self._on_upload_mode_changed()
+                )
+                self.upload_mode_source_rb.pack(side='left', padx=(0, self.get_spacing('md')))
+                self.upload_mode_translation_rb.pack(side='left')
+        except Exception:
+            pass
+
         # Drag & Drop Bereich
         upload_area = ctk.CTkFrame(card, fg_color=self.get_color('gray_100'), border_width=2, border_color=self.get_color('gray_300'), corner_radius=self.get_component_value('borders.radius_lg'), height=150)
         upload_area.pack(fill="x", pady=(0, self.get_spacing('lg')))
@@ -1308,7 +1348,18 @@ class WelcomeScreen(ctk.CTkFrame):
         
         ctk.CTkLabel(upload_content, text="Dateien hierher ziehen", font=self.get_font('subheading'), text_color=self.get_color('gray_500')).pack(pady=(self.get_spacing('md'), 0))
         ctk.CTkLabel(upload_content, text="oder", font=self.get_font('body'), text_color=self.get_color('gray_500')).pack()
-        ctk.CTkButton(upload_content, text="Dateien durchsuchen", command=self._browse_files).pack(pady=(0, self.get_spacing('md')))
+        # Primärer Stil für bessere Sichtbarkeit (statt Standard weiß)
+        ctk.CTkButton(
+            upload_content,
+            text="Dateien durchsuchen",
+            command=self._browse_files,
+            font=self.get_font('button'),
+            fg_color=self.get_color('primary'),
+            text_color=self.get_color('white'),
+            hover_color=self.get_color('primary_hover'),
+            corner_radius=self.get_component_value('borders.radius_sm'),
+            height=self.get_component_value('heights.button_md')
+        ).pack(pady=(0, self.get_spacing('md')))
 
         # Dateiliste
         self.file_list_label = ctk.CTkLabel(card, text="Keine Dateien ausgewählt", font=self.get_font('body'), text_color=self.get_color('gray_500'))
@@ -1326,16 +1377,15 @@ class WelcomeScreen(ctk.CTkFrame):
                          text_color=self.get_color('gray_600'),
                          wraplength=480,
                          justify="left").pack(anchor="w", pady=(0, self.get_spacing('sm')))
+            # Primärstil statt weißem Outline: bessere Sichtbarkeit & Konsistenz
             self.upload_empty_btn = ctk.CTkButton(
                 u_inner,
                 text="Dateien auswählen",
                 command=self._browse_files,
                 font=self.get_font('button'),
-                fg_color=self.get_color('white'),
-                text_color=self.get_color('primary'),
-                hover_color=self.get_color('surface_hover'),
-                border_width=1,
-                border_color=self.get_color('surface_border'),
+                fg_color=self.get_color('primary'),
+                text_color=self.get_color('white'),
+                hover_color=self.get_color('primary_hover'),
                 height=self.get_component_value('heights.button_md'),
                 corner_radius=self.get_component_value('borders.radius_sm')
             )
@@ -1387,8 +1437,8 @@ class WelcomeScreen(ctk.CTkFrame):
         except Exception:
             pass
 
-        # Upload Button
-        self.upload_btn = ctk.CTkButton(card, text="Upload starten", command=self._start_upload)
+        # Upload Button (korrekte Einrückung innerhalb der Methode)
+        self.upload_btn = ctk.CTkButton(card, text="Upload starten (Ausgangstext)", command=self._start_upload)
         self.upload_btn.pack(fill="x", side="bottom")
         self.upload_btn.configure(state="disabled")
 
@@ -1396,6 +1446,19 @@ class WelcomeScreen(ctk.CTkFrame):
         try:
             self._refresh_customer_empty_state()
             self._refresh_upload_empty_state()
+        except Exception:
+            pass
+
+        return card
+
+    def _on_upload_mode_changed(self):
+        """Aktualisiert Button/Status nach Wechsel des Upload-Modus (legacy Upload Karte)."""
+        try:
+            mode = 'Übersetzung' if (hasattr(self, 'upload_mode_var') and self.upload_mode_var.get() == 'translation') else 'Ausgangstext'
+            if hasattr(self, 'upload_btn') and self.upload_btn:
+                self.upload_btn.configure(text=f"Upload starten ({mode})")
+            if hasattr(self, 'progress_label') and self.progress_label and 'Bereit' in self.progress_label.cget('text'):
+                self.progress_label.configure(text=f"Bereit für Upload ({mode})")
         except Exception:
             pass
 
@@ -1424,7 +1487,30 @@ class WelcomeScreen(ctk.CTkFrame):
     # 🔧 ZENTRALER HELPER: Primary-Button Zustand/Style anwenden (delegiert)
     def _apply_primary_button_state(self, btn: ctk.CTkButton, enabled: bool):
         try:
+            # Versuche standardisierten Style
             self._apply_button_style(btn, enabled, style="primary")
+            # Falls der Helper keinen Disabled-Farbwechsel vorgenommen hat, erzwingen wir die Token
+            if not enabled:
+                # Benutzerwunsch: Disabled primärer Button in hellblauem Stil (wie Referenz-Screenshot)
+                # Wir verwenden upload_hover_bg + text_secondary statt neutralem Grau
+                try:
+                    btn.configure(
+                        fg_color=self.get_color('upload_hover_bg'),
+                        text_color=self.get_color('text_secondary'),
+                        hover_color=self.get_color('upload_hover_bg'),
+                        state='disabled'
+                    )
+                except Exception:
+                    pass
+            else:
+                try:
+                    btn.configure(
+                        fg_color=self.get_color('primary'),
+                        text_color=self.get_color('white'),
+                        hover_color=self.get_color('primary_hover')
+                    )
+                except Exception:
+                    pass
         except Exception:
             pass
     
@@ -4393,8 +4479,25 @@ class WelcomeScreen(ctk.CTkFrame):
                     if hasattr(self, '_update_progress_step'):
                         self._update_progress_step(1, "processing")
 
-                # Dateien verarbeiten lassen
-                result = self.upload_manager.process_files_with_customer(self.current_customer, workflow="Ausgangstexte")
+                # Mode ableiten (source/translation) -> Workflow Mapping
+                mode_value = 'source'
+                try:
+                    if hasattr(self, 'upload_mode_var') and self.upload_mode_var:
+                        mode_value = self.upload_mode_var.get() or 'source'
+                except Exception:
+                    mode_value = 'source'
+                # Standard-Workflows des Managers kennen kein direktes 'Übersetzungen'; wir verwenden
+                # 'Ausgangstexte' als Basisworkflow und kopieren Übersetzungen in Unterordner 'Übersetzungen'.
+                workflow_name = "Ausgangstexte"
+                # Upload-Button Text anpassen (sichtbar während Verarbeitung deaktiviert)
+                try:
+                    if hasattr(self, 'upload_btn') and self.upload_btn:
+                        mode_txt = 'Ausgangstext' if mode_value == 'source' else 'Übersetzung'
+                        self.upload_btn.configure(text=f"Upload läuft ({mode_txt})")
+                except Exception:
+                    pass
+                # Dateien verarbeiten lassen (Workflow=Ausgangstexte). Spezifische Behandlung nach Ergebnis.
+                result = self.upload_manager.process_files_with_customer(self.current_customer, workflow=workflow_name)
 
                 # UI-Updates je nach Ergebnis
                 if result.get('success'):
@@ -4404,7 +4507,62 @@ class WelcomeScreen(ctk.CTkFrame):
                         if hasattr(self, '_update_progress_step'):
                             self._update_progress_step(1, "completed")
                             self._update_progress_step(2, "completed")
-                    self._show_enhanced_toast("Upload erfolgreich", "success")
+                    # Falls Übersetzung: Dateien in Unterordner 'Übersetzungen' verschieben/kopieren
+                    try:
+                        if mode_value == 'translation':
+                            from pathlib import Path as _P
+                            processed = result.get('processed_files') or []
+                            # Per-Datei Ziel-Datum bestimmen über Index / Heuristik
+                            date_map = self._resolve_translation_date_map(processed)
+                            base_dir = _P(getattr(self, 'projects_base_path', 'Checker_Projekte')) / self.current_customer
+                            success_dates = set()
+                            for item in processed:
+                                try:
+                                    original_target = None
+                                    filename = None
+                                    if isinstance(item, dict):
+                                        original_target = item.get('target_path')
+                                        filename = item.get('file') or (original_target and _P(original_target).name)
+                                    elif isinstance(item, (str, bytes)):
+                                        original_target = str(item)
+                                        filename = _P(original_target).name
+                                    if not original_target or not filename:
+                                        continue
+                                    date_folder = date_map.get(filename) or self._resolve_translation_date_folder([item])
+                                    success_dates.add(date_folder)
+                                    translations_dir = base_dir / 'Übersetzungen' / date_folder
+                                    try:
+                                        translations_dir.mkdir(parents=True, exist_ok=True)
+                                    except Exception:
+                                        pass
+                                    f_path = _P(original_target)
+                                    if f_path.exists():
+                                        target = translations_dir / f_path.name
+                                        if f_path.resolve() != target.resolve():
+                                            import shutil as _sh
+                                            if not target.exists():
+                                                _sh.move(str(f_path), str(target))
+                                            else:
+                                                stem = target.stem
+                                                suffix = target.suffix
+                                                for i in range(1, 1000):
+                                                    alt = translations_dir / f"{stem}_{i}{suffix}"
+                                                    if not alt.exists():
+                                                        _sh.move(str(f_path), str(alt))
+                                                        break
+                                except Exception:
+                                    pass
+                            dates_str = ", ".join(sorted(success_dates)) if success_dates else "unbekanntes Datum"
+                            self._show_enhanced_toast(f"Upload erfolgreich (Übersetzungen: {dates_str})", "success")
+                        else:
+                            # Source-Dateien indexieren für zukünftige Übersetzungs-Zuordnung
+                            try:
+                                self._index_source_files(result)
+                            except Exception:
+                                pass
+                            self._show_enhanced_toast("Upload erfolgreich", "success")
+                    except Exception:
+                        self._show_enhanced_toast("Upload teilweise erfolgreich (Übersetzungspfad)", "warning")
                     # Manager hat processed_files gepflegt – UI aktualisieren
                     self._refresh_upload_ui_from_manager()
                     # WICHTIG: Upload sauber abschließen und UI wieder freigeben
@@ -8557,6 +8715,539 @@ DATEIEN ({project['file_count']}):
     # =============================================================================
     # 🚀 ADDITIONAL HELPER METHODS
     # =============================================================================
+    def _resolve_translation_date_folder(self, processed_files):
+        """Ermittelt den Datums-Unterordner für Übersetzungen.
+
+        Strategie:
+        1) Versuche Datum aus target_path eines processed_file (upload_manager liefert dicts) zu extrahieren.
+           Erwartete Struktur: .../<WorkflowOrdner>/<YYYY-MM-DD>/Datei.ext
+        2) Fallback: Verwende self._last_project_date falls vorhanden.
+        3) Fallback: Heutiges Datum.
+
+        Returns:
+            str: Ordnername im Format YYYY-MM-DD
+        """
+        import re, datetime, os
+        try:
+            if processed_files:
+                for item in processed_files:
+                    try:
+                        target = None
+                        if isinstance(item, dict):
+                            target = item.get('target_path') or item.get('file')
+                        elif isinstance(item, (str, bytes)):
+                            target = str(item)
+                        if not target:
+                            continue
+                        # Pattern: /YYYY-MM-DD/ im Pfad suchen
+                        m = re.search(r"(20[0-9]{2}-[01][0-9]-[0-3][0-9])", target.replace('\\', '/'))
+                        if m:
+                            return m.group(1)
+                    except Exception:
+                        continue
+            # Optional gespeichertes letztes Projekt-Datum
+            if hasattr(self, '_last_project_date') and self._last_project_date:
+                val = str(self._last_project_date)
+                if re.match(r"20[0-9]{2}-[01][0-9]-[0-3][0-9]", val):
+                    return val
+        except Exception:
+            pass
+        # Finaler Fallback: heute
+        try:
+            return datetime.datetime.now().strftime('%Y-%m-%d')
+        except Exception:
+            return 'unbekanntes_datum'
+
+    # ---------------------------------------------------------------------
+    # 📁 DATEI-INDEX FÜR ZUORDNUNG QUELLE ↔ ÜBERSETZUNG
+    # ---------------------------------------------------------------------
+    def _customer_index_path(self, customer: str):
+        from pathlib import Path
+        base = Path(getattr(self, 'projects_base_path', 'Checker_Projekte')) / customer
+        return base / 'customer_file_index.json'
+
+    def _load_customer_file_index(self, customer: str):
+        import json
+        try:
+            path = self._customer_index_path(customer)
+            if path.exists():
+                with open(path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        return data
+        except Exception:
+            pass
+        return {}
+
+    def _save_customer_file_index(self, customer: str, index: dict):
+        import json, os, tempfile, shutil
+        try:
+            path = self._customer_index_path(customer)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            # Atomar schreiben
+            with tempfile.NamedTemporaryFile('w', delete=False, dir=str(path.parent), encoding='utf-8') as tmp:
+                json.dump(index, tmp, indent=2, ensure_ascii=False)
+                tmp_path = tmp.name
+            shutil.move(tmp_path, path)
+        except Exception:
+            pass
+
+    def _normalize_basename(self, name: str) -> str:
+        import re, os
+        base = os.path.splitext(os.path.basename(name))[0]
+        base_low = base.lower()
+        # Sprache-Suffixe entfernen (_de, -de, .de etc vor Extension schon abgeschnitten)
+        base_low = re.sub(r'([_\-])(de|en|fr|es|it|pl|cz|sk|nl|da|sv|no|fi)$', '', base_low)
+        # Mehrfaches '_' reduzieren
+        base_low = re.sub(r'_+', '_', base_low).strip('_')
+        return base_low
+
+    def _index_source_files(self, result_dict: dict):
+        """Indexiert erfolgreich hochgeladene Ausgangstext-Dateien mit Datum & Projekt.
+
+        result_dict: Rückgabe von upload_manager.process_files_with_customer
+        """
+        try:
+            if not result_dict.get('success'):
+                return
+            customer = result_dict.get('customer') or self.current_customer
+            if not customer:
+                return
+            processed = result_dict.get('processed_files') or []
+            index = self._load_customer_file_index(customer)
+            # Projekt-/Datumsinfo extrahieren
+            for item in processed:
+                try:
+                    target_path = item.get('target_path') if isinstance(item, dict) else None
+                    filename = item.get('file') if isinstance(item, dict) else None
+                    if not target_path or not filename:
+                        continue
+                    # Projekt & Datum aus Pfad holen
+                    project_id, date_folder = self._extract_project_and_date(target_path)
+                    if not date_folder:
+                        date_folder = self._resolve_translation_date_folder([item])
+                    norm = self._normalize_basename(filename)
+                    entry = index.get(norm)
+                    if not entry or not isinstance(entry, dict):
+                        entry = {'entries': [], 'last_date': date_folder}
+                        index[norm] = entry
+                    # Rückwärtskompatibilität: konvertiere alte Struktur mit 'dates'
+                    if 'dates' in entry and 'entries' not in entry:
+                        entry['entries'] = [{'date': d, 'project_id': None} for d in entry.get('dates', [])]
+                        entry.pop('dates', None)
+                    # Eintrag suchen
+                    exists = False
+                    for e in entry['entries']:
+                        if e.get('date') == date_folder and e.get('project_id') == project_id:
+                            exists = True
+                            break
+                    if not exists:
+                        # Neuer Eintrag für (date, project_id)
+                        entry['entries'].append({
+                            'date': date_folder,
+                            'project_id': project_id,
+                            'last_used': self._now_iso()
+                        })
+                        try:
+                            self._log_translation_decision(
+                                f"Indexiere Quelle: {filename} -> date={date_folder}, project_id={project_id}"
+                            )
+                        except Exception:
+                            pass
+                    entry['last_date'] = date_folder
+                except Exception:
+                    continue
+            self._save_customer_file_index(customer, index)
+        except Exception:
+            pass
+
+    def _resolve_translation_date_map(self, processed_files):
+        """Erzeugt Mapping filename->date_folder für Übersetzungen via Index & Heuristik.
+
+        Schritte:
+        1) Index laden
+        2) Für jede Datei Normalform bestimmen und exakte Treffer prüfen
+        3) Falls mehrere Datumsoptionen: letztes Datum nehmen
+        4) Falls kein Treffer: Datum aus Pfad (Workflow Upload) oder heutiges Datum
+        """
+        from datetime import datetime
+        from pathlib import Path as _P
+        mapping = {}
+        try:
+            customer = self.current_customer
+            if not customer:
+                return mapping
+            index = self._load_customer_file_index(customer)
+            if not hasattr(self, 'translation_fuzzy_threshold'):
+                self.translation_fuzzy_threshold = 80
+            # Manuelle Override-Auswahl (wenn gesetzt, gilt für alle Dateien)
+            manual_override = getattr(self, '_manual_translation_date_override', None)
+            # Fuzzy Matching Vorbereitung (Liste der Normkeys)
+            norm_keys = list(index.keys())
+            for item in processed_files:
+                try:
+                    filename = None
+                    if isinstance(item, dict):
+                        filename = item.get('file')
+                    elif isinstance(item, (str, bytes)):
+                        import os
+                        filename = os.path.basename(str(item))
+                    if not filename:
+                        continue
+                    norm = self._normalize_basename(filename)
+                    date_folder = None
+                    if manual_override:
+                        # Direkte Zuordnung, kein weiterer Logikpfad
+                        mapping[filename] = manual_override.get('date')
+                        try:
+                            self._log_translation_decision(f"Manueller Override: {filename} -> {manual_override.get('date')}")
+                        except Exception:
+                            pass
+                        continue
+                    entry = index.get(norm)
+                    ambiguous = False
+                    if entry:
+                        # Rückwärtskompatibilität: alte Struktur adaptieren
+                        if 'dates' in entry and 'entries' not in entry:
+                            entry['entries'] = [{'date': d, 'project_id': None} for d in entry.get('dates', [])]
+                        entries = entry.get('entries', [])
+                        if len(entries) == 1:
+                            date_folder = entries[0].get('date')
+                            try:
+                                self._log_translation_decision(f"Exakte Zuordnung: {filename} -> {date_folder}")
+                            except Exception:
+                                pass
+                        elif len(entries) > 1:
+                            # Mehrdeutig → Dialog nötig
+                            ambiguous = True
+                    if not entry:
+                        # Fuzzy versuchen
+                        try:
+                            from rapidfuzz import process, fuzz
+                            threshold = getattr(self, 'translation_fuzzy_threshold', 80)
+                            if norm_keys:
+                                candidates = process.extract(norm, norm_keys, scorer=fuzz.WRatio, limit=3)
+                                # Filter nach Score >= 85
+                                candidates = [c for c in candidates if c[1] >= threshold]
+                                if len(candidates) == 1:
+                                    entry = index.get(candidates[0][0])
+                                    if entry:
+                                        entries = entry.get('entries', [])
+                                        if len(entries) == 1:
+                                            date_folder = entries[0].get('date')
+                                            try:
+                                                self._log_translation_decision(f"Fuzzy Zuordnung ({candidates[0][1]}): {filename} -> {date_folder}")
+                                            except Exception:
+                                                pass
+                                        elif len(entries) > 1:
+                                            ambiguous = True
+                                elif len(candidates) > 1:
+                                    # mehrere fuzzy Kandidaten → als mehrdeutig behandeln
+                                    ambiguous = True
+                        except Exception:
+                            pass
+                    if ambiguous:
+                        # Kandidaten vorbereiten für Dialog
+                        try:
+                            entries = entry.get('entries', []) if entry else []
+                            selection = self._select_translation_date_dialog(filename, entries)
+                            if selection:
+                                date_folder = selection.get('date')
+                                if not entry:
+                                    # neuen Entry anlegen
+                                    entry = {'entries': [], 'last_date': date_folder}
+                                    index[norm] = entry
+                                # Falls neue Auswahl
+                                if selection.get('new_entry'):
+                                    project_id = self._ensure_unique_project_id(entry['entries'], selection.get('project_id') or 'Neues_Projekt', date_folder)
+                                    entry['entries'].append({'date': date_folder, 'project_id': project_id, 'last_used': self._now_iso()})
+                                    try:
+                                        self._log_translation_decision(f"Neuer Eintrag via Dialog: {filename} -> {date_folder} (project_id={project_id})")
+                                    except Exception:
+                                        pass
+                                entry['last_date'] = date_folder
+                                # last_used aktualisieren
+                                for e in entry.get('entries', []):
+                                    if e.get('date') == date_folder and (e.get('project_id') == selection.get('project_id')):
+                                        e['last_used'] = self._now_iso()
+                                self._save_customer_file_index(customer, index)
+                        except Exception:
+                            pass
+                    if not date_folder:
+                        # Pfad-basiert versuchen
+                        date_folder = self._resolve_translation_date_folder([item])
+                    if not date_folder:
+                        date_folder = datetime.now().strftime('%Y-%m-%d')
+                    mapping[filename] = date_folder
+                    try:
+                        if not ambiguous and date_folder:
+                            self._log_translation_decision(f"Finale Zuordnung: {filename} -> {date_folder}")
+                    except Exception:
+                        pass
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return mapping
+
+    def _extract_project_and_date(self, target_path: str):
+        """Extrahiert (project_id, date_folder) aus einem Zielpfad.
+
+        Erwartete Struktur: <base>/<customer>/<project_id>/<workflow>/<YYYY-MM-DD>/<filename>
+        Vorgehen: Finde Segment mit YYYY-MM-DD. project_id ist dann zwei Segmente davor (i-2):
+            parts[i-2] = project_id, parts[i-1] = workflow, parts[i] = date
+        Rückgabe: (project_id | None, date | None)
+        """
+        import re, os
+        try:
+            parts = os.path.normpath(target_path).split(os.sep)
+            # Suche Date Ordner
+            for i, p in enumerate(parts):
+                if re.match(r"20[0-9]{2}-[01][0-9]-[0-3][0-9]", p):
+                    # Sicherstellen genügend Segmente
+                    if i >= 2:
+                        project_id = parts[i-2]
+                        return project_id, p
+            return None, None
+        except Exception:
+            return None, None
+
+    def _now_iso(self):
+        from datetime import datetime
+        try:
+            return datetime.now().isoformat(timespec='seconds')
+        except Exception:
+            return ''
+
+    def _select_translation_date_dialog(self, filename: str, entries: list):
+        """Zeigt einen kleinen Dialog zur Auswahl des richtigen Datums/Projekts.
+
+        entries: Liste von {date, project_id}
+        Rückgabe: ausgewähltes Dict oder None.
+        """
+        try:
+            import customtkinter as ctk
+            if not entries:
+                entries = []  # erlauben leeren Zustand für neuen Eintrag
+            # CTkToplevel Dialog
+            dialog = ctk.CTkToplevel(self)
+            dialog.title("Zuordnung Übersetzung")
+            dialog.configure(fg_color=self.get_color('surface'))
+            dialog.grab_set()
+            dialog.transient(self)
+            # Variable
+            import tkinter as tk
+            choice_var = tk.StringVar(value='')
+            # Heading
+            lbl = ctk.CTkLabel(dialog, text=f"Datum auswählen für: {filename}",
+                               text_color=self.get_color('gray_700'),
+                               font=ctk.CTkFont(*self.get_typography('body')))
+            lbl.pack(padx=16, pady=(16, 8))
+            # Container
+            frame = ctk.CTkFrame(dialog, fg_color=self.get_color('surface'),
+                                 border_width=1, border_color=self.get_color('surface_border'))
+            frame.pack(fill='both', expand=True, padx=16, pady=8)
+            for e in entries:
+                date = e.get('date')
+                proj = e.get('project_id') or '-'
+                txt = f"{date}  |  Projekt: {proj}"
+                rb = ctk.CTkRadioButton(frame, text=txt, value=f"{date}|{proj}", variable=choice_var,
+                                        text_color=self.get_color('gray_700'),
+                                        fg_color=self.get_color('primary'),
+                                        hover_color=self.get_color('primary_hover'))
+                rb.pack(anchor='w', padx=12, pady=4)
+
+            # Separator
+            sep = ctk.CTkFrame(frame, height=1, fg_color=self.get_color('surface_border'))
+            sep.pack(fill='x', padx=12, pady=(8, 8))
+
+            # Neues Datum Option
+            import datetime as _dt
+            today = _dt.datetime.now().strftime('%Y-%m-%d')
+            new_date_var = ctk.CTkEntry(frame, placeholder_text='YYYY-MM-DD (leer = heute)',
+                                        fg_color=self.get_color('input_bg'),
+                                        border_color=self.get_color('input_border'))
+            new_proj_var = ctk.CTkEntry(frame, placeholder_text='Projekt-ID optional',
+                                        fg_color=self.get_color('input_bg'),
+                                        border_color=self.get_color('input_border'))
+            new_label = ctk.CTkLabel(frame, text='Neues Datum anlegen:',
+                                     text_color=self.get_color('gray_700'),
+                                     font=ctk.CTkFont(*self.get_typography('caption')))
+            new_label.pack(anchor='w', padx=12, pady=(4,2))
+            new_date_var.pack(fill='x', padx=12, pady=2)
+            new_proj_var.pack(fill='x', padx=12, pady=(2,8))
+            # Buttons
+            btn_frame = ctk.CTkFrame(dialog, fg_color='transparent')
+            btn_frame.pack(fill='x', padx=16, pady=(4, 16))
+            def _ok():
+                val = choice_var.get()
+                entered_date = new_date_var.get().strip()
+                entered_proj = new_proj_var.get().strip()
+                if entered_date or entered_proj:
+                    # Neues Datum/Projekt
+                    # Datum validieren oder heute
+                    import re
+                    if not entered_date:
+                        entered_date_val = today
+                    else:
+                        if not re.match(r"20[0-9]{2}-[01][0-9]-[0-3][0-9]", entered_date):
+                            # ungültig → ignorieren
+                            dialog.result = None
+                            dialog.destroy()
+                            return
+                        entered_date_val = entered_date
+                    if not entered_proj:
+                        entered_proj = 'Neues_Projekt'
+                    dialog.result = f"{entered_date_val}|{entered_proj}|__new__"
+                    dialog.destroy()
+                    return
+                if not val:
+                    dialog.destroy()
+                    return
+                dialog.result = val
+                dialog.destroy()
+            def _cancel():
+                dialog.result = None
+                dialog.destroy()
+            ok_btn = ctk.CTkButton(btn_frame, text='Übernehmen', command=_ok,
+                                   fg_color=self.get_color('primary'),
+                                   hover_color=self.get_color('primary_hover'),
+                                   text_color=self.get_color('white'))
+            ok_btn.pack(side='right', padx=8)
+            cancel_btn = ctk.CTkButton(btn_frame, text='Abbrechen', command=_cancel,
+                                       fg_color=self.get_color('secondary'),
+                                       hover_color=self.get_color('secondary_hover'),
+                                       text_color=self.get_color('white'))
+            cancel_btn.pack(side='right', padx=8)
+            dialog.wait_window()
+            # Dialog zentrieren (nach first update, damit Größe bekannt)
+            try:
+                dialog.update_idletasks()
+                w = dialog.winfo_width(); h = dialog.winfo_height()
+                sw = dialog.winfo_screenwidth(); sh = dialog.winfo_screenheight()
+                x = int((sw - w)/2); y = int((sh - h)/2)
+                dialog.geometry(f"{w}x{h}+{x}+{y}")
+            except Exception:
+                pass
+            res = getattr(dialog, 'result', None)
+            if res:
+                if res.endswith('|__new__'):
+                    parts = res.split('|')
+                    date = parts[0]
+                    proj = parts[1]
+                    return {'date': date, 'project_id': proj, 'new_entry': True}
+                date, proj = res.split('|', 1)
+                for e in entries:
+                    if e.get('date') == date and (e.get('project_id') or '-') == proj:
+                        return e
+            return None
+        except Exception:
+            return None
+
+    # ------------------------------------------------------------------
+    # 🖐 MANUELLE AUSWAHL FÜR ÜBERSETZUNGS-ZIELDATUM
+    # ------------------------------------------------------------------
+    def _manual_select_translation_date(self):
+        """Manueller Dialog: Benutzer wählt vorhandenen Übersetzungs-Ziel-Datumsordner.
+
+        Ergebnis setzt self._manual_translation_date_override = {'date': <date>} für nächsten Upload.
+        """
+        try:
+            if not self.current_customer:
+                self._show_enhanced_toast("Kein Kunde gewählt", "warning", 2500)
+                return
+            import customtkinter as ctk, os, re
+            from pathlib import Path
+            base = Path(getattr(self, 'projects_base_path', 'Checker_Projekte')) / self.current_customer / 'Übersetzungen'
+            if not base.exists():
+                self._show_enhanced_toast("Keine Übersetzungsordner vorhanden", "info", 2500)
+                return
+            dates = []
+            for p in base.iterdir():
+                if p.is_dir() and re.match(r"20[0-9]{2}-[01][0-9]-[0-3][0-9]", p.name):
+                    dates.append(p.name)
+            if not dates:
+                self._show_enhanced_toast("Keine Datumsordner gefunden", "info", 2500)
+                return
+            dates.sort(reverse=True)
+            dialog = ctk.CTkToplevel(self)
+            dialog.title("Übersetzungs-Datum wählen")
+            dialog.configure(fg_color=self.get_color('surface'))
+            dialog.grab_set(); dialog.transient(self)
+            import tkinter as tk
+            choice_var = tk.StringVar(value=dates[0])
+            lbl = ctk.CTkLabel(dialog, text="Zieldatum auswählen (wirkt für nächsten Übersetzungs-Upload)",
+                               text_color=self.get_color('gray_700'),
+                               font=ctk.CTkFont(*self.get_typography('body')))
+            lbl.pack(padx=16, pady=(16,8))
+            frame = ctk.CTkFrame(dialog, fg_color=self.get_color('surface'),
+                                 border_width=1, border_color=self.get_color('surface_border'))
+            frame.pack(fill='both', expand=True, padx=16, pady=8)
+            for d in dates:
+                rb = ctk.CTkRadioButton(frame, text=d, value=d, variable=choice_var,
+                                        text_color=self.get_color('gray_700'),
+                                        fg_color=self.get_color('primary'), hover_color=self.get_color('primary_hover'))
+                rb.pack(anchor='w', padx=12, pady=3)
+            btn_frame = ctk.CTkFrame(dialog, fg_color='transparent')
+            btn_frame.pack(fill='x', padx=16, pady=(4,16))
+            def _apply():
+                val = choice_var.get()
+                self._manual_translation_date_override = {'date': val}
+                try:
+                    self._log_translation_decision(f"Setze manuellen Override für nächsten Upload: {val}")
+                except Exception: pass
+                self._show_enhanced_toast(f"Manuelles Datum: {val}", "success", 2500)
+                dialog.destroy()
+            def _clear():
+                if hasattr(self, '_manual_translation_date_override'):
+                    self._manual_translation_date_override = None
+                self._show_enhanced_toast("Manueller Override entfernt", "info", 2500)
+                dialog.destroy()
+            apply_btn = ctk.CTkButton(btn_frame, text='Übernehmen', command=_apply,
+                                      fg_color=self.get_color('primary'), hover_color=self.get_color('primary_hover'),
+                                      text_color=self.get_color('white'))
+            apply_btn.pack(side='right', padx=8)
+            clear_btn = ctk.CTkButton(btn_frame, text='Löschen', command=_clear,
+                                      fg_color=self.get_color('secondary'), hover_color=self.get_color('secondary_hover'),
+                                      text_color=self.get_color('white'))
+            clear_btn.pack(side='right', padx=8)
+            dialog.update_idletasks()
+            try:
+                w = dialog.winfo_width(); h = dialog.winfo_height()
+                sw = dialog.winfo_screenwidth(); sh = dialog.winfo_screenheight()
+                x = int((sw - w)/2); y = int((sh - h)/2)
+                dialog.geometry(f"{w}x{h}+{x}+{y}")
+            except Exception: pass
+        except Exception:
+            pass
+
+    # ---------------------------------------------------------------------
+    # 📝 LOGGING & UTILS
+    # ---------------------------------------------------------------------
+    def _log_translation_decision(self, message: str):
+        """Zentrales Logging für Übersetzungs-Zuordnungen (silent fallback)."""
+        try:
+            if hasattr(self, 'logger') and self.logger:
+                self.logger.info(f"[ÜbersetzungsZuordnung] {message}")
+            else:
+                print(f"[ÜbersetzungsZuordnung] {message}")
+        except Exception:
+            pass
+
+    def _ensure_unique_project_id(self, entries: list, project_id: str, date_folder: str) -> str:
+        """Erzeugt eindeutige project_id falls Kollision gleicher (date, project_id) Kombination."""
+        try:
+            existing = {(e.get('date'), e.get('project_id')) for e in entries}
+            if (date_folder, project_id) not in existing:
+                return project_id
+            base = project_id
+            for i in range(2, 1000):
+                candidate = f"{base}_{i}"
+                if (date_folder, candidate) not in existing:
+                    return candidate
+            return f"{project_id}_unique"
+        except Exception:
+            return project_id
     
     # (konsolidiert) doppelte _load_recent_projects entfernt – benutze die spätere Variante mit Log-Ausgabe
     
@@ -8571,6 +9262,9 @@ DATEIEN ({project['file_count']}):
             
             # F5 for refresh
             self.master.bind('<F5>', lambda e: self._populate_customer_dropdown())
+
+            # F9 manuelle Übersetzungs-Zuordnung
+            self.master.bind('<F9>', lambda e: self._manual_select_translation_date())
             
         except Exception as e:
             print(f"Keyboard shortcuts setup error: {e}")

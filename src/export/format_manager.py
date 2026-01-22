@@ -315,7 +315,76 @@ class FormatExportManager:
     <p><strong>Generated:</strong> """ + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + """</p>
 """
 
-        html += self._dict_to_html(data)
+        # Optionaler Abschnitt: Verwendete Ähnlichkeitsschwellen (falls im Datensatz vorhanden)
+        try:
+            if isinstance(data, dict):
+                metrics = data.get('metrics') if isinstance(data.get('metrics'), dict) else None
+                thr = metrics.get('similarity_thresholds_used') if metrics else None
+                if isinstance(thr, dict) and (thr.get('critical') is not None or thr.get('major') is not None):
+                    def _fmt(v):
+                        try:
+                            return f"{float(v):.0%}" if v is not None else '–'
+                        except Exception:
+                            return '–'
+                    c_txt = _fmt(thr.get('critical'))
+                    m_txt = _fmt(thr.get('major'))
+                    html += f"<div class='section'><h2 class='key'>Verwendete Ähnlichkeitsschwellen</h2><div>Kritisch ≥ {c_txt}, Wesentlich ≥ {m_txt}</div></div>\n"
+        except Exception:
+            pass
+
+        # Domain-spezifische Sonderbehandlung: Findings als Tabelle mit Confidence
+        try:
+            if isinstance(data, dict) and isinstance(data.get('findings'), list) and data.get('findings'):
+                findings = data.get('findings')
+                html += "<div class='section'>\n<h2 class='key'>Befunde</h2>\n"
+                # Prüfe auf optionales 'count' Feld für gruppierte Exporte
+                has_count = False
+                try:
+                    has_count = any(isinstance(f, dict) and 'count' in f for f in findings)
+                except Exception:
+                    has_count = False
+                # Deutsche Spaltenbezeichnungen vereinheitlichen (Lokalisierung)
+                cols = ["Schweregrad", "Regel", "Nachricht"]
+                if has_count:
+                    cols.append("Anzahl")
+                # Checker / Sicherheitswert (Confidence)
+                cols.extend(["Prüfer", "Sicherheitswert"])  # Prüfer bleibt leer bei Gruppierung
+                html += "<table><thead><tr>" + ''.join(f"<th>{c}</th>" for c in cols) + "</tr></thead><tbody>"
+                from html import escape as _esc
+                for f in findings:
+                    if not isinstance(f, dict):
+                        continue
+                    # Severity lokalisieren (falls noch englisch intern)
+                    sev_code = str(f.get('severity', ''))
+                    sev_map = { 'critical': 'kritisch', 'major': 'wesentlich', 'minor': 'gering' }
+                    sev = _esc(sev_map.get(sev_code, sev_code))
+                    rule = _esc(str(f.get('rule_id') or f.get('rule') or ''))
+                    msg = _esc(str(f.get('message', '')))
+                    # Checker evtl. nicht vorhanden in Gruppierung
+                    chk = _esc(str(f.get('checker', '')))
+                    # Confidence-Fallbacks (avg_confidence/avg_conf)
+                    conf = f.get('confidence')
+                    if conf is None:
+                        conf = f.get('avg_confidence', f.get('avg_conf'))
+                    try:
+                        if isinstance(conf, str):
+                            conf = float(conf)
+                    except Exception:
+                        pass
+                    conf_txt = f"{conf:.4f}" if isinstance(conf, (int, float)) else ''
+                    tds = [sev, rule, msg]
+                    if has_count:
+                        tds.append(str(f.get('count') or ''))
+                    tds.extend([chk, conf_txt])
+                    html += "<tr>" + ''.join(f"<td>{_esc(str(x))}</td>" for x in tds) + "</tr>"
+                html += "</tbody></table></div>\n"
+                # Entferne findings aus generischem Renderer, um Duplikate zu vermeiden
+                rest = {k: v for k, v in data.items() if k != 'findings'}
+                html += self._dict_to_html(rest)
+            else:
+                html += self._dict_to_html(data)
+        except Exception:
+            html += self._dict_to_html(data)
         html += "\n</body>\n</html>"
 
         return html

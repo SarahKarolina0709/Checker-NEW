@@ -2005,12 +2005,86 @@ class ProfessionelleUebersetzungsqualitaetsApp:
                     self._after(150, self._sanitize_all_widgets)
             except Exception:
                 pass
+            # Globale Keyboard-Shortcuts registrieren
+            try:
+                self._register_global_shortcuts()
+            except Exception:
+                pass
         except Exception as e:
             self._handle_error(
                 e,
                 context="app.setup",
                 user_message=self._t("Application initialization failed") if hasattr(self, '_t') else "Anwendung konnte nicht initialisiert werden"
             )
+
+    def _register_global_shortcuts(self):
+        """Registriert globale Tastatur-Shortcuts für häufige Aktionen."""
+        try:
+            if not getattr(self, 'root', None):
+                return
+            
+            # Strg+E: Export-Dialog öffnen
+            self.root.bind('<Control-e>', lambda e: self._shortcut_export())
+            self.root.bind('<Control-E>', lambda e: self._shortcut_export())
+            
+            # Strg+1/2/3: Direkt-Export in verschiedene Formate
+            self.root.bind('<Control-Key-1>', lambda e: self._perform_export('pdf'))
+            self.root.bind('<Control-Key-2>', lambda e: self._perform_export('xlsx'))
+            self.root.bind('<Control-Key-3>', lambda e: self._perform_export('txt'))
+            
+            # Strg+A: Analyse starten
+            self.root.bind('<Control-a>', lambda e: self._shortcut_analyze())
+            self.root.bind('<Control-A>', lambda e: self._shortcut_analyze())
+            
+            # Strg+O: Datei öffnen
+            self.root.bind('<Control-o>', lambda e: self._shortcut_open_file())
+            self.root.bind('<Control-O>', lambda e: self._shortcut_open_file())
+            
+            # F5: Aktualisieren/Neu analysieren
+            self.root.bind('<F5>', lambda e: self._shortcut_refresh())
+            
+            self.logger.debug("Globale Keyboard-Shortcuts registriert")
+        except Exception as e:
+            self.logger.warning(f"Keyboard-Shortcuts konnten nicht registriert werden: {e}")
+    
+    def _shortcut_export(self):
+        """Shortcut-Handler für Export-Dialog (Strg+E)."""
+        try:
+            if hasattr(self, 'export_results'):
+                self.export_results()
+        except Exception:
+            pass
+    
+    def _shortcut_analyze(self):
+        """Shortcut-Handler für Analyse starten (Strg+A)."""
+        try:
+            if hasattr(self, 'run_analysis'):
+                self.run_analysis()
+            elif hasattr(self, 'start_analysis'):
+                self.start_analysis()
+        except Exception:
+            pass
+    
+    def _shortcut_open_file(self):
+        """Shortcut-Handler für Datei öffnen (Strg+O)."""
+        try:
+            if hasattr(self, 'load_files'):
+                self.load_files()
+            elif hasattr(self, '_load_files'):
+                self._load_files()
+        except Exception:
+            pass
+    
+    def _shortcut_refresh(self):
+        """Shortcut-Handler für Aktualisieren (F5)."""
+        try:
+            if hasattr(self, 'analysis_results') and self.analysis_results:
+                # Re-run analysis if we have results
+                self._shortcut_analyze()
+            else:
+                self.show_toast(self._t("Keine Analyse zum Aktualisieren"), 'info')
+        except Exception:
+            pass
 
     def _cleanup_resources_on_close(self):
         """Freigabe großer Collections & Caches beim Beenden – kompakt & testbar."""
@@ -2746,15 +2820,30 @@ class ProfessionelleUebersetzungsqualitaetsApp:
             }
 
             # Sicher serialisieren (ensure_ascii=False für Umlaute) mit Größenlimit
+            max_bytes = 10 * 1024 * 1024
             try:
                 json_blob = json.dumps(payload, ensure_ascii=False, indent=2)
-                # Hartes Limit ~10MB auf JSON-String (Schutz gegen riesige Daten)
-                max_bytes = 10 * 1024 * 1024
-                if len(json_blob.encode('utf-8')) > max_bytes:
-                    # Kürzen und Hinweis setzen
-                    json_blob = json_blob[: max_bytes // 2] + "\n/* TRUNCATED: payload zu groß für Bericht (10MB Limit) */\n"
-            except Exception:
-                json_blob = '{}'
+                blob_size = len(json_blob.encode('utf-8'))
+                if blob_size > max_bytes:
+                    if hasattr(self, 'logger'):
+                        self.logger.warning("Berichtsdaten zu groß (%d Bytes) – reduziere Inhalt", blob_size)
+                    overflow_payload = {
+                        'meta': {**meta, 'size_warning': 'Analyse-Ergebnis zu groß – Daten wurden komprimiert.'},
+                        'reportData': {
+                            'hinweis': 'Die vollständigen Analyse-Daten überschreiten das 10MB Limit und wurden nicht in den Bericht eingebettet.'
+                        }
+                    }
+                    json_blob = json.dumps(overflow_payload, ensure_ascii=False, indent=2)
+            except Exception as exc:
+                if hasattr(self, 'logger'):
+                    self.logger.error(f"Berichtsserialisierung fehlgeschlagen: {exc}")
+                fallback_payload = {
+                    'meta': {**meta, 'serialization_error': 'Serialisierung fehlgeschlagen.'},
+                    'reportData': {
+                        'hinweis': 'Der Bericht konnte nicht erstellt werden. Bitte Log prüfen.'
+                    }
+                }
+                json_blob = json.dumps(fallback_payload, ensure_ascii=False, indent=2)
 
             counts_html = ' '.join(f"<span>{html.escape(k)}: {v}</span>" for k,v in meta['item_counts'].items()) or '<em>Keine Strukturmetriken</em>'
             # ---------------- Design-System Farb-Tokens (keine Hex-Codes direkt) ----------------
@@ -2793,10 +2882,13 @@ class ProfessionelleUebersetzungsqualitaetsApp:
                 recommendations_html = ''
             # HTML template - avoid legacy token pattern matching with string concatenation
             _inp = "in" + "put"  # Workaround für Pre-Commit Hook
-            template = f"""<!DOCTYPE html>
+            template = """<!DOCTYPE html>
 <html lang=\"de\">\n<head>\n<meta charset=\"UTF-8\" />\n<title>Dynamischer Qualitätsbericht</title>\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\" />\n<style>\n body{{font-family:Segoe UI,Arial,sans-serif;background:{color_surface};margin:24px;color:{color_text};}}\n h1{{font-size:24px;margin:0 0 8px;font-weight:600;}}\n h2{{font-size:18px;margin:32px 0 12px;font-weight:600;}}\n .meta, .summary{{background:{color_panel};border:1px solid {color_border};border-radius:8px;padding:16px;margin-bottom:20px;}}\n code,pre{{font-family:Consolas,monospace;font-size:12px;}}\n .counts span{{display:inline-block;margin:4px 8px 4px 0;padding:4px 8px;border:1px solid {color_badge_border};border-radius:6px;background:{color_badge_bg};}}\n .raw-container{{border:1px solid {color_border};border-radius:8px;padding:16px;white-space:pre;overflow:auto;max-height:480px;background:{color_surface};}}\n .footer{{margin-top:40px;font-size:12px;color:{color_footer};}}\n button{{background:{color_button};color:{color_white};border:none;padding:8px 14px;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;}}\n button:hover{{background:{color_button_hover};}}\n .toolbar{{margin:0 0 16px;}}\n .filter-box{{border:1px solid {color_filter_border};border-radius:6px;padding:8px;margin:0 0 16px;}}\n {_inp}[type=text]{{padding:6px 8px;border:1px solid {color_filter_border};border-radius:4px;width:260px;}}\n table{{border-collapse:collapse;width:100%;margin-top:12px;}}\n th,td{{border:1px solid {color_border};padding:6px 8px;font-size:12px;text-align:left;vertical-align:top;}}\n th{{background:{color_table_header};font-weight:600;}}\n .hidden{{display:none;}}\n</style>\n</head>\n<body>\n<h1>Qualitätsbericht (Dynamisch)</h1>\n<div class=\"meta\">\n  <strong>Erstellt:</strong> {meta_generated_at}<br/>\n  <strong>Quelle:</strong> {meta_source}<br/>\n</div>\n<div class=\"summary\">\n  <h2>Struktur Zusammenfassung</h2>\n  <div class=\"counts\">{counts_html}</div>\n  <p>Gefilterte Ansicht: Verwende Suchfeld für einfache Textfilterung (client-side). Rohdaten unten vollständig.</p>\n</div>\n<div class=\"filter-box\">\n  <{_inp} id=\"filterInput\" type=\"text\" placeholder=\"Suchen...\" on{_inp}=\"applyFilter()\" />\n  <button onclick=\"resetFilter()\">Zurücksetzen</button>\n</div>\n<div id=\"dynamicTables\"></div>\n<h2>Rohdaten JSON</h2>\n<div class=\"raw-container\" id=\"rawJson\"></div>\n<div class=\"footer\">Automatisch generiert – temporäre Datei (Bericht_Dynamisch.html).</div>\n<script>\nconst payload = {json_blob};\nconst reportData = payload.reportData || {{}};\nfunction esc(s){{return String(s).replace(/[&<>\\\"']/g, c=>({{'&':'&amp;','<':'&lt;','>':'&gt;','\\\"':'&quot;','\'':'&#39;'}})[c]);}}\nfunction buildTables(){{\n  const container=document.getElementById('dynamicTables');\n  container.innerHTML='';\n  const keys=Object.keys(reportData);\n  if(!keys.length){{container.innerHTML='<em>Keine Daten</em>';return;}}\n  keys.forEach(k=>{{\n    const section=document.createElement('div');\n    section.className='data-section';\n    const val=reportData[k];\n    let html='';\n    if(Array.isArray(val) && val.length && typeof val[0]==='object'){{\n       const cols=Array.from(new Set(val.flatMap(o=>Object.keys(o))));\n       html += `<h2>${{esc(k)}}</h2><table><thead><tr>${{cols.map(c=>`<th>${esc(c)}</th>`).join('')}} </tr></thead><tbody>`;\n       val.forEach(row=>{{html+='<tr>'+cols.map(c=>`<td>${esc(row[c]!==undefined?row[c]:'')}</td>`).join('')+'</tr>';}});\n       html+='</tbody></table>';\n    }} else if (Array.isArray(val)) {{\n       html += `<h2>${{esc(k)}}</h2><div>${{val.map(i=>`<div>- ${esc(i)}</div>`).join('')}} </div>`;\n    }} else if (val && typeof val==='object') {{\n       html += `<h2>${{esc(k)}}</h2><pre>${{esc(JSON.stringify(val,null,2))}}</pre>`;\n    }} else {{\n       html += `<h2>${{esc(k)}}</h2><div>${{esc(val)}}</div>`;\n    }}\n    section.innerHTML=html;\n    container.appendChild(section);\n  }});\n}}\nfunction applyFilter(){{\n  const q=document.getElementById('filterInput').value.toLowerCase();\n  document.querySelectorAll('.data-section').forEach(sec=>{{\n    sec.classList.remove('hidden');\n    if(q){{ if(sec.textContent.toLowerCase().indexOf(q)===-1) sec.classList.add('hidden'); }}\n  }});\n}}\nfunction resetFilter(){{document.getElementById('filterInput').value='';applyFilter();}}\nfunction init(){{\n  buildTables();\n  document.getElementById('rawJson').textContent=JSON.stringify(payload,null,2);\n}}\ninit();\n</script>\n</body>\n</html>"""
+            template = template.format(
                 counts_html=counts_html,
                 json_blob=json_blob,
+                meta_generated_at=meta['generated_at'],
+                meta_source=meta['source'],
                 color_surface=color_surface,
                 color_text=color_text,
                 color_panel=color_panel,
@@ -2808,7 +2900,8 @@ class ProfessionelleUebersetzungsqualitaetsApp:
                 color_button_hover=color_button_hover,
                 color_filter_border=color_filter_border,
                 color_table_header=color_table_header,
-                color_white=color_white
+                color_white=color_white,
+                _inp=_inp
             )
             # Empfehlungen in Template einfügen (nach Summary, vor Filterbox) – non destructive
             try:
@@ -8285,76 +8378,495 @@ class ProfessionelleUebersetzungsqualitaetsApp:
             _pt = globals().get('pytesseract', None)
             _img = globals().get('Image', None)
             if _pt is None or _img is None:
-                self.show_toast("OCR nicht verfügbar (pytesseract/Pillow fehlt)", "warning")
+                self.show_toast(self._t("OCR nicht verfügbar (pytesseract/Pillow fehlt)"), "warning")
+                self._show_ocr_setup_help()
                 return
+            
+            # Tesseract prüfen
+            self._resolve_tesseract_cmd()
+            try:
+                import pytesseract
+                pytesseract.get_tesseract_version()
+            except Exception:
+                self.show_toast(self._t("Tesseract-OCR nicht gefunden"), "error")
+                self._show_ocr_setup_help()
+                return
+            
             file_types = [
+                ("Bilder & PDFs", "*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.bmp;*.pdf"),
                 ("Bilder", "*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.bmp"),
-                ("PNG", "*.png"),
-                ("JPEG", "*.jpg;*.jpeg"),
-                ("TIFF", "*.tif;*.tiff"),
+                ("PDF Scans", "*.pdf"),
                 ("Alle Dateien", "*.*")
             ]
-            images = filedialog.askopenfilenames(title="Bilder für OCR-Ausgangstext wählen", filetypes=file_types)
-            if not images:
+            files = filedialog.askopenfilenames(title=self._t("Dateien für OCR-Texterkennung wählen"), filetypes=file_types)
+            if not files:
                 return
             customer_name = self._get_or_select_customer_for_upload()
             if customer_name == "CANCELLED" or not customer_name:
                 return
-            self.update_status("OCR Extraktion läuft...", "processing", show_progress=True, progress_value=0)
-            extracted_files = []
-            for idx, img_path in enumerate(images):
-                try:
-                    text = self._perform_ocr(img_path)
-                    if not text.strip():
-                        continue
-                    saved_file = self._save_ocr_text_as_source(text, img_path, customer_name)
-                    if saved_file:
-                        extracted_files.append(saved_file)
-                except Exception as ocr_err:
-                    self._handle_error(ocr_err, context="ocr.extract.single", toast=False)
-                # Fortschritt aktualisieren
-                try:
-                    progress = (idx + 1) / len(images)
-                    self.update_status(f"OCR {idx+1}/{len(images)}", "processing", show_progress=True, progress_value=progress)
-                except Exception:
-                    pass
-            if extracted_files:
-                self._register_uploaded_files('source', extracted_files)
-                self._schedule_update_file_counter()
-                self._refresh_file_list_display()
-                self._smart_file_pairing()
-                self._check_and_show_manual_pairing_option()
-                self.show_toast(f"{len(extracted_files)} OCR-Datei(en) erzeugt", "success")
-                self.update_status("OCR abgeschlossen", "success")
-                try:
-                    self._update_ribbon_states_after_idle()
-                except Exception:
-                    pass
-            else:
-                self.show_toast("Keine OCR-Texte erzeugt", "info")
-                self.update_status("Keine OCR-Texte", "warning")
+            
+            # OCR mit Vorschau-Dialog
+            self._perform_ocr_with_preview(files, customer_name)
+            
         except Exception as e:
             self._handle_error(e, context="ocr.upload", user_message=self._t("OCR fehlgeschlagen") if hasattr(self,'_t') else None)
+    
+    def _show_ocr_setup_help(self):
+        """Zeigt Hilfe-Dialog zur OCR-Einrichtung."""
+        try:
+            help_text = self._t("""OCR-Einrichtung erforderlich
+
+Für die Texterkennung werden benötigt:
+
+1. Tesseract-OCR Engine
+   → Download: https://github.com/UB-Mannheim/tesseract/wiki
+   → Bei Installation: Deutsche Sprachdaten auswählen
+
+2. Python-Pakete:
+   → pip install pytesseract Pillow
+
+Nach Installation: Programm neu starten.""")
+            
+            messagebox.showinfo(self._t("OCR-Einrichtung"), help_text)
+        except Exception:
+            pass
+    
+    def _perform_ocr_with_preview(self, files, customer_name):
+        """Führt OCR mit Fortschrittsanzeige und Vorschau durch."""
+        try:
+            image_exts = {'.png', '.jpg', '.jpeg', '.tif', '.tiff', '.bmp'}
+            pdf_exts = {'.pdf'}
+            
+            results = []  # [(filename, text, confidence, detected_lang), ...]
+            total = len(files)
+            
+            self.update_status(self._t("OCR-Texterkennung läuft..."), "processing", show_progress=True, progress_value=0)
+            
+            for idx, filepath in enumerate(files):
+                ext = os.path.splitext(filepath)[1].lower()
+                filename = os.path.basename(filepath)
+                
+                try:
+                    self.update_status(f"OCR: {filename} ({idx+1}/{total})", "processing", show_progress=True, progress_value=idx/total)
+                    
+                    if ext in image_exts:
+                        # Bild-OCR
+                        text = self._perform_ocr(filepath)
+                        confidence = self._estimate_ocr_quality(text)
+                        detected_lang = self._detect_language_from_text(text) if text else None
+                        results.append((filename, text, confidence, detected_lang))
+                        
+                    elif ext in pdf_exts:
+                        # PDF: Erst Text-Extraktion versuchen, dann OCR
+                        text = self._extract_text_from_file(filepath)
+                        if text and len(text.strip()) > 50:
+                            confidence = 95  # Text-PDFs haben hohe Qualität
+                            detected_lang = self._detect_language_from_text(text)
+                            results.append((filename, text, confidence, detected_lang))
+                        else:
+                            # OCR für gescannte PDFs
+                            self.logger.info(f"📄 PDF '{filename}' scheint gescannt - verwende OCR")
+                            text = self._extract_text_from_file(filepath)  # Nutzt OCR-Fallback
+                            confidence = self._estimate_ocr_quality(text) if text else 0
+                            detected_lang = self._detect_language_from_text(text) if text else None
+                            results.append((filename, text or "", confidence, detected_lang))
+                except Exception as e:
+                    self.logger.warning(f"OCR fehlgeschlagen für {filename}: {e}")
+                    results.append((filename, "", 0, None))
+            
+            self.update_status(self._t("OCR abgeschlossen"), "success", show_progress=False)
+            
+            # Vorschau-Dialog anzeigen
+            if results:
+                self._show_ocr_preview_dialog(results, customer_name)
+            else:
+                self.show_toast(self._t("Keine Texte erkannt"), "warning")
+                
+        except Exception as e:
+            self._handle_error(e, context="ocr.preview", toast=True)
+    
+    def _estimate_ocr_quality(self, text: str) -> int:
+        """Schätzt die OCR-Qualität basierend auf Textmerkmalen (0-100)."""
+        if not text or not text.strip():
+            return 0
+        
+        score = 50  # Basis
+        
+        # Länge
+        length = len(text.strip())
+        if length > 500:
+            score += 15
+        elif length > 100:
+            score += 10
+        elif length < 20:
+            score -= 20
+        
+        # Wortstruktur
+        words = text.split()
+        if len(words) > 10:
+            avg_word_len = sum(len(w) for w in words) / len(words)
+            if 3 <= avg_word_len <= 12:
+                score += 15
+        
+        # Sonderzeichen-Ratio (zu viele = schlechte OCR)
+        special_chars = sum(1 for c in text if not c.isalnum() and not c.isspace())
+        special_ratio = special_chars / len(text) if text else 0
+        if special_ratio > 0.3:
+            score -= 25
+        elif special_ratio < 0.1:
+            score += 10
+        
+        # Wiederholende Zeichen (OCR-Artefakte)
+        if '###' in text or '???' in text or '...' in text:
+            score -= 15
+        
+        return max(0, min(100, score))
+    
+    def _show_ocr_preview_dialog(self, results, customer_name):
+        """Zeigt OCR-Ergebnisse zur Überprüfung vor dem Speichern."""
+        try:
+            dialog = ctk.CTkToplevel(self.root)
+            dialog.title(self._t("OCR-Ergebnisse überprüfen"))
+            dialog.geometry("900x700")
+            dialog.transient(self.root)
+            dialog.grab_set()
+            
+            # Header
+            header = ctk.CTkFrame(dialog, fg_color=self.get_color('primary'), corner_radius=0)
+            header.pack(fill="x")
+            
+            header_label = ctk.CTkLabel(
+                header,
+                text=self._t("OCR-Texterkennung - Ergebnisse"),
+                font=ctk.CTkFont(*self.get_typography('heading')),
+                text_color=self.get_color('white')
+            )
+            header_label.pack(pady=16)
+            
+            # Statistik mit Sprachinfo
+            success_count = sum(1 for r in results if len(r) >= 3 and r[1] and r[2] > 30)
+            detected_langs = set()
+            for r in results:
+                if len(r) >= 4 and r[3]:
+                    detected_langs.add(r[3])
+            
+            stat_text = f"{success_count}/{len(results)} " + self._t("Dateien erfolgreich erkannt")
+            if detected_langs:
+                lang_names = {
+                    'deu': 'Deutsch', 'eng': 'Englisch', 'fra': 'Französisch',
+                    'spa': 'Spanisch', 'ita': 'Italienisch', 'por': 'Portugiesisch',
+                    'nld': 'Niederländisch', 'pol': 'Polnisch', 'rus': 'Russisch'
+                }
+                lang_display = ', '.join(lang_names.get(l, l) for l in detected_langs)
+                stat_text += f" | {self._t('Erkannte Sprachen')}: {lang_display}"
+            
+            stat_label = ctk.CTkLabel(
+                header,
+                text=stat_text,
+                font=ctk.CTkFont(*self.get_typography('body')),
+                text_color=self.get_color('white')
+            )
+            stat_label.pack(pady=(0, 12))
+            
+            # Auto-Detect Hinweis wenn Sprache erkannt
+            if detected_langs:
+                auto_hint = ctk.CTkFrame(dialog, fg_color='#EEF2FF', corner_radius=0)
+                auto_hint.pack(fill="x", padx=0)
+                
+                # Hauptsprache ermitteln (häufigste)
+                primary_lang = max(detected_langs, key=lambda x: sum(1 for r in results if len(r) > 3 and r[3] == x))
+                lang_names_full = {
+                    'deu': 'Deutsch', 'eng': 'Englisch', 'fra': 'Französisch',
+                    'spa': 'Spanisch', 'ita': 'Italienisch', 'por': 'Portugiesisch'
+                }
+                primary_display = lang_names_full.get(primary_lang, primary_lang)
+                
+                hint_label = ctk.CTkLabel(
+                    auto_hint,
+                    text=f"  {self._t('Quellsprache automatisch erkannt')}: {primary_display}  ",
+                    font=ctk.CTkFont(family="Segoe UI", size=11),
+                    text_color='#4338CA'
+                )
+                hint_label.pack(pady=8)
+                
+                # Referenz für spätere Nutzung speichern
+                dialog._detected_primary_lang = primary_lang
+            
+            # Content
+            content = ctk.CTkScrollableFrame(dialog, fg_color="transparent")
+            content.pack(fill="both", expand=True, padx=20, pady=10)
+            
+            selected_results = []  # Zum Speichern ausgewählte Ergebnisse
+            detected_langs_list = []  # Für Auto-Setting
+            
+            for result_item in results:
+                # Unterstütze sowohl (filename, text, confidence) als auch (filename, text, confidence, detected_lang)
+                filename = result_item[0]
+                text = result_item[1]
+                confidence = result_item[2] if len(result_item) > 2 else 0
+                detected_lang = result_item[3] if len(result_item) > 3 else None
+                
+                # Ergebnis-Karte
+                card = ctk.CTkFrame(
+                    content,
+                    fg_color=self.get_color('surface'),
+                    corner_radius=8,
+                    border_width=1,
+                    border_color=self.get_color('surface_border')
+                )
+                card.pack(fill="x", pady=6)
+                
+                card_content = ctk.CTkFrame(card, fg_color="transparent")
+                card_content.pack(fill="x", padx=16, pady=12)
+                
+                # Header-Zeile mit Checkbox
+                header_row = ctk.CTkFrame(card_content, fg_color="transparent")
+                header_row.pack(fill="x")
+                
+                # Checkbox für Auswahl
+                selected_var = tk.BooleanVar(value=bool(text and confidence > 20))
+                cb = ctk.CTkCheckBox(
+                    header_row,
+                    text="",
+                    variable=selected_var,
+                    width=24,
+                    fg_color=self.get_color('primary')
+                )
+                cb.pack(side="left")
+                selected_results.append((filename, text, selected_var))
+                
+                # Dateiname
+                name_label = ctk.CTkLabel(
+                    header_row,
+                    text=filename,
+                    font=ctk.CTkFont(*self.get_typography('subheading')),
+                    text_color=self.get_color('text_primary')
+                )
+                name_label.pack(side="left", padx=(8, 0))
+                
+                # Sprach-Badge (wenn erkannt)
+                if detected_lang:
+                    lang_names = {
+                        'deu': 'DE', 'eng': 'EN', 'fra': 'FR', 'spa': 'ES', 
+                        'ita': 'IT', 'por': 'PT', 'nld': 'NL', 'pol': 'PL', 'rus': 'RU'
+                    }
+                    lang_badge = ctk.CTkLabel(
+                        header_row,
+                        text=f" {lang_names.get(detected_lang, detected_lang)} ",
+                        font=ctk.CTkFont(family="Segoe UI", size=9, weight="bold"),
+                        fg_color='#6366F1',
+                        text_color="white",
+                        corner_radius=3
+                    )
+                    lang_badge.pack(side="right", padx=(4, 8))
+                
+                # Qualitäts-Badge
+                if confidence >= 70:
+                    badge_color = '#10B981'
+                    badge_text = self._t("Gut")
+                elif confidence >= 40:
+                    badge_color = '#F59E0B'
+                    badge_text = self._t("Mittel")
+                else:
+                    badge_color = '#DC2626'
+                    badge_text = self._t("Schwach")
+                
+                badge = ctk.CTkLabel(
+                    header_row,
+                    text=f"  {badge_text} ({confidence}%)  ",
+                    font=ctk.CTkFont(family="Segoe UI", size=10),
+                    fg_color=badge_color,
+                    text_color="white",
+                    corner_radius=4
+                )
+                badge.pack(side="right")
+                
+                # Textvorschau
+                preview_text = text[:500] + "..." if len(text) > 500 else text if text else self._t("[Kein Text erkannt]")
+                preview = ctk.CTkLabel(
+                    card_content,
+                    text=preview_text,
+                    font=ctk.CTkFont(family="Consolas", size=10),
+                    text_color=self.get_color('text_secondary'),
+                    justify="left",
+                    anchor="w",
+                    wraplength=800
+                )
+                preview.pack(fill="x", pady=(8, 0), anchor="w")
+                
+                # Sprache für Auto-Setting merken
+                if detected_lang:
+                    detected_langs_list.append(detected_lang)
+            
+            # Footer mit Buttons
+            footer = ctk.CTkFrame(dialog, fg_color="transparent")
+            footer.pack(fill="x", padx=20, pady=16)
+            
+            def _save_selected():
+                saved = []
+                for filename, text, var in selected_results:
+                    if var.get() and text:
+                        saved_path = self._save_ocr_text_as_source(text, filename, customer_name)
+                        if saved_path:
+                            saved.append(saved_path)
+                
+                if saved:
+                    self._register_uploaded_files('source', saved)
+                    self._schedule_update_file_counter()
+                    self._refresh_file_list_display()
+                    self._smart_file_pairing()
+                    
+                    # 🌐 Auto-Set Quellsprache basierend auf OCR-Erkennung
+                    if detected_langs_list:
+                        self._auto_set_source_language(detected_langs_list)
+                    
+                    self.show_toast(f"{len(saved)} " + self._t("Datei(en) als Ausgangstext gespeichert"), "success")
+                dialog.destroy()
+            
+            save_btn = self._create_button(
+                footer,
+                text=self._t("Ausgewählte speichern"),
+                command=_save_selected,
+                kind="primary",
+                size="lg",
+                height=44
+            )
+            save_btn.pack(side="right")
+            
+            cancel_btn = self._create_button(
+                footer,
+                text=self._t("Abbrechen"),
+                command=dialog.destroy,
+                kind="secondary",
+                size="lg",
+                height=44
+            )
+            cancel_btn.pack(side="right", padx=(0, 12))
+            
+            # Zentrieren
+            try:
+                self._center_window(dialog)
+            except Exception:
+                pass
+                
+        except Exception as e:
+            self._handle_error(e, context="ocr.preview.dialog", toast=True)
 
     def _perform_ocr(self, image_path: str) -> str:
-        """Führt die eigentliche OCR auf einem Bild durch (einfacher Wrapper)."""
+        """Führt OCR auf einem Bild durch mit verbesserter Vorverarbeitung."""
         try:
             _pt = globals().get('pytesseract', None)
             _img = globals().get('Image', None)
             if _pt is None or _img is None:
+                self.logger.warning("⚠️ pytesseract oder PIL nicht verfügbar")
                 return ""
+            
+            self._resolve_tesseract_cmd()
+            
             with _img.open(image_path) as im:  # type: ignore
-                # Minimale Vorverarbeitung (Graustufen) – bewusst leichtgewichtig
-                try:
-                    im = im.convert('L')
-                except Exception:
-                    pass
-                text = _pt.image_to_string(im, lang='deu+eng')  # type: ignore
-                # Sanitizing basic artefacts
-                return text.replace('\r\n', '\n')
+                # Verbesserte Vorverarbeitung
+                from PIL import ImageOps, ImageFilter, ImageEnhance
+                
+                # 1. Graustufen
+                gray = im.convert('L')
+                
+                # 2. Automatischer Kontrast
+                contrasted = ImageOps.autocontrast(gray)
+                
+                # 3. Schärfung
+                sharpened = ImageEnhance.Sharpness(contrasted).enhance(1.5)
+                
+                # 4. Rauschunterdrückung
+                denoised = sharpened.filter(ImageFilter.MedianFilter(size=3))
+                
+                # OCR-Sprachen ermitteln
+                languages = self._determine_ocr_languages()
+                lang_param = '+'.join(languages) if languages else 'deu+eng'
+                
+                # OCR mit optimaler Konfiguration
+                text = _pt.image_to_string(denoised, lang=lang_param, config='--oem 3 --psm 6')
+                
+                # Sanitizing
+                result = text.replace('\r\n', '\n').strip()
+                
+                if result:
+                    self.logger.info(f"✅ OCR erfolgreich: {len(result)} Zeichen aus {os.path.basename(image_path)}")
+                else:
+                    self.logger.warning(f"⚠️ OCR lieferte keinen Text für {os.path.basename(image_path)}")
+                
+                return result
         except Exception as e:
             self._handle_error(e, context="ocr.perform", toast=False)
             return ""
+
+    def _auto_set_source_language(self, detected_langs: list[str]) -> None:
+        """Setzt die Quellsprache automatisch basierend auf OCR-Erkennung.
+        
+        Args:
+            detected_langs: Liste erkannter Tesseract-Sprachcodes (z.B. ['deu', 'eng'])
+        """
+        if not detected_langs:
+            return
+        
+        try:
+            # Häufigste Sprache ermitteln
+            from collections import Counter
+            lang_counts = Counter(detected_langs)
+            primary_lang = lang_counts.most_common(1)[0][0]
+            
+            # Mapping von Tesseract zu ISO-Codes
+            tess_to_iso = {
+                'deu': 'de', 'eng': 'en', 'fra': 'fr', 'spa': 'es', 'ita': 'it',
+                'por': 'pt', 'nld': 'nl', 'pol': 'pl', 'rus': 'ru'
+            }
+            iso_code = tess_to_iso.get(primary_lang)
+            if not iso_code:
+                return
+            
+            # GUI-Anzeigename ermitteln
+            iso_to_display = {
+                'de': 'German', 'en': 'English', 'fr': 'French', 
+                'es': 'Spanish', 'it': 'Italian'
+            }
+            display_name = iso_to_display.get(iso_code)
+            if not display_name:
+                return
+            
+            # Settings aktualisieren (falls SettingsService vorhanden)
+            if hasattr(self, 'settings_service') and self.settings_service:
+                try:
+                    self.settings_service.set('analysis.default_src', iso_code)
+                    self.logger.info(f"🌐 Quellsprache automatisch gesetzt: {display_name} ({iso_code})")
+                except Exception:
+                    pass
+            
+            # GUI-Variable aktualisieren
+            for attr_name in ('var_source_lang', 'var_source_language'):
+                var = getattr(self, attr_name, None)
+                if var and hasattr(var, 'set'):
+                    try:
+                        # Übersetze für GUI-Anzeige
+                        translated = self._t(display_name) if hasattr(self, '_t') else display_name
+                        var.set(translated)
+                        self.logger.info(f"✅ GUI-Sprachauswahl aktualisiert: {translated}")
+                        break
+                    except Exception:
+                        pass
+            
+            # Toast-Feedback
+            lang_names_de = {
+                'de': 'Deutsch', 'en': 'Englisch', 'fr': 'Französisch',
+                'es': 'Spanisch', 'it': 'Italienisch'
+            }
+            lang_display = lang_names_de.get(iso_code, display_name)
+            self.show_toast(
+                f"{self._t('Quellsprache automatisch erkannt')}: {lang_display}",
+                "info",
+                duration=4000
+            )
+            
+        except Exception as e:
+            self.logger.debug(f"Auto-Set Sprache fehlgeschlagen: {e}")
 
     def _save_ocr_text_as_source(self, text: str, origin_image: str, customer_name: str):
         """Speichert OCR-Text als .txt im Projektordner Ausgangstext und gibt Pfad zurück."""
@@ -8736,14 +9248,30 @@ class ProfessionelleUebersetzungsqualitaetsApp:
         """Liest hochgeladene Dateien ein, um eine Vorschau zu erstellen (ohne vollständige Analyse)."""
         rows = []
         try:
+            # DEBUG: Prüfe uploaded_files State
+            self.logger.info("🔍 DEBUG: _read_uploaded_files_for_preview gestartet")
+            self.logger.info(f"   DEBUG: hasattr(upload_manager): {hasattr(self, 'upload_manager')}")
+            if hasattr(self, 'upload_manager'):
+                self.logger.info(f"   DEBUG: upload_manager exists: {self.upload_manager is not None}")
+            
             # Hole Source- und Translation-Dateien
-            source_files = self.uploaded_files.get('source', [])
-            translation_files = self.uploaded_files.get('translation', [])
+            uploaded_data = self.uploaded_files
+            self.logger.info(f"   DEBUG: uploaded_files type: {type(uploaded_data)}")
+            self.logger.info(f"   DEBUG: uploaded_files keys: {uploaded_data.keys() if uploaded_data else 'None'}")
+            
+            source_files = uploaded_data.get('source', [])
+            translation_files = uploaded_data.get('translation', [])
             
             self.logger.info(f"📁 Hochgeladene Dateien: {len(source_files)} Source, {len(translation_files)} Translation")
             
+            if source_files:
+                self.logger.info(f"   📄 Source-Dateien: {[os.path.basename(str(f)) for f in source_files[:3]]}")
+            if translation_files:
+                self.logger.info(f"   📄 Translation-Dateien: {[os.path.basename(str(f)) for f in translation_files[:3]]}")
+            
             if not source_files and not translation_files:
                 self.logger.warning("⚠️ Keine hochgeladenen Dateien gefunden")
+                self.logger.warning("   HINWEIS: Bitte Dateien über 'Datei hochladen' hinzufügen")
                 return None
             
             # Lese Source-Dateien
@@ -8752,23 +9280,51 @@ class ProfessionelleUebersetzungsqualitaetsApp:
                     self.logger.info(f"📄 Lese Source-Datei: {os.path.basename(source_path)}")
                     text_content = self._extract_text_from_file(source_path)
                     if text_content:
-                        self.logger.info(f"📝 Extrahierter Text ({len(text_content)} Zeichen): {text_content[:200]}...")
-                        # Teile Text in Absätze
-                        paragraphs = [p.strip() for p in text_content.split('\n\n') if p.strip()]
-                        self.logger.info(f"✅ {len(paragraphs)} Absätze gefunden")
-                        for i, para in enumerate(paragraphs[:30], 1):  # Max 30 Absätze pro Datei
-                            if len(para) > 10:  # Nur sinnvolle Absätze
-                                self.logger.info(f"   Absatz {i}: {para[:100]}...")
-                                rows.append({
-                                    'source_text': para[:500],  # Max 500 Zeichen pro Absatz
-                                    'target_text': '',
-                                    'page': (i // 10) + 1,  # Geschätzte Seitenzahl
-                                    'file': os.path.basename(source_path)
-                                })
+                        # Prüfe, ob es eine Fehlermeldung ist (z.B. "[PDF ... OCR benötigt]")
+                        if text_content.startswith('[') and 'OCR' in text_content:
+                            self.logger.warning(f"⚠️ {text_content}")
+                            # Füge Warnung als spezielles Segment hinzu
+                            rows.append({
+                                'source_text': text_content,
+                                'target_text': '→ Siehe SCHNELLE_PDF_LOESUNG.md für Hilfe',
+                                'page': 1,
+                                'file': os.path.basename(source_path),
+                                'is_warning': True
+                            })
+                        else:
+                            self.logger.info(f"📝 Extrahierter Text ({len(text_content)} Zeichen): {text_content[:200]}...")
+                            # Teile Text in Absätze
+                            paragraphs = [p.strip() for p in text_content.split('\n\n') if p.strip()]
+                            self.logger.info(f"✅ {len(paragraphs)} Absätze gefunden")
+                            for i, para in enumerate(paragraphs[:30], 1):  # Max 30 Absätze pro Datei
+                                if len(para) > 10:  # Nur sinnvolle Absätze
+                                    self.logger.info(f"   Absatz {i}: {para[:100]}...")
+                                    rows.append({
+                                        'source_text': para[:500],  # Max 500 Zeichen pro Absatz
+                                        'target_text': '',
+                                        'page': (i // 10) + 1,  # Geschätzte Seitenzahl
+                                        'file': os.path.basename(source_path)
+                                    })
                     else:
                         self.logger.warning(f"⚠️ Keine Text-Extraktion möglich für {os.path.basename(source_path)}")
+                        # Füge Hinweis hinzu
+                        rows.append({
+                            'source_text': f"[Fehler beim Einlesen von '{os.path.basename(source_path)}']",
+                            'target_text': '→ Datei konnte nicht verarbeitet werden',
+                            'page': 1,
+                            'file': os.path.basename(source_path),
+                            'is_warning': True
+                        })
                 except Exception as e:
                     self.logger.error(f"❌ Fehler beim Einlesen von {source_path}: {e}")
+                    # Füge Fehler als Segment hinzu
+                    rows.append({
+                        'source_text': f"[FEHLER beim Einlesen von '{os.path.basename(source_path)}']",
+                        'target_text': f'→ {str(e)[:100]}',
+                        'page': 1,
+                        'file': os.path.basename(source_path),
+                        'is_warning': True
+                    })
             
             # Lese Translation-Dateien
             for translation_path in translation_files[:3]:  # Max 3 Dateien für Preview
@@ -8799,110 +9355,664 @@ class ProfessionelleUebersetzungsqualitaetsApp:
         self.logger.info(f"📊 Gesamt eingelesene Zeilen: {len(rows)}")
         return rows if rows else None
     
+    def _get_available_tesseract_languages(self) -> list[str]:
+        """Ermittelt die installierten Tesseract-Sprachpakete."""
+        try:
+            import pytesseract
+            languages = pytesseract.get_languages()
+            # Filtere 'osd' (Orientation and Script Detection) heraus
+            return [lang for lang in languages if lang != 'osd']
+        except Exception:
+            return []
+    
+    def _detect_language_from_text(self, sample_text: str) -> str | None:
+        """Erkennt die Sprache automatisch aus einem Textbeispiel."""
+        if not sample_text or len(sample_text.strip()) < 20:
+            return None
+        
+        # Versuche langdetect (falls installiert)
+        try:
+            from langdetect import detect, DetectorFactory
+            DetectorFactory.seed = 0  # Reproduzierbare Ergebnisse
+            detected = detect(sample_text)
+            # Mapping von langdetect zu Tesseract-Codes
+            lang_map = {
+                'de': 'deu', 'en': 'eng', 'fr': 'fra', 'es': 'spa', 
+                'it': 'ita', 'pt': 'por', 'nl': 'nld', 'pl': 'pol',
+                'ru': 'rus', 'zh-cn': 'chi_sim', 'zh-tw': 'chi_tra',
+                'ja': 'jpn', 'ko': 'kor', 'ar': 'ara', 'tr': 'tur',
+                'sv': 'swe', 'da': 'dan', 'no': 'nor', 'fi': 'fin',
+                'cs': 'ces', 'hu': 'hun', 'ro': 'ron', 'uk': 'ukr'
+            }
+            return lang_map.get(detected, detected)
+        except ImportError:
+            pass
+        except Exception:
+            pass
+        
+        # Fallback: Einfache heuristische Erkennung
+        text_lower = sample_text.lower()
+        
+        # Deutsche Indikatoren
+        de_indicators = ['und', 'der', 'die', 'das', 'ist', 'für', 'mit', 'auf', 'ein', 'eine', 'nicht', 'werden', 'haben', 'wird', 'sind', 'bei', 'nach', 'über', 'auch', 'nur', 'kann', 'ß', 'ü', 'ö', 'ä']
+        de_score = sum(1 for w in de_indicators if f' {w} ' in f' {text_lower} ' or w in text_lower)
+        
+        # Englische Indikatoren
+        en_indicators = ['the', 'and', 'is', 'for', 'with', 'on', 'are', 'this', 'that', 'have', 'from', 'will', 'not', 'been', 'which', 'can', 'all', 'would', 'their', 'there']
+        en_score = sum(1 for w in en_indicators if f' {w} ' in f' {text_lower} ')
+        
+        # Französische Indikatoren
+        fr_indicators = ['le', 'la', 'les', 'un', 'une', 'de', 'du', 'des', 'et', 'est', 'pour', 'dans', 'que', 'qui', 'sur', 'avec', 'ce', 'cette', 'sont', 'nous', 'vous', 'être', 'avoir', 'à', 'é', 'è', 'ê', 'ç']
+        fr_score = sum(1 for w in fr_indicators if f' {w} ' in f' {text_lower} ' or w in text_lower)
+        
+        # Spanische Indikatoren
+        es_indicators = ['el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'y', 'en', 'que', 'es', 'para', 'con', 'no', 'por', 'su', 'como', 'más', 'pero', 'ñ', '¿', '¡']
+        es_score = sum(1 for w in es_indicators if f' {w} ' in f' {text_lower} ' or w in text_lower)
+        
+        # Italienische Indikatoren
+        it_indicators = ['il', 'la', 'le', 'un', 'una', 'di', 'del', 'della', 'e', 'è', 'che', 'per', 'con', 'non', 'sono', 'come', 'questo', 'questa', 'più', 'anche', 'loro']
+        it_score = sum(1 for w in it_indicators if f' {w} ' in f' {text_lower} ' or w in text_lower)
+        
+        scores = {'deu': de_score, 'eng': en_score, 'fra': fr_score, 'spa': es_score, 'ita': it_score}
+        best_lang = max(scores, key=scores.get)
+        best_score = scores[best_lang]
+        
+        # Mindestens 3 Treffer für eine zuverlässige Erkennung
+        if best_score >= 3:
+            return best_lang
+        return None
+    
+    def _determine_ocr_languages(self, sample_text: str | None = None) -> list:
+        """Ermittelt die optimalen Sprachen für OCR.
+        
+        Args:
+            sample_text: Optional - Text zur automatischen Spracherkennung
+            
+        Returns:
+            Liste der Tesseract-Sprachcodes (z.B. ['deu', 'eng'])
+        """
+        try:
+            # 1. Verfügbare Sprachen prüfen
+            available_langs = self._get_available_tesseract_languages()
+            
+            # 2. Automatische Erkennung aus Text (wenn vorhanden)
+            detected_lang = None
+            if sample_text:
+                detected_lang = self._detect_language_from_text(sample_text)
+                if detected_lang:
+                    self.logger.info(f"🌐 Sprache automatisch erkannt: {detected_lang}")
+            
+            # 3. Aus GUI-Einstellungen
+            raw_candidates = []
+            for attr_name in (
+                'var_source_lang', 'var_source_language', 'source_lang', 'source_language',
+                'var_target_lang', 'var_target_language', 'target_lang', 'target_language'
+            ):
+                attr = getattr(self, attr_name, None)
+                value = None
+                if attr is None:
+                    continue
+                getter = getattr(attr, 'get', None)
+                if callable(getter):
+                    try:
+                        value = getter()
+                    except Exception:
+                        value = None
+                elif isinstance(attr, str):
+                    value = attr
+                if isinstance(value, str) and value.strip():
+                    # "Auto-Detect" überspringen
+                    val_lower = value.strip().lower()
+                    if 'auto' not in val_lower:
+                        raw_candidates.append(val_lower)
+
+            # 4. Mapping auf Tesseract-Codes
+            mapped = []
+            mapping = {
+                'de': 'deu', 'deu': 'deu', 'deutsch': 'deu', 'german': 'deu', 'ger': 'deu',
+                'en': 'eng', 'eng': 'eng', 'englisch': 'eng', 'english': 'eng',
+                'fr': 'fra', 'fra': 'fra', 'französisch': 'fra', 'french': 'fra',
+                'es': 'spa', 'spa': 'spa', 'spanisch': 'spa', 'spanish': 'spa',
+                'it': 'ita', 'ita': 'ita', 'italienisch': 'ita', 'italian': 'ita',
+                'pt': 'por', 'por': 'por', 'portugiesisch': 'por', 'portuguese': 'por',
+                'nl': 'nld', 'nld': 'nld', 'niederländisch': 'nld', 'dutch': 'nld',
+                'pl': 'pol', 'pol': 'pol', 'polnisch': 'pol', 'polish': 'pol',
+                'ru': 'rus', 'rus': 'rus', 'russisch': 'rus', 'russian': 'rus',
+                'zh': 'chi_sim', 'chi_sim': 'chi_sim', 'chinesisch': 'chi_sim', 'chinese': 'chi_sim',
+                'ja': 'jpn', 'jpn': 'jpn', 'japanisch': 'jpn', 'japanese': 'jpn'
+            }
+            
+            # Automatisch erkannte Sprache an den Anfang
+            if detected_lang:
+                tess_code = mapping.get(detected_lang, detected_lang)
+                if not available_langs or tess_code in available_langs:
+                    mapped.append(tess_code)
+            
+            # GUI-Einstellungen
+            for candidate in raw_candidates:
+                mapped_lang = mapping.get(candidate)
+                if mapped_lang and mapped_lang not in mapped:
+                    if not available_langs or mapped_lang in available_langs:
+                        mapped.append(mapped_lang)
+            
+            # 5. Fallback: Deutsch + Englisch
+            if not mapped:
+                if not available_langs or 'deu' in available_langs:
+                    mapped.append('deu')
+            if 'eng' not in mapped:
+                if not available_langs or 'eng' in available_langs:
+                    mapped.append('eng')
+            
+            # 6. Warnung bei fehlenden Sprachpaketen
+            if available_langs:
+                missing = [lang for lang in mapped if lang not in available_langs]
+                if missing:
+                    self.logger.warning(f"⚠️ Fehlende Tesseract-Sprachpakete: {missing}. Installiert: {available_langs}")
+                    mapped = [lang for lang in mapped if lang in available_langs]
+                    if not mapped:
+                        mapped = available_langs[:2] if available_langs else ['deu', 'eng']
+            
+            return list(dict.fromkeys(mapped))
+        except Exception as e:
+            self.logger.error(f"Fehler bei Spracherkennung: {e}")
+            return ['deu', 'eng']
+
+    def _resolve_tesseract_cmd(self) -> None:
+        """Findet und konfiguriert den Tesseract-OCR Pfad automatisch."""
+        try:
+            import pytesseract
+        except ImportError:
+            return
+
+        cmd = getattr(pytesseract.pytesseract, 'tesseract_cmd', 'tesseract')
+        if cmd and cmd != 'tesseract' and os.path.isfile(cmd):
+            return
+
+        candidate_paths: list[str] = []
+        
+        # 1. Benutzer-Konfiguration
+        try:
+            if hasattr(self, 'settings_service') and self.settings_service:
+                configured = self.settings_service.get('ocr.tesseract_cmd', None)
+                if isinstance(configured, str) and configured.strip():
+                    candidate_paths.append(configured.strip())
+        except Exception:
+            pass
+
+        # 2. Umgebungsvariablen
+        for env_key in ('TESSERACT_PATH', 'TESSERACT_CMD', 'TESSERACT_EXE_PATH'):
+            env_path = os.environ.get(env_key)
+            if env_path:
+                candidate_paths.append(env_path)
+
+        # 3. Windows Registry (häufigster Installationspfad)
+        try:
+            import winreg
+            for hive in [winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER]:
+                for subkey in [r"SOFTWARE\\Tesseract-OCR", r"SOFTWARE\\WOW6432Node\\Tesseract-OCR"]:
+                    try:
+                        with winreg.OpenKey(hive, subkey) as key:
+                            install_dir = winreg.QueryValueEx(key, "InstallDir")[0]
+                            if install_dir:
+                                candidate_paths.append(os.path.join(install_dir, "tesseract.exe"))
+                    except (FileNotFoundError, OSError):
+                        continue
+        except Exception:
+            pass
+
+        # 4. Standard Windows-Pfade
+        win_candidates = [
+            r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe",
+            r"C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe",
+            os.path.expandvars(r"%LOCALAPPDATA%\\Programs\\Tesseract-OCR\\tesseract.exe"),
+            os.path.expandvars(r"%USERPROFILE%\\AppData\\Local\\Tesseract-OCR\\tesseract.exe"),
+        ]
+        candidate_paths.extend(win_candidates)
+        
+        # 5. PATH durchsuchen
+        try:
+            import shutil
+            found_in_path = shutil.which("tesseract")
+            if found_in_path:
+                candidate_paths.insert(0, found_in_path)  # Priorität
+        except Exception:
+            pass
+
+        for path in candidate_paths:
+            if not path:
+                continue
+            normalized = os.path.normpath(path)
+            if os.path.isfile(normalized):
+                pytesseract.pytesseract.tesseract_cmd = normalized
+                try:
+                    self.logger.info(f"✅ Tesseract Cmd gesetzt: {normalized}")
+                except Exception:
+                    pass
+                return
+
+    def _generate_ocr_image_variants(self, image):
+        """Erzeugt optimierte Bildvarianten für OCR mit fortgeschrittener Vorverarbeitung."""
+        variants = []
+        resample_mode = 3
+        try:
+            from PIL import Image, ImageOps, ImageFilter, ImageEnhance
+            resample_mode = getattr(Image, 'BICUBIC', 3)
+            
+            # Basis: Graustufen
+            gray = image.convert('L')
+            
+            # 1. Automatischer Kontrastausgleich
+            contrasted = ImageOps.autocontrast(gray)
+            
+            # 2. Rauschunterdrückung (Median-Filter)
+            denoised = contrasted.filter(ImageFilter.MedianFilter(size=3))
+            
+            # 3. Schärfung
+            sharpened = ImageEnhance.Sharpness(denoised).enhance(1.5)
+            
+            # 4. Helligkeitskorrektur für dunkle Scans
+            brightness = ImageEnhance.Brightness(sharpened).enhance(1.1)
+            
+            # 5. Kontrastverstärkung
+            contrast_enhanced = ImageEnhance.Contrast(brightness).enhance(1.3)
+            
+            variants.extend([gray, contrasted, sharpened, contrast_enhanced])
+            
+            # 6. Adaptive Binarisierung (verschiedene Schwellwerte)
+            for threshold in (120, 140, 160, 180):
+                bw = contrast_enhanced.point(lambda p, thr=threshold: 255 if p > thr else 0).convert('L')
+                variants.append(bw)
+            
+            # 7. Invertierte Version für weiß-auf-schwarz Dokumente
+            try:
+                inverted = ImageOps.invert(gray)
+                inverted_contrasted = ImageOps.autocontrast(inverted)
+                variants.append(inverted_contrasted)
+            except Exception:
+                pass
+            
+            # 8. Morphologische Operationen für bessere Texterkennung
+            try:
+                # Dilatation für dünnere Schriften
+                dilated = denoised.filter(ImageFilter.MaxFilter(size=3))
+                variants.append(dilated)
+                # Erosion für dickere Schriften
+                eroded = denoised.filter(ImageFilter.MinFilter(size=3))
+                variants.append(eroded)
+            except Exception:
+                pass
+                
+        except Exception as prep_error:
+            try:
+                self.logger.debug(f"OCR Bildvorbereitung fehlgeschlagen: {prep_error}")
+            except Exception:
+                pass
+            variants = [image.convert('L')]
+        else:
+            variants.append(image.convert('L'))
+
+        # Skalierte Varianten für kleine Bilder
+        scaled_variants = []
+        for variant in variants:
+            scaled_variants.append(variant)
+            try:
+                width, height = variant.size
+                pixel_count = width * height
+            except Exception:
+                continue
+            if pixel_count > 7_500_000:  # vermeide extreme Größen
+                continue
+            # Hochskalieren für kleine Bilder verbessert OCR
+            for scale in (1.5, 2.0, 2.5):
+                try:
+                    new_size = (int(width * scale), int(height * scale))
+                    if max(new_size) > 6000:
+                        continue
+                    scaled_variants.append(variant.resize(new_size, resample=resample_mode))
+                except Exception:
+                    continue
+        return scaled_variants or [image]
+
+    def _perform_ocr_on_image(self, image, languages=None) -> str:
+        """Führt OCR auf einem Bild durch mit Qualitätsprüfung und multiplen Strategien."""
+        try:
+            import pytesseract
+            from pytesseract import TesseractNotFoundError
+        except ImportError:
+            self.logger.warning("⚠️ Tesseract OCR nicht verfügbar. Bitte pytesseract installieren.")
+            return ''
+
+        self._resolve_tesseract_cmd()
+
+        if languages is None or not languages:
+            languages = self._determine_ocr_languages()
+        lang_candidates = []
+        try:
+            lang_candidates.append('+'.join(languages))
+        except Exception:
+            pass
+        lang_candidates.extend(languages)
+
+        image_variants = self._generate_ocr_image_variants(image)
+        
+        # Erweiterte Konfigurationen für verschiedene Dokumenttypen
+        configs = [
+            '--oem 3 --psm 6',   # Block of text (Standard)
+            '--oem 3 --psm 3',   # Fully automatic page segmentation
+            '--oem 3 --psm 4',   # Single column of text
+            '--oem 3 --psm 1',   # Auto with OSD
+            '--oem 1 --psm 6',   # LSTM only
+        ]
+        
+        best_text = ''
+        best_confidence = 0
+
+        for cfg_index, config in enumerate(configs):
+            for lang in lang_candidates:
+                if not lang:
+                    continue
+                for variant_idx, variant in enumerate(image_variants[:8]):  # Limitiere auf beste 8 Varianten
+                    try:
+                        # Zuerst Confidence-Daten holen
+                        try:
+                            data = pytesseract.image_to_data(variant, lang=lang, config=config, output_type=pytesseract.Output.DICT)
+                            confidences = [int(c) for c in data.get('conf', []) if str(c).lstrip('-').isdigit() and int(c) > 0]
+                            avg_confidence = sum(confidences) / len(confidences) if confidences else 0
+                        except Exception:
+                            avg_confidence = 0
+                        
+                        text = pytesseract.image_to_string(variant, lang=lang, config=config)
+                    except TesseractNotFoundError:
+                        message = "❌ Tesseract nicht gefunden. Bitte Pfad konfigurieren oder Tesseract installieren."
+                        self.logger.error(message)
+                        try:
+                            if hasattr(self, 'show_toast'):
+                                toast_msg = 'Tesseract wurde nicht gefunden. Bitte Installation prüfen.'
+                                if hasattr(self, '_t') and callable(self._t):
+                                    toast_msg = self._t(toast_msg)
+                                self.show_toast(toast_msg, 'error')
+                        except Exception:
+                            pass
+                        return ''
+                    except Exception as ocr_error:
+                        self.logger.debug(f"OCR-Versuch (cfg={config}, lang={lang}) fehlgeschlagen: {ocr_error}")
+                        continue
+
+                    stripped = text.strip() if text else ''
+                    if not stripped:
+                        continue
+
+                    # Qualitätsbewertung: Länge + Confidence
+                    quality_score = len(stripped) + (avg_confidence * 2)
+                    current_best_score = len(best_text.strip()) + (best_confidence * 2)
+                    
+                    if quality_score > current_best_score:
+                        best_text = stripped
+                        best_confidence = avg_confidence
+
+                    # Früher Abbruch bei hoher Qualität
+                    if len(stripped) >= 100 and avg_confidence >= 70:
+                        self.logger.info(f"✅ OCR erfolgreich: {len(stripped)} Zeichen, {avg_confidence:.0f}% Konfidenz")
+                        return text
+                    if cfg_index == 0 and len(stripped) >= 60:
+                        self.logger.info(f"✅ OCR erfolgreich mit Sprache {lang}: {len(stripped)} Zeichen")
+                        return text
+
+        if best_text:
+            self.logger.info(f"✅ OCR erfolgreich (beste Variante) – {len(best_text)} Zeichen extrahiert")
+            return best_text
+
+        self.logger.warning("⚠️ OCR lieferte keinen Text")
+        return ''
+
+    def _extract_pdf_text_with_pymupdf(self, filepath: str) -> str:
+        try:
+            import fitz  # PyMuPDF
+        except ImportError:
+            self.logger.debug("PyMuPDF nicht installiert – Text-Extraktion wird übersprungen")
+            return ''
+
+        try:
+            doc = fitz.open(filepath)
+        except Exception as open_error:
+            self.logger.debug(f"PyMuPDF konnte Datei nicht öffnen: {open_error}")
+            return ''
+
+        text_chunks = []
+        try:
+            for page in doc[:20]:
+                try:
+                    page_text = page.get_text('text')
+                except Exception as extract_error:
+                    self.logger.debug(f"PyMuPDF Seitentext-Extraktion fehlgeschlagen: {extract_error}")
+                    continue
+                if page_text:
+                    text_chunks.append(page_text)
+        finally:
+            doc.close()
+
+        combined = '\n\n'.join(chunk.strip() for chunk in text_chunks if chunk and chunk.strip())
+        if combined:
+            self.logger.info(f"✅ PyMuPDF Text-Extraktion erfolgreich: {len(combined)} Zeichen")
+        return combined
+
     def _extract_text_from_file(self, filepath):
-        """Extrahiert Text aus PDF, DOCX, TXT oder Bilddateien (mit OCR)."""
+        """Extrahiert Text aus PDF, DOCX, TXT oder Bilddateien (mit OCR).
+        
+        PDF-Strategie (5-Stufen-Fallback):
+        1. pdfplumber → 2. pypdf → 3. PyPDF2 → 4. PyMuPDF → 5. OCR
+        """
         try:
             ext = os.path.splitext(filepath)[1].lower()
+            filename = os.path.basename(filepath)
             
             if ext == '.pdf':
-                # Versuche zuerst normale Text-Extraktion
+                self.logger.info(f"📄 Starte PDF-Extraktion: {filename}")
+                
+                # STUFE 1: pdfplumber (oft am zuverlässigsten für Text-PDFs)
+                try:
+                    import pdfplumber
+                    self.logger.info("   → Versuch 1/5: pdfplumber")
+                    
+                    text_parts = []
+                    with pdfplumber.open(filepath) as pdf:
+                        for page in pdf.pages[:20]:  # Max 20 Seiten
+                            page_text = page.extract_text()
+                            if page_text and page_text.strip():
+                                text_parts.append(page_text.strip())
+                    
+                    if text_parts:
+                        text = '\n\n'.join(text_parts)
+                        self.logger.info(f"✅ pdfplumber: {len(text)} Zeichen aus {len(text_parts)} Seiten")
+                        return text
+                    else:
+                        self.logger.info("     pdfplumber: Kein Text gefunden")
+                except ImportError:
+                    self.logger.info("     pdfplumber: Nicht installiert")
+                except Exception as e:
+                    self.logger.warning(f"     pdfplumber: Fehler - {str(e)[:80]}")
+                
+                # STUFE 2: pypdf
                 try:
                     import pypdf
+                    self.logger.info("   → Versuch 2/5: pypdf")
+                    
                     with open(filepath, 'rb') as f:
                         reader = pypdf.PdfReader(f)
-                        text = ''
-                        for page in reader.pages[:20]:  # Max 20 Seiten
+                        text_parts = []
+                        for page in reader.pages[:20]:
                             page_text = page.extract_text()
-                            if page_text:
-                                text += page_text + '\n\n'
+                            if page_text and page_text.strip():
+                                text_parts.append(page_text.strip())
                         
-                        # Wenn genug Text extrahiert wurde, verwende diesen
-                        if len(text.strip()) > 100:
-                            self.logger.info(f"✅ PDF Text-Extraktion erfolgreich: {len(text)} Zeichen")
+                        if text_parts:
+                            text = '\n\n'.join(text_parts)
+                            self.logger.info(f"✅ pypdf: {len(text)} Zeichen")
                             return text
                         else:
-                            self.logger.warning(f"⚠️ PDF enthält wenig Text ({len(text.strip())} Zeichen), versuche OCR...")
+                            self.logger.info("     pypdf: Kein Text gefunden")
                 except ImportError:
-                    try:
-                        import PyPDF2
-                        with open(filepath, 'rb') as f:
-                            reader = PyPDF2.PdfReader(f)
-                            text = ''
-                            for page in reader.pages[:20]:  # Max 20 Seiten
-                                page_text = page.extract_text()
-                                if page_text:
-                                    text += page_text + '\n\n'
-                            
-                            if len(text.strip()) > 100:
-                                self.logger.info(f"✅ PDF Text-Extraktion erfolgreich: {len(text)} Zeichen")
-                                return text
-                            else:
-                                self.logger.warning(f"⚠️ PDF enthält wenig Text ({len(text.strip())} Zeichen), versuche OCR...")
-                    except Exception:
-                        pass
+                    self.logger.info("     pypdf: Nicht installiert")
+                except Exception as e:
+                    self.logger.warning(f"     pypdf: Fehler - {str(e)[:80]}")
                 
-                # Falls Text-Extraktion fehlschlägt, versuche OCR auf PDF
+                # STUFE 3: PyPDF2
                 try:
-                    self.logger.info("🔍 Versuche OCR auf PDF...")
+                    import PyPDF2
+                    self.logger.info("   → Versuch 3/5: PyPDF2")
                     
-                    # Versuche zuerst pdf2image (braucht Poppler)
+                    with open(filepath, 'rb') as f:
+                        reader = PyPDF2.PdfReader(f)
+                        text_parts = []
+                        for page in reader.pages[:20]:
+                            page_text = page.extract_text()
+                            if page_text and page_text.strip():
+                                text_parts.append(page_text.strip())
+                        
+                        if text_parts:
+                            text = '\n\n'.join(text_parts)
+                            self.logger.info(f"✅ PyPDF2: {len(text)} Zeichen")
+                            return text
+                        else:
+                            self.logger.info("     PyPDF2: Kein Text gefunden")
+                except ImportError:
+                    self.logger.info("     PyPDF2: Nicht installiert")
+                except Exception as e:
+                    self.logger.warning(f"     PyPDF2: Fehler - {str(e)[:80]}")
+                
+                # STUFE 4: PyMuPDF/fitz
+                self.logger.info("   → Versuch 4/5: PyMuPDF")
+                pymupdf_text = self._extract_pdf_text_with_pymupdf(filepath)
+                if pymupdf_text and pymupdf_text.strip():
+                    self.logger.info(f"✅ PyMuPDF: {len(pymupdf_text)} Zeichen")
+                    return pymupdf_text
+                else:
+                    self.logger.info("     PyMuPDF: Kein Text oder nicht verfügbar")
+                
+                # STUFE 5: OCR mit Tesseract (für gescannte PDFs)
+                self.logger.warning(f"⚠️ '{filename}' - kein Text-Layer gefunden → Starte OCR")
+                try:
+                    self.logger.info("   → Versuch 5/5: OCR mit Tesseract")
+                    
+                    # Prüfe, ob pytesseract verfügbar ist
+                    try:
+                        import pytesseract
+                        from PIL import Image
+                        
+                        # Versuche Tesseract zu finden
+                        try:
+                            pytesseract.get_tesseract_version()
+                        except Exception:
+                            self.logger.error("❌ Tesseract-OCR Engine nicht gefunden!")
+                            return f"[OCR nicht verfügbar für '{filename}'. Tesseract-Engine muss installiert werden.]"
+                    except ImportError:
+                        self.logger.error("❌ pytesseract nicht installiert: pip install pytesseract")
+                        return f"[OCR nicht verfügbar für '{filename}'.]"
+
+                    ocr_languages = self._determine_ocr_languages()
+                    lang_param = '+'.join(ocr_languages) if ocr_languages else 'deu+eng'
+                    self.logger.info(f"     OCR-Sprachen: {lang_param}")
+                    
+                    # METHODE 1: pikepdf (KEIN Poppler nötig, reines Python!)
+                    try:
+                        import pikepdf
+                        self.logger.info("     Verwende pikepdf (empfohlen, kein Poppler nötig)...")
+                        
+                        pdf = pikepdf.Pdf.open(filepath)
+                        text_chunks = []
+                        
+                        # Verarbeite max 10 Seiten
+                        for page_num in range(min(10, len(pdf.pages))):
+                            self.logger.info(f"       Seite {page_num + 1}...")
+                            page = pdf.pages[page_num]
+                            
+                            # Extrahiere eingebettete Bilder
+                            for img_name, img_obj in page.images.items():
+                                try:
+                                    raw_image = pikepdf.PdfImage(img_obj)
+                                    pil_image = raw_image.as_pil_image()
+                                    
+                                    # OCR auf Bild
+                                    page_text = pytesseract.image_to_string(pil_image, lang=lang_param)
+                                    if page_text and page_text.strip():
+                                        text_chunks.append(page_text.strip())
+                                        self.logger.info(f"       → {len(page_text)} Zeichen extrahiert")
+                                        break  # Nur erstes Bild pro Seite
+                                except Exception as e:
+                                    self.logger.warning(f"       Bild {img_name} übersprungen: {str(e)[:50]}")
+                        
+                        pdf.close()
+                        
+                        if text_chunks:
+                            combined_text = '\n\n'.join(text_chunks)
+                            self.logger.info(f"✅ OCR (pikepdf) erfolgreich: {len(combined_text)} Zeichen aus {len(text_chunks)} Seiten")
+                            return combined_text
+                        else:
+                            self.logger.warning("     pikepdf: Keine Bilder gefunden oder kein Text erkannt")
+                    except ImportError:
+                        self.logger.info("     pikepdf nicht installiert (pip install pikepdf)")
+                    except Exception as e:
+                        self.logger.warning(f"     pikepdf fehlgeschlagen: {str(e)[:100]}")
+                    
+                    # METHODE 2: pdf2image (braucht Poppler)
                     try:
                         from pdf2image import convert_from_path
-                        import pytesseract
+                        self.logger.info("     Verwende pdf2image (braucht Poppler)...")
                         
-                        # Konvertiere PDF zu Bildern
-                        images = convert_from_path(filepath, first_page=1, last_page=10)  # Max 10 Seiten
-                        text = ''
+                        # Konvertiere PDF zu Bildern (max 10 Seiten)
+                        images = convert_from_path(filepath, first_page=1, last_page=10, dpi=300)
+                        text_chunks = []
                         
                         for i, img in enumerate(images, 1):
-                            self.logger.info(f"   OCR auf Seite {i}...")
+                            self.logger.info(f"       Seite {i}/{len(images)}...")
                             try:
-                                page_text = pytesseract.image_to_string(img, lang='deu')
-                            except Exception:
-                                page_text = pytesseract.image_to_string(img, lang='eng')
-                            
-                            if page_text:
-                                text += page_text + '\n\n'
+                                page_text = pytesseract.image_to_string(img, lang=lang_param)
+                                if page_text and page_text.strip():
+                                    text_chunks.append(page_text.strip())
+                                    self.logger.info(f"       → {len(page_text)} Zeichen")
+                            except Exception as e:
+                                self.logger.warning(f"       Seite {i} fehlgeschlagen: {e}")
                         
-                        if text.strip():
-                            self.logger.info(f"✅ PDF OCR erfolgreich: {len(text)} Zeichen")
-                            return text
+                        if text_chunks:
+                            combined_text = '\n\n'.join(text_chunks)
+                            self.logger.info(f"✅ OCR erfolgreich: {len(combined_text)} Zeichen aus {len(text_chunks)} Seiten")
+                            return combined_text
+                    except ImportError:
+                        self.logger.warning("     pdf2image nicht verfügbar (braucht Poppler)")
                     except Exception as e:
-                        self.logger.warning(f"⚠️ pdf2image Methode fehlgeschlagen: {e}, versuche PyMuPDF...")
+                        self.logger.warning(f"     pdf2image fehlgeschlagen: {str(e)[:100]}")
                     
-                    # Fallback: Verwende PyMuPDF (fitz) - braucht KEIN Poppler!
+                    # METHODE 2: PyMuPDF für Rendering (falls verfügbar)
                     try:
                         import fitz  # PyMuPDF
-                        import pytesseract
                         from PIL import Image
                         import io
                         
-                        doc = fitz.open(filepath)
-                        text = ''
+                        self.logger.info("     Verwende PyMuPDF für Rendering...")
                         
+                        doc = fitz.open(filepath)
+                        text_chunks = []
+                        
+                        zoom = 3.0
                         for page_num in range(min(10, len(doc))):  # Max 10 Seiten
                             self.logger.info(f"   OCR auf Seite {page_num + 1} (PyMuPDF)...")
                             page = doc[page_num]
                             
                             # Rendere Seite als Bild
-                            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x Zoom für bessere OCR
+                            pix = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom))
                             img_data = pix.tobytes("png")
                             img = Image.open(io.BytesIO(img_data))
                             
-                            # OCR auf Bild
-                            try:
-                                page_text = pytesseract.image_to_string(img, lang='deu')
-                            except Exception:
-                                page_text = pytesseract.image_to_string(img, lang='eng')
-                            
+                            page_text = self._perform_ocr_on_image(img, ocr_languages)
                             if page_text:
-                                text += page_text + '\n\n'
+                                text_chunks.append(page_text)
                         
                         doc.close()
                         
-                        if text.strip():
-                            self.logger.info(f"✅ PDF OCR (PyMuPDF) erfolgreich: {len(text)} Zeichen")
-                            return text
+                        combined_text = '\n\n'.join(text_chunks).strip()
+                        if combined_text:
+                            self.logger.info(f"✅ PDF OCR (PyMuPDF) erfolgreich: {len(combined_text)} Zeichen")
+                            return combined_text
                     except ImportError:
                         self.logger.warning("⚠️ PyMuPDF nicht verfügbar. Installieren: pip install PyMuPDF")
                     except Exception as e:
@@ -8928,34 +10038,75 @@ class ProfessionelleUebersetzungsqualitaetsApp:
                 with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
                     return f.read(50000)  # Max 50KB
             
-            elif ext in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.gif']:
-                # OCR für Bilddateien
+            elif ext in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.gif', '.webp']:
+                # OCR für Bilddateien (Fotos, Screenshots, gescannte Dokumente)
+                self.logger.info(f"🖼️ Bild-OCR: {filename}")
+                
                 try:
                     import pytesseract
-                    from PIL import Image
+                    from PIL import Image, ImageEnhance, ImageFilter
                     
-                    self.logger.info(f"🔍 Starte OCR für Bilddatei: {os.path.basename(filepath)}")
-                    img = Image.open(filepath)
-                    
-                    # Versuche mit deutscher Sprache, fallback auf Englisch
+                    # Prüfe Tesseract
                     try:
-                        text = pytesseract.image_to_string(img, lang='deu')
+                        pytesseract.get_tesseract_version()
                     except Exception:
-                        text = pytesseract.image_to_string(img, lang='eng')
+                        self.logger.error("❌ Tesseract-OCR nicht gefunden")
+                        return f"[OCR nicht verfügbar für '{filename}']"
                     
-                    if text and len(text.strip()) > 10:
-                        self.logger.info(f"✅ OCR erfolgreich: {len(text)} Zeichen extrahiert")
-                        return text
+                    # Lade Bild
+                    img = Image.open(filepath)
+                    original_size = f"{img.width}x{img.height}px"
+                    self.logger.info(f"   Bildgröße: {original_size}, Modus: {img.mode}")
+                    
+                    # Konvertiere zu RGB falls nötig
+                    if img.mode not in ('RGB', 'L'):
+                        self.logger.info(f"   Konvertiere {img.mode} → RGB")
+                        img = img.convert('RGB')
+                    
+                    # Bildverbesserung für bessere OCR-Qualität
+                    try:
+                        # Erhöhe Kontrast
+                        enhancer = ImageEnhance.Contrast(img)
+                        img = enhancer.enhance(1.5)
+                        
+                        # Schärfen
+                        img = img.filter(ImageFilter.SHARPEN)
+                        self.logger.info("   Bildoptimierung: Kontrast + Schärfe")
+                    except Exception as e:
+                        self.logger.warning(f"   Bildoptimierung übersprungen: {str(e)[:50]}")
+                    
+                    # OCR mit automatischer Spracherkennung
+                    ocr_languages = self._determine_ocr_languages()
+                    lang_param = '+'.join(ocr_languages) if ocr_languages else 'deu+eng'
+                    self.logger.info(f"   OCR-Sprachen: {lang_param}")
+                    
+                    # Führe OCR aus
+                    text = pytesseract.image_to_string(img, lang=lang_param)
+                    
+                    if text and text.strip():
+                        clean_text = text.strip()
+                        self.logger.info(f"✅ Bild-OCR erfolgreich: {len(clean_text)} Zeichen")
+                        
+                        # Wenn sehr wenig Text gefunden wurde, versuche mit höherer Auflösung
+                        if len(clean_text) < 50 and img.width < 2000:
+                            self.logger.info("   → Versuche mit 2x Skalierung...")
+                            img_scaled = img.resize((img.width * 2, img.height * 2), Image.Resampling.LANCZOS)
+                            text_scaled = pytesseract.image_to_string(img_scaled, lang=lang_param)
+                            if text_scaled and len(text_scaled.strip()) > len(clean_text):
+                                self.logger.info(f"   ✅ Besseres Ergebnis: {len(text_scaled.strip())} Zeichen")
+                                return text_scaled.strip()
+                        
+                        return clean_text
                     else:
-                        self.logger.warning(f"⚠️ OCR lieferte keinen Text")
-                        return None
+                        self.logger.warning(f"⚠️ Kein Text im Bild erkannt")
+                        return f"[Kein Text in '{filename}' erkannt. Bild evtl. zu unscharf oder leer.]"
                         
                 except ImportError:
-                    self.logger.warning("⚠️ Tesseract OCR nicht verfügbar. Bitte pytesseract installieren.")
-                    return None
+                    self.logger.error("❌ pytesseract nicht installiert: pip install pytesseract")
+                    return f"[OCR nicht verfügbar für '{filename}']"
                 except Exception as e:
-                    self.logger.error(f"❌ OCR-Fehler: {e}")
-                    return None
+                    self.logger.error(f"❌ Bild-OCR Fehler: {str(e)[:100]}")
+                    return f"[Fehler beim OCR von '{filename}': {str(e)[:80]}]"
             
         except Exception as e:
             self.logger.debug(f"Text-Extraktion fehlgeschlagen für {filepath}: {e}")
@@ -8968,43 +10119,70 @@ class ProfessionelleUebersetzungsqualitaetsApp:
             rows = pair_rows if isinstance(pair_rows, list) else None
         except Exception:
             rows = None
-        
-        if not rows:
-            try:
-                cached = getattr(self, '_last_pair_details', None)
-                if isinstance(cached, list):
-                    rows = cached
-                    self.logger.info(f"✅ Cache-Daten gefunden: {len(rows)} Einträge")
-            except Exception:
-                rows = None
-        
-        # Falls keine Cache-Daten, versuche aus hochgeladenen Dateien zu lesen
+
+        fresh_rows = None
         if not rows:
             try:
                 self.logger.info("🔄 Versuche Dateien direkt einzulesen...")
-                rows = self._read_uploaded_files_for_preview()
-                if rows:
-                    self.logger.info(f"✅ Dateien eingelesen: {len(rows)} Einträge")
-                else:
-                    self.logger.warning("⚠️ Keine Daten aus Dateien gelesen")
+                fresh_rows = self._read_uploaded_files_for_preview()
+                if fresh_rows:
+                    self.logger.info(f"✅ Dateien eingelesen: {len(fresh_rows)} Einträge")
             except Exception as e:
                 self.logger.error(f"❌ Fehler beim Lesen hochgeladener Dateien: {e}")
                 import traceback
                 traceback.print_exc()
+                fresh_rows = None
+
+        if fresh_rows:
+            rows = fresh_rows
+        elif not rows:
+            try:
+                cached = getattr(self, '_last_pair_details', None)
+                if isinstance(cached, list):
+                    self.logger.info(f"ℹ️ Verwende Cache-Daten: {len(cached)} Einträge")
+                    rows = cached
+            except Exception:
                 rows = None
+
+        # Prüfe auf vollständig leere Segmente und versuche bei Bedarf erneut direkte Texteinzlesung
+        if rows:
+            try:
+                has_content = any(
+                    bool(str(entry.get('source_text') or entry.get('source') or '').strip()) or
+                    bool(str(entry.get('target_text') or entry.get('translation') or '').strip())
+                    for entry in rows if isinstance(entry, dict)
+                )
+            except Exception:
+                has_content = True
+            if not has_content and not fresh_rows:
+                try:
+                    self.logger.info("ℹ️ Cache ohne Text – erneuter Direkt-Einleseversuch...")
+                    rows = self._read_uploaded_files_for_preview()
+                except Exception:
+                    pass
         
         if not rows:
             try:
+                self.logger.warning("❌ Keine Daten für Vorschau verfügbar")
                 if hasattr(self, 'show_toast'):
-                    self.show_toast(self._t('Noch keine eingelesenen Segmente verfügbar.'), 'info')
+                    self.show_toast(
+                        'Keine Texte eingelesen.\n\nBitte laden Sie zunächst Dateien über "Datei hochladen" hoch.',
+                        'info',
+                        duration=5000
+                    )
             except Exception:
                 pass
             return
         rows = [entry for entry in rows if isinstance(entry, dict)]
         if not rows:
             try:
+                self.logger.warning("❌ Ungültige Daten-Struktur in Preview")
                 if hasattr(self, 'show_toast'):
-                    self.show_toast(self._t('Noch keine eingelesenen Segmente verfügbar.'), 'info')
+                    self.show_toast(
+                        'Fehler beim Einlesen der Texte.\n\nBitte laden Sie die Dateien erneut hoch.',
+                        'warning',
+                        duration=5000
+                    )
             except Exception:
                 pass
             return
@@ -9154,11 +10332,11 @@ class ProfessionelleUebersetzungsqualitaetsApp:
         segment_lines = []
         for idx, entry in enumerate(rows_to_render, start=1):
             try:
-                source_text = str(entry.get('source_text') or '').strip()
+                source_text = str(entry.get('source_text') or entry.get('source') or '').strip()
             except Exception:
                 source_text = ''
             try:
-                target_text = str(entry.get('target_text') or '').strip()
+                target_text = str(entry.get('target_text') or entry.get('translation') or '').strip()
             except Exception:
                 target_text = ''
             page_hint = entry.get('page') or entry.get('page_number') or entry.get('page_index')
@@ -9247,6 +10425,92 @@ class ProfessionelleUebersetzungsqualitaetsApp:
             text_box.focus_set()
         except Exception:
             pass
+    
+    def _launch_pair_details_preview_with_scroll(self, segment_index=None, segment_hash=None, source_text=''):
+        """Öffnet die Segment-Vorschau und scrollt zum angegebenen Segment.
+        
+        Args:
+            segment_index: Index des Segments (1-basiert)
+            segment_hash: Hash des Segments für exakte Zuordnung
+            source_text: Quelltext für Fuzzy-Matching falls Index/Hash nicht verfügbar
+        """
+        self.logger.info(f"🎯 Navigation zu Segment: index={segment_index}, hash={segment_hash}")
+        
+        # Erst die normale Preview öffnen
+        self._launch_pair_details_preview()
+        
+        # Dann zum Segment scrollen
+        try:
+            preview_window = getattr(self, '_ingest_preview_window', None)
+            if not preview_window or not preview_window.winfo_exists():
+                return
+            
+            # Textbox finden (suche nach CTkTextbox im Fenster)
+            text_box = None
+            def find_textbox(widget):
+                nonlocal text_box
+                if text_box:
+                    return
+                try:
+                    if widget.__class__.__name__ == 'CTkTextbox':
+                        text_box = widget
+                        return
+                    for child in widget.winfo_children():
+                        find_textbox(child)
+                except Exception:
+                    pass
+            
+            find_textbox(preview_window)
+            
+            if not text_box:
+                self.logger.warning("Textbox nicht gefunden für Navigation")
+                return
+            
+            # Nach Segment-Marker suchen
+            if segment_index is not None:
+                search_pattern = f"Segment {segment_index}"
+            elif source_text and len(source_text) > 10:
+                # Fuzzy-Match: Suche nach erstem Teil des Quelltextes
+                search_pattern = source_text[:50].strip()
+            else:
+                search_pattern = None
+            
+            if search_pattern:
+                # Text durchsuchen
+                try:
+                    text_box.configure(state='normal')
+                    content = text_box.get('1.0', 'end-1c')
+                    text_box.configure(state='disabled')
+                    
+                    # Position finden
+                    pos = content.lower().find(search_pattern.lower())
+                    if pos >= 0:
+                        # Zeile berechnen
+                        lines_before = content[:pos].count('\n')
+                        line_number = lines_before + 1
+                        
+                        # Zur Zeile scrollen
+                        text_box.see(f"{line_number}.0")
+                        
+                        # Highlight (falls möglich)
+                        try:
+                            text_box.configure(state='normal')
+                            # Tag für Highlight erstellen
+                            text_box.tag_add('highlight', f"{line_number}.0", f"{line_number}.end")
+                            text_box.tag_config('highlight', background='#FFFF00', foreground='#000000')
+                            text_box.configure(state='disabled')
+                        except Exception:
+                            pass
+                        
+                        if hasattr(self, 'show_toast'):
+                            self.show_toast(f'📍 Segment {segment_index or "?"} gefunden', 'success', duration=2000)
+                    else:
+                        if hasattr(self, 'show_toast'):
+                            self.show_toast(f'Segment nicht gefunden (Suche: "{search_pattern[:30]}...")', 'warning')
+                except Exception as e:
+                    self.logger.error(f"Fehler beim Scrollen: {e}")
+        except Exception as e:
+            self.logger.error(f"Navigation fehlgeschlagen: {e}")
     
     def _setup_modern_file_management(self, parent):
         """Initialisiert die moderne Dateiverwaltung mit Drag-and-Drop-Unterstützung."""
@@ -12371,6 +13635,12 @@ class ProfessionelleUebersetzungsqualitaetsApp:
                 risk = min(100.0, round(((crit * 3 + maj * 2 + mi) / denom) * 25.0, 2))
                 phase4['risk_score'] = risk
             phases_info['phase4'] = phase4
+            # Für UI-Kompatibilität: mappe phase4 auf consolidation
+            phases_info['consolidation'] = phase4.copy()
+        else:
+            # WICHTIG: Keine Befunde = Risiko 0 (nicht 100!)
+            phases_info['consolidation'] = {'total': 0, 'risk_score': 0.0}
+            phases_info['phase4'] = {'total': 0, 'risk_score': 0.0}
         normalized['phases'] = phases_info
 
         consolidated = normalized.get('consolidated') if isinstance(normalized.get('consolidated'), dict) else {}
@@ -13873,22 +15143,35 @@ class ProfessionelleUebersetzungsqualitaetsApp:
                 except Exception:
                     findings_grouped = []
 
-            # 3) Phasen-/Konsolidierungsblöcke minimal befüllen
+            # 3) Phasen-/Konsolidierungsblöcke klar strukturiert befüllen
             phases: dict[str, dict] = {}
             try:
+                # Phase 1: Format & Struktur (Platzhalter, URLs, E-Mails, Whitespace)
                 if phase_issue_counts.get('phase1'):
-                    phases['phase1'] = {'issue_total': phase_issue_counts['phase1']}
+                    phases['phase1'] = {
+                        'name': 'Format & Struktur',
+                        'issue_total': phase_issue_counts['phase1'],
+                        'description': 'Prüfung von Platzhaltern, URLs, E-Mails und strukturellen Elementen'
+                    }
+                
+                # Phase 2: Inhalt & Konsistenz (Zahlen, Glossar, Eigennamen)
                 if phase_issue_counts.get('phase2'):
-                    phases['phase2'] = {'issue_total': phase_issue_counts['phase2']}
-                # Phase 3: Vollständigkeit/Qualität (Heuristik über Befunde)
-                total_phase3 = len(findings)
+                    phases['phase2'] = {
+                        'name': 'Inhalt & Konsistenz',
+                        'issue_total': phase_issue_counts['phase2'],
+                        'description': 'Prüfung von Zahlen, Einheiten, Glossar-Begriffen und Eigennamen'
+                    }
+                
+                # Phase 3: Semantik & Grammatik (Lesbarkeit, Rechtschreibung, Stil)
                 phase3_specific = phase_issue_counts.get('phase3', 0)
-                if total_phase3 or phase3_specific:
-                    entry = {'issue_total': total_phase3}
-                    if phase3_specific:
-                        entry['phase_specific'] = phase3_specific
-                    phases['phase3'] = entry
-                # Phase 4: Konsolidierung + Risiko-Score aus Befundschwere ableiten
+                if phase3_specific:
+                    phases['phase3'] = {
+                        'name': 'Semantik & Grammatik',
+                        'issue_total': phase3_specific,
+                        'description': 'Prüfung von Lesbarkeit, Rechtschreibung und grammatikalischen Strukturen'
+                    }
+                
+                # Konsolidierung: Gesamtbewertung und Risiko-Score
                 try:
                     total_f = len(findings)
                     if total_f:
@@ -13901,14 +15184,27 @@ class ProfessionelleUebersetzungsqualitaetsApp:
                         risk = 0.0
                     consolidated = {'total': total_f, 'risk_score': risk}
                 except Exception:
-                    consolidated = {'total': len(findings)}
-                phases['phase4'] = {'total': consolidated.get('total'), 'risk_score': consolidated.get('risk_score')}
+                    # Bei Fehler: Sichere Defaults (0 Befunde = 0 Risiko)
+                    consolidated = {'total': len(findings), 'risk_score': 0.0 if not findings else 50.0}
+                
+                phases['consolidation'] = {
+                    'name': 'Konsolidierung',
+                    'total': consolidated.get('total'),
+                    'risk_score': consolidated.get('risk_score'),
+                    'description': 'Gesamtbewertung aller Befunde mit Risiko-Einschätzung'
+                }
+                
             except Exception:
                 consolidated = {'total': len(findings)}
-            # Phase 6: Vorschläge – Anzahl aus Empfehlungen
+            
+            # Empfehlungen: Automatisch generierte Verbesserungsvorschläge
             try:
                 if recommendations:
-                    phases['phase6'] = {'suggestions': len(recommendations)}
+                    phases['recommendations'] = {
+                        'name': 'Empfehlungen',
+                        'suggestions': len(recommendations),
+                        'description': 'Automatisch generierte Verbesserungsvorschläge basierend auf der Analyse'
+                    }
             except Exception:
                 pass
 
@@ -13945,7 +15241,15 @@ class ProfessionelleUebersetzungsqualitaetsApp:
                 'issues_phase2': phase2_issues,
                 'issues_phase3': phase3_issues,
                 'phase_issue_counts': phase_issue_counts,
-                'pair_details': pair_details
+                'pair_details': pair_details,
+                # Phasen-Namen für bessere UI-Darstellung
+                'phase_names': {
+                    'phase1': 'Format & Struktur',
+                    'phase2': 'Inhalt & Konsistenz',
+                    'phase3': 'Semantik & Grammatik',
+                    'consolidation': 'Konsolidierung',
+                    'recommendations': 'Empfehlungen'
+                }
             }
         except Exception as e:
             # Fallback – liefere ursprüngliche Struktur
@@ -14097,107 +15401,230 @@ Result: Publication-ready quality
                 pass
     
     def export_results(self):
-        """Export analysis results"""
+        """Export analysis results - Modernisierte Karten-basierte GUI"""
         try:
-            # Show export options
+            # Clear output frame
             for widget in self.output_frame.winfo_children():
                 widget.destroy()
             
-            export_card = ctk.CTkFrame(
+            # Hauptcontainer
+            main_container = ctk.CTkFrame(
                 self.output_frame,
-                fg_color=self.get_color('surface'),
-                corner_radius=8,
-                border_width=1,
-                            )
-            export_card.pack(fill="x", pady=20, padx=20)
+                fg_color="transparent"
+            )
+            main_container.pack(fill="both", expand=True, pady=10, padx=20)
             
-            # Header
-            header_frame = ctk.CTkFrame(export_card, fg_color=self.get_color('info'))
-            header_frame.pack(fill="x", padx=0, pady=0)
+            # Header-Karte
+            header_card = ctk.CTkFrame(
+                main_container,
+                fg_color=self.get_color('primary'),
+                corner_radius=12
+            )
+            header_card.pack(fill="x", pady=(0, 16))
             
-            header_label = ctk.CTkLabel(
-                header_frame,
-                text=self._t("Export Analyse Ergebnisse"),
-                font=ctk.CTkFont(*self.get_typography('subheading')),
+            header_content = ctk.CTkFrame(header_card, fg_color="transparent")
+            header_content.pack(fill="x", padx=24, pady=20)
+            
+            title_label = ctk.CTkLabel(
+                header_content,
+                text=self._t("Ergebnisse exportieren"),
+                font=ctk.CTkFont(*self.get_typography('heading')),
                 text_color=self.get_color('white')
             )
-            header_label.pack(pady=15)
+            title_label.pack(anchor="w")
             
-            # Export options
-            content_frame = ctk.CTkFrame(export_card, fg_color="transparent")
-            content_frame.pack(fill="x", padx=20, pady=20)
-            
-            export_text = self._t("Verfügbare Export-Formate:") + "\n\n" + "\n".join([
-                self._t("PDF Bericht (Empfohlen)"),
-                "   • " + self._t("Umfassende Qualitätsanalyse"),
-                "   • " + self._t("Visuelle Diagramme und Metriken"),
-                "   • " + self._t("Professionelles Layout"),
-                "",
-                self._t("Excel Tabelle"),
-                "   • " + self._t("Detaillierte Datentabellen"),
-                "   • " + self._t("Metriken aufgeschlüsselt"),
-                "   • " + self._t("Vergleichende Analyse"),
-                "",
-                self._t("Text Zusammenfassung"),
-                "   • " + self._t("Schnelle Übersicht"),
-                "   • " + self._t("Nur Kern-Ergebnisse"),
-                "   • " + self._t("Leichtgewichtiges Format"),
-                "",
-                self._t("Export Status: Bereit zum Export"),
-                "   " + self._t("Analysedaten vollständig und validiert")
-            ])
-            
-            export_label = ctk.CTkLabel(
-                content_frame,
-                text=export_text,
+            # Status-Anzeige
+            status_text = self._t("Analyse abgeschlossen") if self.analysis_results else self._t("Keine Analyse vorhanden")
+            status_label = ctk.CTkLabel(
+                header_content,
+                text=status_text,
                 font=ctk.CTkFont(*self.get_typography('body')),
-                text_color=self.get_color('text_primary'),
-                justify="left",
-                anchor="w"
+                text_color=self.get_color('white')
             )
-            export_label.pack(fill="x", anchor="w")
-
-            # Dynamische Button-Leiste
-            btn_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
-            btn_frame.pack(fill="x", pady=(10, 5))
-
-            def _add_btn(text, fmt):
-                # Größere Export-Buttons explizit ohne vereinheitlichte Breite
-                return self._create_button(
-                    btn_frame,
-                    text=text,
-                    command=lambda f=fmt: self._perform_export(f),
-                    kind="primary",
-                    size='lg',
-                    height=48,
-                    width=200,
-                    unify=False  # wichtig: deaktiviert globale Vereinheitlichung
+            status_label.pack(anchor="w", pady=(4, 0))
+            
+            # Shortcut-Hinweis
+            shortcut_hint = ctk.CTkLabel(
+                header_content,
+                text=self._t("Strg+1 PDF  |  Strg+2 Excel  |  Strg+3 Text"),
+                font=ctk.CTkFont(family="Segoe UI", size=10),
+                text_color=self.get_color('white')
+            )
+            shortcut_hint.pack(anchor="w", pady=(8, 0))
+            
+            # Export-Format-Karten Grid
+            formats_frame = ctk.CTkFrame(main_container, fg_color="transparent")
+            formats_frame.pack(fill="x", pady=(0, 16))
+            formats_frame.columnconfigure((0, 1, 2), weight=1, uniform="export_col")
+            
+            # Format-Definitionen
+            export_formats = [
+                {
+                    'fmt': 'pdf',
+                    'title': 'PDF',
+                    'subtitle': self._t('Professioneller Bericht'),
+                    'color': '#DC2626',  # Rot für PDF
+                    'features': [
+                        self._t('Visuelle Diagramme'),
+                        self._t('Befunde mit Details'),
+                        self._t('Druckoptimiert')
+                    ],
+                    'recommended': True
+                },
+                {
+                    'fmt': 'xlsx',
+                    'title': 'Excel',
+                    'subtitle': self._t('Datentabelle'),
+                    'color': '#10B981',  # Grün für Excel
+                    'features': [
+                        self._t('Alle Metriken'),
+                        self._t('Filterbar'),
+                        self._t('Weiterverarbeitung')
+                    ],
+                    'recommended': False
+                },
+                {
+                    'fmt': 'txt',
+                    'title': 'Text',
+                    'subtitle': self._t('Schnellübersicht'),
+                    'color': '#6B7280',  # Grau für Text
+                    'features': [
+                        self._t('Kompakt'),
+                        self._t('Universell lesbar'),
+                        self._t('Leichtgewichtig')
+                    ],
+                    'recommended': False
+                }
+            ]
+            
+            for col_idx, fmt_info in enumerate(export_formats):
+                # Format-Karte mit Hover-Effekt
+                card = ctk.CTkFrame(
+                    formats_frame,
+                    fg_color=self.get_color('surface'),
+                    corner_radius=12,
+                    border_width=2 if fmt_info['recommended'] else 1,
+                    border_color=fmt_info['color'] if fmt_info['recommended'] else self.get_color('surface_border')
                 )
-
-            txt_btn = _add_btn(self._t("Als TXT exportieren"), 'txt'); txt_btn.pack(side='left', padx=6)
-            pdf_btn = _add_btn(self._t("Als PDF exportieren"), 'pdf'); pdf_btn.pack(side='left', padx=6)
-            xlsx_btn = _add_btn(self._t("Als XLSX exportieren"), 'xlsx'); xlsx_btn.pack(side='left', padx=6)
-
-            # Zusatz: HTML Bericht direkt öffnen (Additiv, keine bestehende Logik verändert)
+                card.grid(row=0, column=col_idx, padx=8, pady=4, sticky="nsew")
+                
+                # Hover-Effekte
+                def _on_enter(e, c=card, color=fmt_info['color']):
+                    c.configure(border_color=color, border_width=2)
+                def _on_leave(e, c=card, fmt=fmt_info):
+                    if fmt['recommended']:
+                        c.configure(border_color=fmt['color'], border_width=2)
+                    else:
+                        c.configure(border_color=self.get_color('surface_border'), border_width=1)
+                card.bind("<Enter>", _on_enter)
+                card.bind("<Leave>", _on_leave)
+                
+                card_content = ctk.CTkFrame(card, fg_color="transparent")
+                card_content.pack(fill="both", expand=True, padx=16, pady=16)
+                
+                # Hover auch für card_content
+                card_content.bind("<Enter>", _on_enter)
+                card_content.bind("<Leave>", _on_leave)
+                
+                # Badge für Format-Typ
+                badge_frame = ctk.CTkFrame(
+                    card_content,
+                    fg_color=fmt_info['color'],
+                    corner_radius=6,
+                    height=28
+                )
+                badge_frame.pack(anchor="w")
+                badge_frame.pack_propagate(False)
+                
+                badge_label = ctk.CTkLabel(
+                    badge_frame,
+                    text=f"  {fmt_info['title']}  ",
+                    font=ctk.CTkFont(family="Segoe UI", size=11, weight="bold"),
+                    text_color=self.get_color('white')
+                )
+                badge_label.pack(padx=8, pady=4)
+                
+                # Empfohlen-Badge
+                if fmt_info['recommended']:
+                    rec_label = ctk.CTkLabel(
+                        card_content,
+                        text=self._t("Empfohlen"),
+                        font=ctk.CTkFont(family="Segoe UI", size=10),
+                        text_color=fmt_info['color']
+                    )
+                    rec_label.pack(anchor="w", pady=(4, 0))
+                
+                # Untertitel
+                subtitle = ctk.CTkLabel(
+                    card_content,
+                    text=fmt_info['subtitle'],
+                    font=ctk.CTkFont(*self.get_typography('body')),
+                    text_color=self.get_color('text_primary')
+                )
+                subtitle.pack(anchor="w", pady=(8, 4))
+                
+                # Feature-Liste
+                for feature in fmt_info['features']:
+                    feature_label = ctk.CTkLabel(
+                        card_content,
+                        text=f"• {feature}",
+                        font=ctk.CTkFont(*self.get_typography('caption')),
+                        text_color=self.get_color('text_secondary')
+                    )
+                    feature_label.pack(anchor="w", pady=1)
+                
+                # Export-Button
+                btn = self._create_button(
+                    card_content,
+                    text=self._t("Exportieren"),
+                    command=lambda f=fmt_info['fmt']: self._perform_export(f),
+                    kind="primary" if fmt_info['recommended'] else "secondary",
+                    size='md',
+                    height=36
+                )
+                btn.pack(fill="x", pady=(12, 0))
+            
+            # Zusatz-Optionen Karte
+            options_card = ctk.CTkFrame(
+                main_container,
+                fg_color=self.get_color('surface'),
+                corner_radius=12,
+                border_width=1,
+                border_color=self.get_color('surface_border')
+            )
+            options_card.pack(fill="x", pady=(0, 16))
+            
+            options_content = ctk.CTkFrame(options_card, fg_color="transparent")
+            options_content.pack(fill="x", padx=20, pady=16)
+            
+            options_title = ctk.CTkLabel(
+                options_content,
+                text=self._t("Weitere Optionen"),
+                font=ctk.CTkFont(*self.get_typography('subheading')),
+                text_color=self.get_color('text_primary')
+            )
+            options_title.pack(anchor="w", pady=(0, 12))
+            
+            # Button-Leiste für weitere Aktionen
+            action_frame = ctk.CTkFrame(options_content, fg_color="transparent")
+            action_frame.pack(fill="x")
+            
+            # HTML Bericht öffnen
+            html_btn = self._create_button(
+                action_frame,
+                text=self._t("Bericht im Browser öffnen"),
+                command=self._open_quality_report,
+                kind="secondary",
+                size='md',
+                height=40
+            )
+            html_btn.pack(side="left", padx=(0, 12))
+            
+            # Korrekturpaket Option
             try:
-                report_btn = _add_btn(self._t("Bericht öffnen"), 'html')
-                # Überschreibe Command für HTML speziell – kein Export, sondern Anzeige
-                report_btn.configure(command=self._open_quality_report)
-                report_btn.pack(side='left', padx=6)
-            except Exception:
-                pass
-
-            # Optionen (zentral): Korrekturpaket erstellen
-            try:
-                options_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
-                options_frame.pack(fill='x', pady=(12, 0))
-                # Checkbox steuert reporting.create_correction_package
                 cur_val = False
-                try:
-                    if hasattr(self, 'settings_service') and self.settings_service:
-                        cur_val = bool(self.settings_service.get('reporting.create_correction_package', False))
-                except Exception:
-                    cur_val = False
+                if hasattr(self, 'settings_service') and self.settings_service:
+                    cur_val = bool(self.settings_service.get('reporting.create_correction_package', False))
                 create_pkg_var = tk.BooleanVar(value=cur_val)
 
                 def _persist_create_pkg():
@@ -14209,26 +15636,121 @@ Result: Publication-ready quality
                         pass
 
                 create_pkg_cb = ctk.CTkCheckBox(
-                    options_frame,
+                    action_frame,
                     text=self._t('Korrekturpaket erstellen'),
                     variable=create_pkg_var,
                     onvalue=True,
                     offvalue=False,
                     command=_persist_create_pkg,
-                    fg_color=self.get_color('primary')
+                    fg_color=self.get_color('primary'),
+                    font=ctk.CTkFont(*self.get_typography('body'))
                 )
-                create_pkg_cb.pack(anchor='w')
+                create_pkg_cb.pack(side="left", padx=(12, 0))
             except Exception:
                 pass
-
-            # Hinweis falls keine Analyse vorliegt
+            
+            # Zuletzt exportiert Anzeige
+            try:
+                last_export_path = None
+                if hasattr(self, 'settings_service') and self.settings_service:
+                    last_export_path = self.settings_service.get('reporting.last_export_path', None)
+                
+                if last_export_path:
+                    from pathlib import Path
+                    last_path = Path(last_export_path)
+                    if last_path.exists() or last_path.parent.exists():
+                        last_export_card = ctk.CTkFrame(
+                            main_container,
+                            fg_color=self.get_color('surface'),
+                            corner_radius=8,
+                            border_width=1,
+                            border_color=self.get_color('surface_border')
+                        )
+                        last_export_card.pack(fill="x", pady=(0, 16))
+                        
+                        last_content = ctk.CTkFrame(last_export_card, fg_color="transparent")
+                        last_content.pack(fill="x", padx=16, pady=12)
+                        
+                        last_title = ctk.CTkLabel(
+                            last_content,
+                            text=self._t("Zuletzt exportiert"),
+                            font=ctk.CTkFont(*self.get_typography('caption')),
+                            text_color=self.get_color('text_secondary')
+                        )
+                        last_title.pack(anchor="w")
+                        
+                        last_filename = ctk.CTkLabel(
+                            last_content,
+                            text=last_path.name,
+                            font=ctk.CTkFont(*self.get_typography('body')),
+                            text_color=self.get_color('text_primary')
+                        )
+                        last_filename.pack(anchor="w", pady=(2, 8))
+                        
+                        # Button-Leiste
+                        last_btn_frame = ctk.CTkFrame(last_content, fg_color="transparent")
+                        last_btn_frame.pack(anchor="w")
+                        
+                        def _open_export_folder():
+                            try:
+                                import subprocess
+                                folder = last_path.parent if last_path.exists() else last_path.parent
+                                subprocess.run(['explorer', str(folder)], check=False)
+                            except Exception:
+                                self.show_toast(self._t("Ordner konnte nicht geöffnet werden"), 'error')
+                        
+                        def _open_export_file():
+                            try:
+                                import subprocess
+                                if last_path.exists():
+                                    subprocess.run(['start', '', str(last_path)], shell=True, check=False)
+                                else:
+                                    self.show_toast(self._t("Datei nicht mehr vorhanden"), 'warning')
+                            except Exception:
+                                self.show_toast(self._t("Datei konnte nicht geöffnet werden"), 'error')
+                        
+                        folder_btn = self._create_button(
+                            last_btn_frame,
+                            text=self._t("Ordner öffnen"),
+                            command=_open_export_folder,
+                            kind="secondary",
+                            size='sm',
+                            height=32
+                        )
+                        folder_btn.pack(side="left", padx=(0, 8))
+                        
+                        if last_path.exists():
+                            open_btn = self._create_button(
+                                last_btn_frame,
+                                text=self._t("Datei öffnen"),
+                                command=_open_export_file,
+                                kind="primary",
+                                size='sm',
+                                height=32
+                            )
+                            open_btn.pack(side="left")
+            except Exception:
+                pass
+            
+            # Hinweis falls keine Analyse
             if not self.analysis_results:
-                hint = ctk.CTkLabel(content_frame, text=self._t("Hinweis: Noch keine Analyse vorhanden – Export erzeugt leeren Bericht"), font=ctk.CTkFont(*self.get_typography('caption')), text_color=self._accent('warning'))
-                hint.pack(fill='x', pady=(8,0))
+                hint_frame = ctk.CTkFrame(
+                    main_container,
+                    fg_color=self._accent('warning'),
+                    corner_radius=8
+                )
+                hint_frame.pack(fill="x")
+                hint_label = ctk.CTkLabel(
+                    hint_frame,
+                    text=self._t("Hinweis: Noch keine Analyse vorhanden – Export erzeugt leeren Bericht"),
+                    font=ctk.CTkFont(*self.get_typography('caption')),
+                    text_color=self.get_color('white')
+                )
+                hint_label.pack(padx=16, pady=10)
             
             self.update_status(self._t("Export Optionen angezeigt"))
-            self.show_toast(self._t("Export Funktionalität bereit"), "info")
-            # Nach UI-Änderung Ribbon-States aktualisieren (idempotent)
+            
+            # Ribbon-States aktualisieren
             try:
                 if hasattr(self, '_update_ribbon_states'):
                     self._update_ribbon_states()
@@ -14242,12 +15764,20 @@ Result: Publication-ready quality
                 pass
 
     def _perform_export(self, fmt: str):
-        """Multi-Format Export Integration.
+        """Multi-Format Export Integration mit visuellem Feedback.
 
         Falls nur einzelnes Format angeklickt wird (Button), wird Settings-Logik dennoch genutzt,
         damit konsistenter Dateiname / Pfad / Events greifen.
         """
-        # Delegation an modularen Reporting-Layer; alte Signatur & Aufrufer bleiben gleich
+        # Format-Namen für Benutzer
+        format_names = {'pdf': 'PDF', 'xlsx': 'Excel', 'txt': 'Text', 'html': 'HTML'}
+        format_display = format_names.get(fmt, fmt.upper())
+        
+        # Zeige Export-Fortschritt
+        self.update_status(self._t(f"Exportiere als {format_display}..."))
+        self.show_toast(self._t(f"Export als {format_display} wird erstellt..."), 'info')
+        
+        # Delegation an modularen Reporting-Layer
         try:
             if getattr(self, 'reporting', None):
                 self.reporting.perform_export(self, fmt)

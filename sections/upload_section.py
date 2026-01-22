@@ -195,15 +195,27 @@ class UploadSection:
                     border_width=0,
                     border_color=self._get_color('primary', '#1F4E79'),
                 )
+                # Entferne evtl. frühere Disabled-Hover-Bindings
+                try:
+                    btn.unbind('<Enter>')
+                    btn.unbind('<Leave>')
+                except Exception:
+                    pass
             else:
-                # Deutlich sichtbarer Disabled-Outline-Stil
+                # Benutzerwunsch: Hellblauer Disabled-Stil (ähnlich Referenz: upload_hover_bg)
                 btn.configure(
-                    fg_color=self._get_color('white', '#FFFFFF'),
-                    text_color=self._get_color('primary', '#1F4E79'),
-                    hover_color=self._get_color('surface_hover', '#F3F4F6'),
-                    border_width=1,
-                    border_color=self._get_color('surface_border', '#E5E7EB'),
+                    fg_color=self._get_color('upload_hover_bg', '#F0F7FF'),
+                    text_color=self._get_color('text_secondary', '#6B7280'),
+                    hover_color=self._get_color('upload_hover_bg', '#F0F7FF'),
+                    border_width=0,
+                    border_color=self._get_color('upload_hover_bg', '#F0F7FF'),
                 )
+                # Kein Hover-Effekt im deaktivierten Zustand gewünscht
+                try:
+                    btn.unbind('<Enter>')
+                    btn.unbind('<Leave>')
+                except Exception:
+                    pass
         except Exception:
             pass
 
@@ -305,6 +317,48 @@ class UploadSection:
             text_color=self._get_color('primary', '#1F4E79'),
         )
         title.pack(pady=(0, 12), fill="x")
+        # Upload Modus (Ausgangstext / Übersetzung) – Radio Buttons für deutsche Labels
+        try:
+            if not hasattr(self.host, 'upload_mode_var') or self.host.upload_mode_var is None:
+                self.host.upload_mode_var = ctk.StringVar(value='source')
+            mode_frame = ctk.CTkFrame(content, fg_color="transparent")
+            # Kein fill -> Frame schrumpft auf Inhalt und wird dadurch automatisch mittig platziert
+            mode_frame.pack(pady=(0, 8))
+            # Deutsch beschriftete Radio Buttons, Werte intern 'source' / 'translation'
+            def _mode_changed():
+                try:
+                    # Upload-Button Text aktualisieren
+                    btn = getattr(self.host, 'upload_btn', None)
+                    if btn:
+                        current = self.host.upload_mode_var.get()
+                        txt = 'Ausgangstext' if current == 'source' else 'Übersetzung'
+                        btn.configure(text=f"Upload starten ({txt})")
+                    # Fortschrittslabel initial anpassen wenn im Idle
+                    pl = getattr(self.host, 'progress_label', None)
+                    if pl and 'Bereit' in pl.cget('text'):
+                        current = self.host.upload_mode_var.get()
+                        txt = 'Ausgangstext' if current == 'source' else 'Übersetzung'
+                        pl.configure(text=f"Bereit für Upload ({txt})")
+                except Exception:
+                    pass
+            rb_source = ctk.CTkRadioButton(
+                mode_frame,
+                text='Ausgangstext',
+                value='source',
+                variable=self.host.upload_mode_var,
+                command=_mode_changed
+            )
+            rb_translation = ctk.CTkRadioButton(
+                mode_frame,
+                text='Übersetzung',
+                value='translation',
+                variable=self.host.upload_mode_var,
+                command=_mode_changed
+            )
+            rb_source.pack(side='left', padx=(0, 12))
+            rb_translation.pack(side='left')
+        except Exception:
+            pass
         separator = ctk.CTkFrame(
             content,
             height=2,

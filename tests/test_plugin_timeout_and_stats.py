@@ -13,7 +13,7 @@ from __future__ import annotations
 import time
 
 from plugins.base_rule import BaseRule, RuleResult
-from quality_gui_main_app import ProfessionelleUebersetzungsqualitaetsApp
+from quality_gui_main_app import QualityGuiMainApp
 
 
 class SlowRule(BaseRule):
@@ -24,7 +24,7 @@ class SlowRule(BaseRule):
 
 
 def test_plugin_timeout_stats(monkeypatch):
-    app = ProfessionelleUebersetzungsqualitaetsApp()
+    app = QualityGuiMainApp()
     # Reduziere Timeout auf 100ms sodass SlowRule sicher timeouted
     class DummySettings:
         def get(self, key, default=None):

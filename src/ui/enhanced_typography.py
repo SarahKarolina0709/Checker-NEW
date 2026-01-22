@@ -580,7 +580,7 @@ class EnhancedUIHelper:
             "success": {"bg": "#10B981", "text": "#FFFFFF"},
             "warning": {"bg": "#F59E0B", "text": "#FFFFFF"},
             "error": {"bg": "#EF4444", "text": "#FFFFFF"},
-            "info": {"bg": "#3B82F6", "text": "#FFFFFF"},
+            "info": {"bg": "#1F4E79", "text": "#FFFFFF"},  # Vereinheitlichtes Brand-Blau
             "neutral": {"bg": "#6B7280", "text": "#FFFFFF"}
         }
 

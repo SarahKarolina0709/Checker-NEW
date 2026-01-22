@@ -42,22 +42,34 @@ except Exception:  # Minimaler Fallback (kein vollständiges Feature-Set)
             self.event_bus = event_bus
             self.logger = logger
 
-        def process_simple_upload(self, kind: str, selected_files: List[str], existing_files: List[str], customer_name: Optional[str] = None, copy_callback: Optional[Callable[[List[str], str], Dict[str, List[str]]]] = None) -> Dict[str, Any]:  # noqa: E501
+        def process_simple_upload(self, kind: str, selected_files: List[str], existing_files: List[str], customer_name: Optional[str] = None, copy_callback: Optional[Callable[[List[str], str], Dict[str, List[str]]]] = None, progress_callback: Optional[Callable[[int, int, str], None]] = None, cancel_check: Optional[Callable[[], bool]] = None) -> Dict[str, Any]:  # noqa: E501
             result = UploadResult(kind=kind)
-            for path in selected_files:
+            total = len(selected_files)
+            for idx, path in enumerate(selected_files, start=1):
+                if cancel_check and cancel_check():
+                    result.meta['cancelled'] = True
+                    break
                 if path in existing_files:
                     result.duplicate_files.append(path)
                 else:
                     result.added_files.append(path)
+                if progress_callback:
+                    try:
+                        progress_callback(idx, total, path)
+                    except Exception:
+                        pass
             return result.to_dict()
 
-        def process_batch_upload(self, selected_files: List[str], existing_source: List[str], existing_translation: List[str]) -> Dict[str, Any]:  # noqa: E501
+        def process_batch_upload(self, selected_files: List[str], existing_source: List[str], existing_translation: List[str], progress_callback: Optional[Callable[[int, int, str], None]] = None, cancel_check: Optional[Callable[[], bool]] = None) -> Dict[str, Any]:  # noqa: E501
             source_added: List[str] = []
             translation_added: List[str] = []
             duplicates: List[str] = []
             skipped: List[str] = []
             processed_details: List[Tuple[str, str]] = []
-            for path in selected_files:
+            total = len(selected_files)
+            for idx, path in enumerate(selected_files, start=1):
+                if cancel_check and cancel_check():
+                    break
                 filename = path.split('/')[-1]
                 lower = filename.lower()
                 if 'trans' in lower or 'translation' in lower:
@@ -72,6 +84,11 @@ except Exception:  # Minimaler Fallback (kein vollständiges Feature-Set)
                     else:
                         source_added.append(path)
                         processed_details.append((filename, 'Source'))
+                if progress_callback:
+                    try:
+                        progress_callback(idx, total, path)
+                    except Exception:
+                        pass
             return {
                 'source_added': source_added,
                 'translation_added': translation_added,

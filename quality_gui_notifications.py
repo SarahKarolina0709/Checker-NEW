@@ -54,6 +54,12 @@ class ToastNotification:
         self._t = translator or (lambda s: s)
         self.active_toasts: list[ctk.CTkToplevel] = []
         self._toast_meta: Dict[ctk.CTkToplevel, Dict[str, Any]] = {}
+        # Lebenszyklus-Flag und Parent-Destruction-Handling
+        self._alive: bool = True
+        try:  # pragma: no cover
+            self.parent.bind("<Destroy>", lambda e: self._on_parent_destroy(), add="+")
+        except Exception:
+            pass
 
         # Optional Light Enforcement (kein globaler Override, nur lokal)
         if force_light:
@@ -66,16 +72,21 @@ class ToastNotification:
         # Dedupe Tracking (unterdrückt identische Toasts in kurzem Zeitfenster)
         self._recent: Dict[str, float] = {}
         self._dedupe_window_s: float = 2.0  # Sekunden
+        # TTL für Dedupe-Einträge, damit _recent nicht unendlich wächst
+        self._recent_ttl_s: float = 60.0
 
         # Sichtbarkeits-Limit & Queue
         self._max_visible = max_visible if max_visible > 0 else 4
         self._queue: Deque[Dict[str, Any]] = deque()
+        self._queue_max: int = 200  # Hard-Limit gegen Backpressure/Spam
+        self._queue_policy: str = 'drop_oldest'  # 'drop_oldest' | 'drop_new'
 
         # Accessibility / Konfiguration
         accessibility = accessibility or {}
         self._font_scale: float = float(accessibility.get('font_scale', 1.0))
         self._high_contrast: bool = bool(accessibility.get('high_contrast', False))
         self._on_announce = on_announce
+        self._on_show: Optional[Callable[[str, str, int], None]] = None  # message, type, duration
 
         # Design-System dynamisch ermitteln (Farben / Fonts); sicherer Fallback
         try:  # pragma: no cover
@@ -97,13 +108,42 @@ class ToastNotification:
 
         # Fensterbewegung/-Größe => Reflow
         try:  # pragma: no cover
-            self.parent.bind("<Configure>", lambda e: self._position_toasts_reflow())
+            self._cfg_after_id = None
+            self._reflow_after_id = None  # Debounce-ID für Reflow
+            def _on_cfg(_e):
+                try:
+                    if self._cfg_after_id:
+                        self.parent.after_cancel(self._cfg_after_id)
+                except Exception:
+                    pass
+                self._cfg_after_id = self.parent.after(50, self._position_toasts_reflow)
+            self.parent.bind("<Configure>", _on_cfg, add="+")
         except Exception:
             pass
 
         # Easing Parameter (konfigurierbar bei Bedarf)
         self._fade_in_steps = 12
         self._fade_out_steps = 10
+        self._reduce_motion: bool = bool(accessibility.get('reduce_motion', False))
+        self._alpha_supported: Optional[bool] = None  # wird in _set_alpha erkannt
+        # Platzierung: br (bottom-right), tr (top-right), bl (bottom-left), tl (top-left)
+        self._placement: str = 'br'
+        self._margin = (20, 20)  # (mx, my)
+        # Optionaler Dismiss-Telemetrie-Hook: Callable(message:str, type:str, reason:str, duration:int, elapsed:int)
+        self._on_dismiss: Optional[Callable[[str, str, str, int, int], None]] = None
+
+    def set_placement(self, corner: str = 'br', margin = (20, 20)):
+        """Positioniere die Toasts in einer Ecke und setze Außenabstand.
+        corner: 'br'|'tr'|'bl'|'tl'
+        margin: Tuple (mx, my)
+        """
+        if corner in ('br', 'tr', 'bl', 'tl'):
+            self._placement = corner
+        try:
+            mx, my = margin
+            self._margin = (int(mx), int(my))
+        except Exception:
+            pass
 
     def show_toast(
         self,
@@ -127,36 +167,51 @@ class ToastNotification:
         # Immer im Tk-Hauptthread ausführen
         def _invoke():
             try:
+                if not self._alive:
+                    return
                 t = type if type in self._color_tokens else 'info'
-                key = f"{t}|{message}".strip()
+                safe_msg = message if isinstance(message, str) else str(message)
+                key = f"{t}|{safe_msg}".strip()
                 now = time.time()
+                # Dedupe-Map sanft bereinigen
+                self._recent_purge(now)
                 if not force_show:
                     last = self._recent.get(key, 0)
                     if now - last < self._dedupe_window_s:
                         self._recent[key] = now
                         return
                 self._recent[key] = now
+                dur = max(400, int(duration))  # Mindestdauer 400ms
                 payload = {
-                    'message': self._t(message),
+                    'message': self._t(safe_msg),
                     'type': t,
-                    'duration': int(duration),
+                    'duration': dur,
                     'action': action,
                     'action_text': action_text,
                 }
                 if len(self.active_toasts) >= self._max_visible:
+                    if len(self._queue) >= self._queue_max:
+                        if self._queue_policy == 'drop_oldest':
+                            try:
+                                self._queue.popleft()
+                            except Exception:
+                                pass
+                        else:  # drop_new
+                            logger.debug("toast.queue.drop_new_policy")
+                            return
                     self._queue.append(payload)
                     logger.debug("toast.queue.enqueued")
                 else:
                     self._create_toast(**payload)
             except Exception as e:  # pragma: no cover
-                logger.debug(f"toast.create.error: {e}")
+                logger.exception("toast.create.error", exc_info=e)
 
         try:
             self.parent.after(0, _invoke)
         except Exception as e:  # pragma: no cover
-            logger.debug(f"toast.dispatch.error: {e}")
+            logger.exception("toast.dispatch.error", exc_info=e)
     
-    def _create_toast(self, message: str, type: str, duration: int, action: Optional[Callable[[], None]] = None, action_text: Optional[str] = None):
+    def _create_toast(self, message: str, type: str, duration: int, action: Optional[Callable[[], None]] = None, action_text: Optional[str] = None, __on_create__: Optional[list] = None):
         """Create and display toast notification"""
         try:
             toast = ctk.CTkToplevel(self.parent)
@@ -166,10 +221,7 @@ class ToastNotification:
                 toast.attributes('-topmost', True)
             except Exception:
                 pass
-            try:
-                toast.attributes('-alpha', 0.0)
-            except Exception:
-                pass
+            self._set_alpha(toast, 0.0)
 
             bg_token, text_token = self._color_tokens.get(type, ('info', 'white'))
             bg_color = self._get_color(bg_token, '#1F4E79')  # Vereinheitlichtes Brand-Blau Fallback
@@ -188,16 +240,16 @@ class ToastNotification:
             )
             toast_frame.pack(fill="both", expand=True, padx=2, pady=2)
 
-            # Robuste Font-Erkennung & Skalierung
+            # Robuste Font-Erkennung & Skalierung (Font-Kopie erstellen, globale DS-Fonts nicht mutieren)
             raw_font = self._get_font('body_sm') if callable(getattr(self, '_get_font', None)) else None
             if isinstance(raw_font, ctk.CTkFont):
-                font_obj = raw_font
                 try:
-                    # direkte Skalierung (CTkFont hat configure)
-                    current_size = font_obj.cget("size")
-                    font_obj.configure(size=int(current_size * self._font_scale))
+                    fam = raw_font.cget("family")
+                    size = int(raw_font.cget("size"))
+                    weight = raw_font.cget("weight")
+                    font_obj = ctk.CTkFont(family=fam, size=int(size * self._font_scale), weight=weight)
                 except Exception:
-                    pass
+                    font_obj = ctk.CTkFont(family="Segoe UI", size=int(12 * self._font_scale))
             elif isinstance(raw_font, (tuple, list)) and len(raw_font) >= 2:
                 fam = raw_font[0]
                 size = raw_font[1]
@@ -210,13 +262,17 @@ class ToastNotification:
             else:
                 font_obj = ctk.CTkFont(family="Segoe UI", size=int(12 * self._font_scale), weight="normal")
 
-            # Dynamische Wrap-Länge relativ zur Parent-Breite
+            # Dynamische, DPI-sensitive Wrap-Länge relativ zur Parent-Breite und ~4.5 Zoll Obergrenze
             try:
                 self.parent.update_idletasks()
                 pw = max(200, self.parent.winfo_width())
+                try:
+                    inch_px = int(self.parent.winfo_fpixels('1i')) or 96
+                except Exception:
+                    inch_px = 96
             except Exception:
-                pw = 600
-            wrap = max(240, min(420, int(pw * 0.6)))
+                pw, inch_px = 600, 96
+            wrap = max(240, min(int(pw * 0.6), int(4.5 * inch_px)))
 
             msg_label = ctk.CTkLabel(
                 toast_frame,
@@ -253,7 +309,13 @@ class ToastNotification:
                     logger.debug(f"toast.action_button.error: {e}")
 
             self.active_toasts.append(toast)
-            self._position_toasts_reflow()
+            # Optional: Handle an Aufrufer zurückgeben
+            try:
+                if isinstance(__on_create__, list):
+                    __on_create__.append(toast)
+            except Exception:
+                pass
+            self._schedule_reflow(0)
             toast.deiconify()
             start_time = time.time()
             hide_id = self.parent.after(duration, lambda: self._start_fade_out(toast))
@@ -263,10 +325,18 @@ class ToastNotification:
                 'hide_after_id': hide_id,
                 'paused': False,
                 'remaining': duration,
+                'message': message,
+                'type': type,
+                'dismiss_reason': None,
             }
             # Hover Pause
-            toast_frame.bind('<Enter>', lambda e, t=toast: self._pause_toast(t))
-            toast_frame.bind('<Leave>', lambda e, t=toast: self._resume_toast(t))
+            toast.bind('<Enter>', lambda e, t=toast: self._pause_toast(t))
+            toast.bind('<Leave>', lambda e, t=toast: self._resume_toast(t))
+            # ESC schließt den jeweiligen Toast
+            try:
+                toast.bind('<Escape>', lambda e, t=toast: self._on_esc_and_close(t))
+            except Exception:
+                pass
             # Destroy Binding
             toast.bind('<Destroy>', lambda e, t=toast: self._on_toast_destroy(t))
             # Fade In (Easing)
@@ -277,12 +347,28 @@ class ToastNotification:
                     self._on_announce(message, type)
                 except Exception:
                     pass
+            # Telemetrie on_show
+            if self._on_show:
+                try:
+                    self._on_show(message, type, duration)
+                except Exception:
+                    pass
+            # Fokus auf Action-Button legen (falls vorhanden)
+            try:
+                for child in toast_frame.winfo_children():
+                    if isinstance(child, ctk.CTkButton):
+                        child.focus_set()
+                        break
+            except Exception:
+                pass
         except Exception as e:  # pragma: no cover
-            logger.debug(f"toast.internal.error: {e}")
+            logger.exception("toast.internal.error", exc_info=e)
     
     def _position_toasts_reflow(self):
         """Reflow aller aktiven Toasts (bottom-right Stack)."""
         try:
+            if not self._alive:
+                return
             # Entferne evtl. zerstörte Handles
             self.active_toasts = [t for t in self.active_toasts if t.winfo_exists()]
             # Relative Position zum Parent-Fenster für Multi-Monitor Korrektheit
@@ -300,34 +386,52 @@ class ToastNotification:
                 pw = self.parent.winfo_screenwidth()
                 ph = self.parent.winfo_screenheight()
 
-            offset_y = 20
+            mx, my = self._margin
             gap = 10
             for idx, toast in enumerate(reversed(self.active_toasts)):
                 try:
                     toast.update_idletasks()
                     tw = toast.winfo_reqwidth()
                     th = toast.winfo_reqheight()
-                    x = px + pw - tw - 20
-                    y = py + ph - offset_y - th - (idx * (th + gap))
+                    corner = self._placement
+                    if corner == 'br':
+                        x = px + pw - tw - mx
+                        y = py + ph - my - th - (idx * (th + gap))
+                    elif corner == 'tr':
+                        x = px + pw - tw - mx
+                        y = py + my + (idx * (th + gap))
+                    elif corner == 'bl':
+                        x = px + mx
+                        y = py + ph - my - th - (idx * (th + gap))
+                    else:  # 'tl'
+                        x = px + mx
+                        y = py + my + (idx * (th + gap))
                     toast.geometry(f"+{x}+{y}")
                 except Exception:
                     continue
         except Exception as e:  # pragma: no cover
-            logger.debug(f"toast.reflow.error: {e}")
+            logger.exception("toast.reflow.error", exc_info=e)
     
     def _hide_toast(self, toast):
         """Toast schließen und Reflow triggern."""
         try:
+            if not self._alive:
+                return
             self._clear_hide_timer(toast)
+            # Telemetrie feuern, falls vorhanden
+            try:
+                self._emit_dismiss_telemetry(toast)
+            except Exception:
+                pass
             if toast in self.active_toasts:
                 self.active_toasts.remove(toast)
             if toast.winfo_exists():
                 toast.destroy()
             # Reflow nach kleiner Verzögerung um Geometry Events zu glätten
-            self.parent.after(50, self._position_toasts_reflow)
+            self._schedule_reflow(50)
             self._process_queue()
         except Exception as e:  # pragma: no cover
-            logger.debug(f"toast.hide.error: {e}")
+            logger.exception("toast.hide.error", exc_info=e)
 
     # ---------------------- Interne Helper ----------------------
     def _on_toast_destroy(self, toast):
@@ -340,12 +444,32 @@ class ToastNotification:
             self._toast_meta.pop(toast, None)
         self._clear_hide_timer(toast)
         # Nachlaufende Reflow & Queue
-        self.parent.after(10, self._position_toasts_reflow)
-        self.parent.after(20, self._process_queue)
+        if self._alive:
+            try:
+                self._schedule_reflow(10)
+            except Exception:
+                pass
+            try:
+                self.parent.after(20, self._process_queue)
+            except Exception:
+                pass
+
+    def _on_esc_and_close(self, toast):
+        try:
+            meta = self._toast_meta.get(toast)
+            if meta is not None:
+                meta['dismiss_reason'] = 'manual_esc'
+        except Exception:
+            pass
+        self._start_fade_out(toast)
 
     def _process_queue(self):
         try:
+            if not self._alive:
+                return
             while self._queue and len(self.active_toasts) < self._max_visible:
+                if not self._alive:
+                    return
                 payload = self._queue.popleft()
                 try:
                     self._create_toast(**payload)
@@ -353,7 +477,7 @@ class ToastNotification:
                     logger.debug(f"toast.queue.drop: {e}")
                     continue
         except Exception as e:  # pragma: no cover
-            logger.debug(f"toast.queue.error: {e}")
+            logger.exception("toast.queue.error", exc_info=e)
 
     # ------------------ Timer Clear Helper ------------------
     def _clear_hide_timer(self, toast):
@@ -374,34 +498,109 @@ class ToastNotification:
         except Exception:
             return t
 
+    def _set_alpha(self, win, value: float):
+        try:
+            win.attributes('-alpha', float(value))
+            if self._alpha_supported is None:
+                self._alpha_supported = True
+        except Exception:
+            try:
+                win.wm_attributes('-alpha', float(value))
+                if self._alpha_supported is None:
+                    self._alpha_supported = True
+            except Exception:
+                # Alpha wird nicht unterstützt – markiere und ignoriere Fade
+                self._alpha_supported = False
+
     def _fade_in(self, toast, i: int = 0, steps: int = None):
-        steps = steps or self._fade_in_steps
+        # Sanfte Latenzen: bei sehr kurzer Dauer weniger Steps
+        base = self._fade_in_steps if not self._reduce_motion else 1
+        meta = self._toast_meta.get(toast, {})
+        dur = int(meta.get('duration', 1000))
+        if self._alpha_supported is False:
+            steps = 1
+        else:
+            steps = 1 if (self._reduce_motion or dur <= 800) else (steps or base)
         try:
             if not toast.winfo_exists():
                 return
             t = min(1.0, i / float(steps))
             alpha = self._ease_out(t)
-            toast.attributes('-alpha', alpha)
+            if self._alpha_supported is not False:
+                self._set_alpha(toast, alpha)
             if i < steps:
-                self.parent.after(30, lambda: self._fade_in(toast, i + 1, steps))
+                # Intervall abhängig von der Dauer, begrenzt zwischen 20..60ms
+                interval = max(20, min(60, int(dur / max(steps, 1))))
+                self.parent.after(interval, lambda: self._fade_in(toast, i + 1, steps))
         except Exception:
             pass
 
     def _start_fade_out(self, toast, i: int = 0, steps: int = None):
         self._clear_hide_timer(toast)
-        steps = steps or self._fade_out_steps
+        # Sanfte Latenzen: bei sehr kurzer Dauer weniger Steps
+        base = self._fade_out_steps if not self._reduce_motion else 1
+        meta = self._toast_meta.get(toast, {})
+        dur = int(meta.get('duration', 1000))
+        if self._alpha_supported is False:
+            steps = 1
+        else:
+            steps = 1 if (self._reduce_motion or dur <= 800) else (steps or base)
         try:
             if not toast.winfo_exists():
                 return
             t = min(1.0, i / float(steps))
             alpha = 1 - self._ease_out(t)
-            toast.attributes('-alpha', max(0.0, alpha))
+            if self._alpha_supported is not False:
+                self._set_alpha(toast, max(0.0, alpha))
             if t >= 1.0 or alpha <= 0.02:
+                # Auto-Dismiss erkannt, falls kein manueller Grund gesetzt wurde
+                try:
+                    if meta is not None and not meta.get('dismiss_reason'):
+                        meta['dismiss_reason'] = 'auto'
+                except Exception:
+                    pass
                 self._hide_toast(toast)
             else:
-                self.parent.after(40, lambda: self._start_fade_out(toast, i + 1, steps))
+                interval = max(20, min(60, int(dur / max(steps, 1))))
+                self.parent.after(interval, lambda: self._start_fade_out(toast, i + 1, steps))
         except Exception:
             self._hide_toast(toast)
+
+    def _on_parent_destroy(self):
+        """Sichere Aufräumroutine, wenn das Elternfenster zerstört wird."""
+        self._alive = False
+        # Bestehende After-Events abbrechen, Toasts zerstören
+        try:
+            if getattr(self, '_cfg_after_id', None):
+                try:
+                    self.parent.after_cancel(self._cfg_after_id)
+                except Exception:
+                    pass
+                self._cfg_after_id = None
+            if getattr(self, '_reflow_after_id', None):
+                try:
+                    self.parent.after_cancel(self._reflow_after_id)
+                except Exception:
+                    pass
+                self._reflow_after_id = None
+        except Exception:
+            pass
+        for t in list(self.active_toasts):
+            try:
+                self._clear_hide_timer(t)
+                # Telemetrie: App-Shutdown Grund
+                try:
+                    meta = self._toast_meta.get(t)
+                    if meta is not None:
+                        meta['dismiss_reason'] = meta.get('dismiss_reason') or 'app_shutdown'
+                except Exception:
+                    pass
+                if t.winfo_exists():
+                    t.destroy()
+            except Exception:
+                pass
+        self.active_toasts.clear()
+        self._queue.clear()
 
     def _pause_toast(self, toast):
         meta = self._toast_meta.get(toast)
@@ -434,8 +633,15 @@ class ToastNotification:
         try:
             action()
         except Exception as e:  # pragma: no cover
-            logger.debug(f"toast.action.error: {e}")
+            logger.exception("toast.action.error", exc_info=e)
         finally:
+            # Grund setzen: manueller Close via Action
+            try:
+                meta = self._toast_meta.get(toast)
+                if meta is not None:
+                    meta['dismiss_reason'] = 'manual_action'
+            except Exception:
+                pass
             self._start_fade_out(toast)
 
     # ---------------- Öffentliche Utility-APIs ----------------
@@ -443,7 +649,21 @@ class ToastNotification:
         """Alle aktiven Toasts schließen (mit Fade-Out)."""
         for t in list(self.active_toasts):
             if t and t.winfo_exists():
+                try:
+                    meta = self._toast_meta.get(t)
+                    if meta is not None:
+                        meta['dismiss_reason'] = meta.get('dismiss_reason') or 'manual_close_all'
+                except Exception:
+                    pass
                 self._start_fade_out(t)
+
+    def close_all_hard(self):
+        """Alle aktiven Toasts schließen und die Queue leeren."""
+        self.close_all()
+        try:
+            self._queue.clear()
+        except Exception:
+            pass
 
     def set_max_visible(self, n: int):
         """Dynamisch maximale sichtbare Toasts anpassen."""
@@ -460,6 +680,31 @@ class ToastNotification:
         except Exception:
             return
         self._font_scale = max(0.8, min(1.6, val))
+
+    def set_color_tokens(self, mapping: Dict[str, tuple[str, str]]) -> None:
+        """Laufzeit-Update der Farbsemantik.
+
+        mapping Beispiel: {'success': ('success', 'white'), 'error': ('error', 'white')}
+        Werte sind (bg_token, text_token) aus dem Design-System.
+        """
+        try:
+            if not isinstance(mapping, dict):
+                return
+            self._color_tokens.update({k: tuple(v) for k, v in mapping.items()})
+        except Exception:
+            pass
+
+    def set_accessibility(self, *, font_scale: Optional[float] = None, high_contrast: Optional[bool] = None, reduce_motion: Optional[bool] = None) -> None:
+        """Komfort-API zur Laufzeit: Schrift, Kontrast, Bewegungsreduktion anpassen."""
+        if font_scale is not None:
+            try:
+                self._font_scale = max(0.8, min(1.6, float(font_scale)))
+            except Exception:
+                pass
+        if high_contrast is not None:
+            self._high_contrast = bool(high_contrast)
+        if reduce_motion is not None:
+            self._reduce_motion = bool(reduce_motion)
     
     def get_max_visible(self) -> int:
         """Aktuelle Obergrenze für gleichzeitig sichtbare Toasts (Read-Only Helper)."""
@@ -479,6 +724,139 @@ class ToastNotification:
     
     def show_warning(self, message: str, duration: int = 3500):
         self.show_toast(message, "warning", duration)
+
+    # ---------------- Zusätzliche optionale API ----------------
+    def show_toast_with_handle(
+        self,
+        message: str,
+        type: str = "info",
+        duration: int = 3000,
+        action: Optional[Callable[[], None]] = None,
+        action_text: Optional[str] = None,
+        force_show: bool = False,
+    ) -> list[ctk.CTkToplevel]:
+        """Wie show_toast, liefert aber eine Liste zurück, in die bei Erstellung das CTkToplevel-Handle eingefügt wird.
+
+        Hinweis: Die Liste ist zunächst leer; nach Erstellung des Toasts enthält sie an Index 0 das Handle.
+        """
+        handle_list: list[ctk.CTkToplevel] = []
+
+        def _invoke():
+            try:
+                if not self._alive:
+                    return
+                t = type if type in self._color_tokens else 'info'
+                safe_msg = message if isinstance(message, str) else str(message)
+                key = f"{t}|{safe_msg}".strip()
+                now = time.time()
+                self._recent_purge(now)
+                if not force_show:
+                    last = self._recent.get(key, 0)
+                    if now - last < self._dedupe_window_s:
+                        self._recent[key] = now
+                        return
+                self._recent[key] = now
+                dur = max(400, int(duration))
+                payload = {
+                    'message': self._t(safe_msg),
+                    'type': t,
+                    'duration': dur,
+                    'action': action,
+                    'action_text': action_text,
+                    '__on_create__': handle_list,
+                }
+                if len(self.active_toasts) >= self._max_visible:
+                    if len(self._queue) >= self._queue_max:
+                        if self._queue_policy == 'drop_oldest':
+                            try:
+                                self._queue.popleft()
+                            except Exception:
+                                pass
+                        else:  # drop_new
+                            logger.debug("toast.queue.drop_new_policy")
+                            return
+                    self._queue.append(payload)
+                    logger.debug("toast.queue.enqueued")
+                else:
+                    self._create_toast(**payload)
+            except Exception as e:
+                logger.exception("toast.create.error", exc_info=e)
+
+        try:
+            self.parent.after(0, _invoke)
+        except Exception as e:
+            logger.exception("toast.dispatch.error", exc_info=e)
+        return handle_list
+
+    # ---------------- Private: Dedupe TTL ----------------
+    def _recent_purge(self, now: float) -> None:
+        """Entfernt veraltete Einträge aus der Dedupe-Map, damit sie nicht wächst."""
+        try:
+            cutoff = now - self._recent_ttl_s
+            self._recent = {k: t for k, t in self._recent.items() if t >= cutoff}
+        except Exception:
+            pass
+
+    # ---------------- Reflow Debounce ----------------
+    def _schedule_reflow(self, delay_ms: int = 10) -> None:
+        """Debounced Aufruf von _position_toasts_reflow."""
+        try:
+            if self._reflow_after_id:
+                try:
+                    self.parent.after_cancel(self._reflow_after_id)
+                except Exception:
+                    pass
+            self._reflow_after_id = self.parent.after(int(delay_ms), self._position_toasts_reflow)
+        except Exception:
+            # Fallback ohne Debounce
+            try:
+                self._position_toasts_reflow()
+            except Exception:
+                pass
+
+    # ---------------- Telemetrie-Hooks ----------------
+    def set_on_dismiss(self, callback: Optional[Callable[[str, str, str, int, int], None]]):
+        """Setze optionalen Dismiss-Telemetrie-Hook.
+
+        Signatur: callback(message, type, reason, duration_ms, elapsed_ms)
+        """
+        try:
+            self._on_dismiss = callback if callable(callback) else None
+        except Exception:
+            self._on_dismiss = None
+
+    def set_on_show(self, callback: Optional[Callable[[str, str, int], None]]):
+        """Optionalen Telemetrie-Hook beim Anzeigen setzen.
+
+        Signatur: callback(message, type, duration_ms)
+        """
+        try:
+            self._on_show = callback if callable(callback) else None
+        except Exception:
+            self._on_show = None
+
+    def set_queue_policy(self, policy: str) -> None:
+        """Setze Queue-Overflow-Policy: 'drop_oldest' (Standard) oder 'drop_new'."""
+        try:
+            if policy in ('drop_oldest', 'drop_new'):
+                self._queue_policy = policy
+        except Exception:
+            pass
+
+    def _emit_dismiss_telemetry(self, toast) -> None:
+        if not self._on_dismiss:
+            return
+        try:
+            meta = self._toast_meta.get(toast, {})
+            message = meta.get('message', '')
+            t = meta.get('type', 'info')
+            reason = meta.get('dismiss_reason') or 'auto'
+            duration = int(meta.get('duration', 0))
+            start_time = meta.get('start_time', time.time())
+            elapsed = int((time.time() - start_time) * 1000)
+            self._on_dismiss(message, t, reason, duration, elapsed)
+        except Exception:
+            pass
 
 
 # Export for use in other modules
