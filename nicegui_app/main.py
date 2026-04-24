@@ -2106,11 +2106,12 @@ def index_page():
         _sev_counts = {lbl: sum(1 for _, f in filtered if severity_label(f.severity) == lbl)
                        for lbl, _ in _SEV_ORDER}
         _last_sev = None
+        _show_headers = s.get('sort_mode', 'default') in ('default', 'severity')
         for real_idx, f in filtered:
             sev_lbl = severity_label(f.severity)
             sev_clr = severity_color(f.severity)
             is_sel = real_idx == selected_idx['v']
-            if sev_lbl != _last_sev and _sev_counts.get(sev_lbl, 0) > 0:
+            if _show_headers and sev_lbl != _last_sev and _sev_counts.get(sev_lbl, 0) > 0:
                 _last_sev = sev_lbl
                 clr = next((c for l, c in _SEV_ORDER if l == sev_lbl), '#9ca3af')
                 with ui.row().classes('w-full items-center gap-2').style('padding:4px 2px 2px;'):
@@ -2302,9 +2303,10 @@ def index_page():
                 _sev_counts = {lbl: sum(1 for _, f in filtered if severity_label(f.severity) == lbl)
                                for lbl, _ in _SEV_ORDER}
                 _last_sev_group = None
+                _show_sev_headers = s.get('sort_mode', 'default') in ('default', 'severity')
                 for real_idx, f in filtered:
                     sev_lbl = severity_label(f.severity)
-                    if sev_lbl != _last_sev_group and _sev_counts.get(sev_lbl, 0) > 0:
+                    if _show_sev_headers and sev_lbl != _last_sev_group and _sev_counts.get(sev_lbl, 0) > 0:
                         _last_sev_group = sev_lbl
                         clr = next((c for l, c in _SEV_ORDER if l == sev_lbl), '#9ca3af')
                         cnt = _sev_counts[sev_lbl]
