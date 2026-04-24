@@ -152,6 +152,27 @@ def extract_text(path: str) -> str:
     return ''
 
 
+def get_text_stats(fp: str, chars_per_norm_line: int = 36) -> dict:
+    """Liefert Zeichen-/Wort-/Normzeilen-Statistik fuer eine Datei.
+
+    Liefert leeres Dict bei Fehler oder leerem Text.
+    """
+    try:
+        text = extract_text(fp)
+        if not text:
+            return {}
+        chars = len(text)
+        words = len(text.split())
+        return {
+            'chars': chars,
+            'words': words,
+            'norm_lines': round(chars / chars_per_norm_line, 1),
+            'cpl': chars_per_norm_line,
+        }
+    except Exception:
+        return {}
+
+
 def finding_to_dict(f) -> dict:
     """Serialisiert ein QAIssue/Finding-Objekt zu einem JSON-tauglichen Dict."""
     return {

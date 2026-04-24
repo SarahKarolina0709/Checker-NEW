@@ -186,7 +186,14 @@ def _get_pairing_manager() -> QualityGuiPairingManager:
 # ---------------------------------------------------------------------------
 # Helpers: cross-platform folder opener (delegated)
 # ---------------------------------------------------------------------------
-from nicegui_app.utils import safe_open_folder as _safe_open_folder, fmt_size as _fmt_size  # noqa: E402, F401
+from nicegui_app.utils import (  # noqa: E402, F401
+    safe_open_folder as _safe_open_folder,
+    fmt_size as _fmt_size,
+    html_esc as _html_esc,
+    copy_to_clipboard as _copy_to_clipboard,
+)
+from nicegui_app.findings import finding_fingerprint as _finding_fingerprint  # noqa: E402, F401
+from nicegui_app.text_extraction import get_text_stats as _ext_text_stats  # noqa: E402, F401
 
 
 # ---------------------------------------------------------------------------
@@ -712,17 +719,7 @@ def index_page():
     # File list refresh
     # ------------------------------------------------------------------
     def _get_text_stats(fp: str) -> dict:
-        try:
-            text = extract_text(fp)
-            if not text:
-                return {}
-            chars = len(text)
-            words = len(text.split())
-            cpl = settings.get('chars_per_norm_line', 36)
-            return {'chars': chars, 'words': words,
-                    'norm_lines': round(chars / cpl, 1), 'cpl': cpl}
-        except Exception:
-            return {}
+        return _ext_text_stats(fp, settings.get('chars_per_norm_line', 36))
 
     def _render_file_row(fp: str, role: str):
         fname = os.path.basename(fp)
@@ -1408,26 +1405,6 @@ def index_page():
                 pass
         except OSError as exc:
             _logger.debug('Snapshot konnte nicht geschrieben werden: %s', exc)
-
-    def _finding_fingerprint(fd_or_obj) -> str:
-        """Stabiler Hash zum Wiedererkennen identischer Findings ueber Re-Analysen.
-
-        Akzeptiert sowohl QAIssue-Objekte als auch dicts (aus s['findings']).
-        """
-        if isinstance(fd_or_obj, dict):
-            d = fd_or_obj
-            code = d.get('code', '')
-            seg = d.get('segment_index', -1)
-            sf = d.get('source_file', '') or ''
-            tf = d.get('target_file', '') or ''
-            msg = (d.get('message', '') or '')[:80]
-        else:
-            code = getattr(fd_or_obj, 'code', '')
-            seg = getattr(fd_or_obj, 'segment_index', -1)
-            sf = getattr(fd_or_obj, 'source_file', '') or ''
-            tf = getattr(fd_or_obj, 'target_file', '') or ''
-            msg = (getattr(fd_or_obj, 'message', '') or '')[:80]
-        return f'{code}|{seg}|{os.path.basename(sf)}|{os.path.basename(tf)}|{msg}'
 
     async def _start_analysis():
         if s.get('analysis_running'):
@@ -2413,25 +2390,6 @@ def index_page():
                                 if len(customers_on_day) > 3:
                                     ui.label(f'+{len(customers_on_day)-3} weitere').style(
                                         'font-size:12px;color:#9ca3af;')
-
-    def _copy_to_clipboard(text: str):
-        """Kopiert Text in die Zwischenablage (clientseitig via JS)."""
-        if not text:
-            return
-        try:
-            safe = text.replace('\\', '\\\\').replace('`', '\\`').replace('$', '\\$')
-            ui.run_javascript(f'navigator.clipboard.writeText(`{safe}`)')
-            ui.notify('In Zwischenablage kopiert', type='positive')
-        except Exception as exc:
-            _logger.debug('Copy fehlgeschlagen: %s', exc)
-            ui.notify('Kopieren fehlgeschlagen', type='warning')
-
-    def _html_esc(text: str) -> str:
-        """Minimaler HTML-Escape fuer Inline-Anzeige."""
-        if not text:
-            return ''
-        return (text.replace('&', '&amp;').replace('<', '&lt;')
-                    .replace('>', '&gt;').replace('"', '&quot;'))
 
     def _render_finding_card(idx: int, f: QAIssue):
         sev_lbl = severity_label(f.severity)
