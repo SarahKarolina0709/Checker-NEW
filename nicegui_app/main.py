@@ -1094,128 +1094,26 @@ def index_page():
                             f'font-size:12px;font-weight:600;color:{clr};')
 
     def _show_edit_customer_dialog(customer: str):
-        info = _load_customer_info(customer)
-        with ui.dialog() as dlg, ui.card().style('width:480px;'):
-            ui.label(f'Kunde bearbeiten: {customer}').classes('t-title')
-            ui.separator()
-            typ = info.get('typ', 'firma')
-            inp_branche = ui.input('Branche', value=info.get('branche', '')).classes('w-full').props('dense outlined') if typ == 'firma' else None
-            inp_ansprech = ui.input('Ansprechpartner', value=info.get('ansprechpartner', '')).classes('w-full').props('dense outlined') if typ == 'firma' else None
-            inp_email = ui.input('E-Mail', value=info.get('email', '')).classes('w-full').props('dense outlined')
-            inp_tel = ui.input('Telefon', value=info.get('telefon', '')).classes('w-full').props('dense outlined')
-            inp_sprache = ui.select(['Deutsch', 'Englisch', 'Französisch', 'Spanisch', 'Italienisch'],
-                value=info.get('sprache', 'Deutsch'), label='Arbeitssprache').classes('w-full').props('dense outlined')
-            inp_notiz = ui.textarea('Notizen', value=info.get('notizen', '')).classes('w-full').props('dense outlined rows=3')
-            fav_cb = ui.checkbox('Favoritenkunde', value=info.get('favorit', False)).props('dense')
-            ui.separator()
-            with ui.row().classes('w-full justify-between'):
-                ui.button('Archivieren', icon='archive',
-                          on_click=lambda: _archive_confirm(customer, dlg)).props('flat no-caps color=negative')
-                with ui.row().classes('gap-2'):
-                    ui.button('Abbrechen', on_click=dlg.close).props('flat no-caps')
-                    def _save():
-                        info['email'] = inp_email.value.strip()
-                        info['telefon'] = inp_tel.value.strip()
-                        info['sprache'] = inp_sprache.value
-                        info['notizen'] = inp_notiz.value.strip()
-                        info['favorit'] = fav_cb.value
-                        if inp_branche:
-                            info['branche'] = inp_branche.value.strip()
-                        if inp_ansprech:
-                            info['ansprechpartner'] = inp_ansprech.value.strip()
-                        _save_customer_info(customer, info)
-                        ui.notify('Kundendaten gespeichert', type='positive')
-                        dlg.close()
-                        _refresh_customer_info()
-                    ui.button('Speichern', icon='save', on_click=_save).props('no-caps unelevated').style(
-                        'background:#0f2744;color:white;')
-        dlg.open()
+        ctx = SimpleNamespace(
+            s=s,
+            load_customer_info=_load_customer_info,
+            save_customer_info=_save_customer_info,
+            archive_customer=_archive_customer,
+            refresh_customer_info=_refresh_customer_info,
+        )
+        _ui_dialogs.show_edit_customer_dialog(ctx, customer)
 
     def _archive_confirm(customer: str, parent_dlg):
-        with ui.dialog() as cdlg, ui.card().style('width:360px;'):
-            ui.label(f'Kunde "{customer}" archivieren?').classes('t-heading')
-            ui.label('Der Kundenordner wird nach _archiv/ verschoben.').style(
-                'font-size:12px;color:#6b7280;')
-            with ui.row().classes('w-full justify-end gap-2').style('margin-top:12px;'):
-                ui.button('Abbrechen', on_click=cdlg.close).props('flat no-caps')
-                def _do():
-                    if _archive_customer(customer):
-                        ui.notify(f'Kunde "{customer}" archiviert', type='positive')
-                        s['active_customer'] = ''
-                        s['active_project_path'] = ''
-                        _refresh_customer_info()
-                    else:
-                        ui.notify('Archivierung fehlgeschlagen', type='negative')
-                    cdlg.close()
-                    parent_dlg.close()
-                ui.button('Archivieren', icon='archive', on_click=_do).props('no-caps color=negative')
-        cdlg.open()
+        ctx = SimpleNamespace(
+            s=s,
+            archive_customer=_archive_customer,
+            refresh_customer_info=_refresh_customer_info,
+        )
+        _ui_dialogs.show_archive_confirm(ctx, customer, parent_dlg)
 
     def _show_new_customer_dialog():
-        with ui.dialog() as dlg, ui.card().style('width:520px;max-width:90vw;'):
-            ui.label('Neuer Kunde').classes('t-title')
-            ui.separator()
-            with ui.tabs().classes('w-full') as tabs:
-                tab_firma = ui.tab('Firmenkunde', icon='business')
-                tab_privat = ui.tab('Privatkunde', icon='person')
-            with ui.tab_panels(tabs, value=tab_firma).classes('w-full'):
-                with ui.tab_panel(tab_firma):
-                    f_name = ui.input('Firmenname *', placeholder='z.B. Mueller GmbH').classes('w-full').props('dense outlined')
-                    with ui.row().classes('w-full gap-2'):
-                        f_branche = ui.input('Branche').classes('flex-grow').props('dense outlined')
-                        f_sprache = ui.select(['Deutsch', 'Englisch', 'Französisch', 'Spanisch', 'Italienisch'],
-                            value='Deutsch', label='Arbeitssprache').classes('w-32').props('dense outlined')
-                    f_ansprech = ui.input('Ansprechpartner').classes('w-full').props('dense outlined')
-                    with ui.row().classes('w-full gap-2'):
-                        f_email = ui.input('E-Mail').classes('flex-grow').props('dense outlined')
-                        f_tel = ui.input('Telefon').classes('w-40').props('dense outlined')
-                    f_notiz = ui.textarea('Notizen').classes('w-full').props('dense outlined rows=2')
-                    def _save_firma():
-                        name = f_name.value.strip()
-                        if not name:
-                            ui.notify('Firmenname ist Pflichtfeld', type='warning')
-                            return
-                        _finalize_new_customer(name, {
-                            'typ': 'firma', 'name': name, 'branche': f_branche.value.strip(),
-                            'sprache': f_sprache.value, 'ansprechpartner': f_ansprech.value.strip(),
-                            'email': f_email.value.strip(), 'telefon': f_tel.value.strip(),
-                            'notizen': f_notiz.value.strip(),
-                        })
-                        dlg.close()
-                    with ui.row().classes('w-full justify-end gap-2').style('margin-top:12px;'):
-                        ui.button('Abbrechen', on_click=dlg.close).props('flat no-caps')
-                        ui.button('Firmenkunde anlegen', icon='business',
-                                  on_click=_save_firma).props('no-caps unelevated').style(
-                            'background:#0f2744;color:white;')
-                with ui.tab_panel(tab_privat):
-                    with ui.row().classes('w-full gap-2'):
-                        p_vorname = ui.input('Vorname').classes('flex-grow').props('dense outlined')
-                        p_nachname = ui.input('Nachname *').classes('flex-grow').props('dense outlined')
-                    with ui.row().classes('w-full gap-2'):
-                        p_sprache = ui.select(['Deutsch', 'Englisch', 'Französisch', 'Spanisch', 'Italienisch'],
-                            value='Deutsch', label='Arbeitssprache').classes('w-32').props('dense outlined')
-                        p_email = ui.input('E-Mail').classes('flex-grow').props('dense outlined')
-                    p_tel = ui.input('Telefon').classes('w-full').props('dense outlined')
-                    p_notiz = ui.textarea('Notizen').classes('w-full').props('dense outlined rows=2')
-                    def _save_privat():
-                        nachname = p_nachname.value.strip()
-                        if not nachname:
-                            ui.notify('Nachname ist Pflichtfeld', type='warning')
-                            return
-                        vorname = p_vorname.value.strip()
-                        name = f'{nachname}, {vorname}' if vorname else nachname
-                        _finalize_new_customer(name, {
-                            'typ': 'privat', 'name': name, 'vorname': vorname, 'nachname': nachname,
-                            'sprache': p_sprache.value, 'email': p_email.value.strip(),
-                            'telefon': p_tel.value.strip(), 'notizen': p_notiz.value.strip(),
-                        })
-                        dlg.close()
-                    with ui.row().classes('w-full justify-end gap-2').style('margin-top:12px;'):
-                        ui.button('Abbrechen', on_click=dlg.close).props('flat no-caps')
-                        ui.button('Privatkunde anlegen', icon='person',
-                                  on_click=_save_privat).props('no-caps unelevated').style(
-                            'background:#0f2744;color:white;')
-        dlg.open()
+        ctx = SimpleNamespace(finalize_new_customer=_finalize_new_customer)
+        _ui_dialogs.show_new_customer_dialog(ctx)
 
     def _finalize_new_customer(name: str, info: dict):
         base = settings.get('projects_base_path', '')
@@ -1969,31 +1867,7 @@ def index_page():
             pass
 
     def _show_keyboard_help():
-        with ui.dialog() as dlg, ui.card().style('width:480px;'):
-            ui.label('Tastatur-Kuerzel').style(
-                'font-size:18px;font-weight:700;color:#0f2744;margin-bottom:8px;')
-            shortcuts = [
-                ('Strg + Eingabe', 'Analyse starten'),
-                ('Strg + Z', 'Letzte Erledigt-Aktion rueckgaengig'),
-                ('j  /  Pfeil ab', 'Naechstes Finding'),
-                ('k  /  Pfeil auf', 'Vorheriges Finding'),
-                ('x  /  Leertaste', 'Aktuelles Finding als erledigt markieren'),
-                ('1 / 2 / 3 / 0', 'Filter Kritisch / Wichtig / Hinweis / Alle'),
-                ('?', 'Diese Hilfe anzeigen'),
-                ('Esc', 'Hilfe schliessen'),
-            ]
-            for keys, desc in shortcuts:
-                with ui.row().classes('w-full items-center gap-3').style(
-                    'padding:6px 0;border-bottom:1px solid #f1f5f9;'
-                ):
-                    ui.label(keys).style(
-                        'font-family:monospace;font-size:12px;font-weight:700;'
-                        'color:#0f2744;background:#f1f5f9;padding:3px 8px;'
-                        'border-radius:4px;min-width:140px;')
-                    ui.label(desc).style('font-size:13px;color:#4b5563;')
-            ui.button('Schliessen', on_click=dlg.close).props(
-                'flat dense no-caps').style('margin-top:12px;')
-        dlg.open()
+        _ui_dialogs.show_keyboard_help()
 
     def _handle_key(e):
         # Ctrl+Enter → Analyse starten
@@ -2223,107 +2097,8 @@ def index_page():
             ui.notify(f'Begriff: {src} = {tgt}', type='positive')
 
     def _open_glossary_editor():
-        terms = dict(s.get('manual_glossary_terms', {}) or {})
-        with ui.dialog() as dlg, ui.card().style('width:640px;max-width:90vw;'):
-            ui.label('Glossar bearbeiten').style(
-                'font-size:16px;font-weight:700;color:#1f2937;')
-            ui.label(
-                'Manuelle Begriffe werden zusätzlich zum geladenen Glossar geprüft.'
-            ).style('font-size:12px;color:#6b7280;margin-bottom:8px;')
-            list_container = ui.column().classes('w-full gap-1').style(
-                'max-height:50vh;overflow-y:auto;border:1px solid #e2e8f0;'
-                'border-radius:6px;padding:8px;background:#f8fafc;'
-            )
-
-            def _commit(new_terms: Dict[str, str]):
-                s['manual_glossary_terms'] = new_terms
-                if refs.get('glossary_count_label'):
-                    refs['glossary_count_label'].set_text(f'{len(new_terms)} Begriffe')
-                try:
-                    _save_and_notify()
-                except Exception:
-                    pass
-
-            def _redraw():
-                list_container.clear()
-                cur = dict(s.get('manual_glossary_terms', {}) or {})
-                with list_container:
-                    if not cur:
-                        ui.label('Noch keine Begriffe.').style(
-                            'font-size:12px;color:#9ca3af;padding:12px;text-align:center;')
-                        return
-                    for src_term in sorted(cur.keys(), key=str.lower):
-                        tgt_term = cur[src_term]
-                        with ui.row().classes('w-full items-center gap-2').style(
-                            'background:white;border:1px solid #e2e8f0;'
-                            'border-radius:4px;padding:4px 8px;'
-                        ):
-                            si = ui.input(value=src_term).props('dense outlined').classes('flex-1')
-                            ui.icon('arrow_forward', size='xs').style('color:#d4af37;')
-                            ti = ui.input(value=tgt_term).props('dense outlined').classes('flex-1')
-
-                            def _save_row(orig=src_term, si_in=si, ti_in=ti):
-                                new = dict(s.get('manual_glossary_terms', {}) or {})
-                                new.pop(orig, None)
-                                ns, nt = si_in.value.strip(), ti_in.value.strip()
-                                if ns and nt:
-                                    new[ns] = nt
-                                _commit(new)
-                                ui.notify('Gespeichert', type='positive')
-
-                            def _del_row(orig=src_term):
-                                new = dict(s.get('manual_glossary_terms', {}) or {})
-                                new.pop(orig, None)
-                                _commit(new)
-                                _redraw()
-
-                            ui.button(icon='save', on_click=_save_row).props(
-                                'flat dense round size=sm').style('color:#16a34a;').tooltip('Speichern')
-                            ui.button(icon='delete', on_click=_del_row).props(
-                                'flat dense round size=sm').style('color:#dc2626;').tooltip('Löschen')
-
-            _redraw()
-
-            ui.separator().style('margin:8px 0;')
-            ui.label('Neuen Begriff hinzufügen').style(
-                'font-size:12px;font-weight:700;color:#1f2937;')
-            with ui.row().classes('w-full items-center gap-2'):
-                new_src = ui.input(placeholder='Quelle').props('dense outlined').classes('flex-1')
-                ui.icon('arrow_forward', size='xs').style('color:#d4af37;')
-                new_tgt = ui.input(placeholder='Übersetzung').props('dense outlined').classes('flex-1')
-
-                def _add_new():
-                    ns, nt = new_src.value.strip(), new_tgt.value.strip()
-                    if not ns or not nt:
-                        ui.notify('Beide Felder ausfüllen', type='warning')
-                        return
-                    new = dict(s.get('manual_glossary_terms', {}) or {})
-                    new[ns] = nt
-                    _commit(new)
-                    new_src.value = ''
-                    new_tgt.value = ''
-                    _redraw()
-
-                ui.button(icon='add', on_click=_add_new).props(
-                    'unelevated dense round size=sm').style('background:#0f2744;color:white;')
-
-            with ui.row().classes('w-full justify-end gap-2').style('margin-top:8px;'):
-                def _export_json():
-                    try:
-                        path = os.path.join(_tmp_dir, 'glossar_export.json')
-                        with open(path, 'w', encoding='utf-8') as fh:
-                            json.dump(s.get('manual_glossary_terms', {}) or {},
-                                      fh, ensure_ascii=False, indent=2)
-                        ui.download(path)
-                    except Exception as exc:
-                        ui.notify(f'Export fehlgeschlagen: {exc}', type='negative')
-
-                ui.button('Als JSON exportieren', icon='download',
-                    on_click=_export_json).props('outline dense no-caps size=sm')
-                ui.button('Schließen', on_click=dlg.close).props(
-                    'unelevated dense no-caps size=sm').style('background:#0f2744;color:white;')
-
-        dlg.open()
+        ctx = SimpleNamespace(s=s, refs=refs, save_and_notify=_save_and_notify)
+        _ui_dialogs.open_glossary_editor(ctx, _tmp_dir)
 
     # ==================================================================
     # LAYOUT
