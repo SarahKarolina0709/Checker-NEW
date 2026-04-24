@@ -2312,6 +2312,25 @@ def index_page():
                                     ui.label(f'+{len(customers_on_day)-3} weitere').style(
                                         'font-size:12px;color:#9ca3af;')
 
+    def _copy_to_clipboard(text: str):
+        """Kopiert Text in die Zwischenablage (clientseitig via JS)."""
+        if not text:
+            return
+        try:
+            safe = text.replace('\\', '\\\\').replace('`', '\\`').replace('$', '\\$')
+            ui.run_javascript(f'navigator.clipboard.writeText(`{safe}`)')
+            ui.notify('In Zwischenablage kopiert', type='positive')
+        except Exception as exc:
+            _logger.debug('Copy fehlgeschlagen: %s', exc)
+            ui.notify('Kopieren fehlgeschlagen', type='warning')
+
+    def _html_esc(text: str) -> str:
+        """Minimaler HTML-Escape fuer Inline-Anzeige."""
+        if not text:
+            return ''
+        return (text.replace('&', '&amp;').replace('<', '&lt;')
+                    .replace('>', '&gt;').replace('"', '&quot;'))
+
     def _render_finding_card(idx: int, f: QAIssue):
         sev_lbl = severity_label(f.severity)
         sev_clr = severity_color(f.severity)
@@ -2361,19 +2380,80 @@ def index_page():
                         value=s.get('checked_findings', {}).get(str(idx), False),
                         on_change=lambda e, i=idx: _toggle_checked(i, getattr(e, 'value', getattr(e, 'args', False))))
                     cb.style('font-size:12px;')
-                ui.label(f.message).style('font-size:12px;color:#1f2937;line-height:1.4;')
+                ui.label(f.message).style(
+                    'font-size:13px;color:#1f2937;line-height:1.45;font-weight:500;')
+                # Korrekturvorschlag wenn vorhanden (meta['suggestion'])
+                meta = getattr(f, 'meta', {}) or {}
+                suggestion = (meta.get('suggestion') or '').strip()
+                if suggestion:
+                    with ui.row().classes('w-full items-start gap-2').style(
+                        'background:#ecfdf5;border-left:3px solid #16a34a;'
+                        'padding:8px 10px;border-radius:6px;margin-top:6px;'
+                    ):
+                        ui.icon('lightbulb', size='sm').style('color:#16a34a;flex-shrink:0;margin-top:1px;')
+                        with ui.column().classes('gap-0 flex-grow').style('min-width:0;'):
+                            ui.label('Vorschlag').style(
+                                'font-size:10px;font-weight:700;color:#16a34a;'
+                                'text-transform:uppercase;letter-spacing:0.5px;')
+                            ui.label(suggestion[:500]).style(
+                                'font-size:12px;color:#064e3b;'
+                                'white-space:pre-wrap;word-break:break-word;')
+                        ui.button(icon='content_copy',
+                            on_click=lambda _, t=suggestion: _copy_to_clipboard(t)
+                        ).props('flat dense round size=xs').tooltip(
+                            'Vorschlag kopieren'
+                        ).style('color:#16a34a;flex-shrink:0;')
+                # Quell- und Zieltext direkt sichtbar (kein Click noetig)
                 if f.source_text or f.target_text:
-                    with ui.expansion('Quell- & Zieltext', icon='unfold_more').classes('w-full').style('font-size:12px;'):
+                    error_span = (meta.get('error_text') or '').strip()
+                    with ui.column().classes('w-full gap-1').style('margin-top:6px;'):
                         if f.source_text:
-                            ui.label('Quelltext:').style('font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;')
-                            ui.label(f.source_text[:500]).style(
-                                'font-size:12px;font-family:monospace;background:#f8fafc;'
-                                'padding:8px;border-radius:6px;white-space:pre-wrap;word-break:break-all;')
+                            with ui.row().classes('w-full items-start gap-1').style(
+                                'background:#f8fafc;padding:6px 8px;border-radius:6px;'
+                                'border-left:2px solid #0f2744;'
+                            ):
+                                ui.label('SRC').style(
+                                    'font-size:9px;font-weight:700;color:#0f2744;'
+                                    'min-width:30px;padding-top:1px;')
+                                ui.label(f.source_text[:400]).style(
+                                    'font-size:12px;color:#334155;'
+                                    'white-space:pre-wrap;word-break:break-word;flex-grow:1;')
+                                ui.button(icon='content_copy',
+                                    on_click=lambda _, t=f.source_text: _copy_to_clipboard(t)
+                                ).props('flat dense round size=xs').tooltip(
+                                    'Quelltext kopieren'
+                                ).style('color:#94a3b8;flex-shrink:0;')
                         if f.target_text:
-                            ui.label('Zieltext:').style('font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;')
-                            ui.label(f.target_text[:500]).style(
-                                'font-size:12px;font-family:monospace;background:#f8fafc;'
-                                'padding:8px;border-radius:6px;white-space:pre-wrap;word-break:break-all;')
+                            with ui.row().classes('w-full items-start gap-1').style(
+                                'background:#fef3c7;padding:6px 8px;border-radius:6px;'
+                                'border-left:2px solid #d97706;'
+                            ):
+                                ui.label('ZIEL').style(
+                                    'font-size:9px;font-weight:700;color:#d97706;'
+                                    'min-width:30px;padding-top:1px;')
+                                # Bad span hervorheben wenn meta['error_text'] vorhanden
+                                if error_span and error_span in f.target_text:
+                                    pos = f.target_text.find(error_span)
+                                    before = f.target_text[:pos][:200]
+                                    after = f.target_text[pos + len(error_span):][:200]
+                                    ui.html(
+                                        f'<span style="font-size:12px;color:#334155;'
+                                        f'white-space:pre-wrap;word-break:break-word;">'
+                                        f'{_html_esc(before)}'
+                                        f'<mark style="background:#fecaca;color:#7f1d1d;'
+                                        f'padding:1px 3px;border-radius:3px;font-weight:700;">'
+                                        f'{_html_esc(error_span)}</mark>'
+                                        f'{_html_esc(after)}</span>'
+                                    ).classes('flex-grow')
+                                else:
+                                    ui.label(f.target_text[:400]).style(
+                                        'font-size:12px;color:#334155;'
+                                        'white-space:pre-wrap;word-break:break-word;flex-grow:1;')
+                                ui.button(icon='content_copy',
+                                    on_click=lambda _, t=f.target_text: _copy_to_clipboard(t)
+                                ).props('flat dense round size=xs').tooltip(
+                                    'Zieltext kopieren'
+                                ).style('color:#94a3b8;flex-shrink:0;')
 
     def _push_undo(prev_checked: Dict[str, Any], label: str):
         """Speichert vorherige checked_findings-Map fuer Undo (max. 20)."""
