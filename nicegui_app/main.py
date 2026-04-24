@@ -719,6 +719,25 @@ def index_page():
         except Exception:
             pass
 
+    # Debounced Save (verhindert IO-Storm bei schnellen Klicks)
+    _save_timer_holder: Dict[str, Any] = {'t': None}
+
+    def _schedule_save(delay: float = 0.8):
+        try:
+            t_old = _save_timer_holder.get('t')
+            if t_old is not None:
+                try:
+                    t_old.cancel()
+                except Exception:
+                    pass
+            _save_timer_holder['t'] = ui.timer(
+                delay, lambda: (_save_and_notify(), _save_timer_holder.update({'t': None})),
+                once=True,
+            )
+        except Exception:
+            # Fallback: synchron speichern
+            _save_and_notify()
+
     # ------------------------------------------------------------------
     # File list refresh
     # ------------------------------------------------------------------
@@ -1158,6 +1177,11 @@ def index_page():
         repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         _analysis.snapshot_previous_findings(s, repo_root)
 
+    def _request_cancel():
+        if s.get('analysis_running'):
+            s['cancel_requested'] = True
+            ui.notify('Analyse wird nach aktueller Phase abgebrochen...', type='info')
+
     async def _start_analysis():
         if s.get('analysis_running'):
             ui.notify('Analyse laeuft bereits', type='warning')
@@ -1174,6 +1198,7 @@ def index_page():
         prev_fps = {_finding_fingerprint(fd) for fd in (s.get('findings', []) or [])}
         s['_prev_fingerprints'] = list(prev_fps)
         s['analysis_running'] = True
+        s['cancel_requested'] = False
         s['findings'] = []
         s['checked_findings'] = {}
         s['current_score'] = -1
@@ -1182,6 +1207,8 @@ def index_page():
         selected_idx['v'] = -1
         if refs['start_btn']:
             refs['start_btn'].disable()
+        if refs.get('cancel_btn'):
+            refs['cancel_btn'].visible = True
         if refs['progress_bar']:
             refs['progress_bar'].visible = True
             refs['progress_bar'].value = 0
@@ -1233,6 +1260,8 @@ def index_page():
             return f'{mins}:{secs:02d} min'
 
         for idx, (phase_name, phase_key) in enumerate(phases):
+            if s.get('cancel_requested'):
+                break
             phase_start = time.monotonic()
             # ETA aus bisherigen Phasen-Mittelwert
             eta_str = ''
@@ -1258,6 +1287,8 @@ def index_page():
                 if phase_key == 'phase4' and n_pairs > 1:
                     # KI-Analyse pro Datei iterieren fuer feineren Fortschritt
                     for fi, pair in enumerate(text_pairs):
+                        if s.get('cancel_requested'):
+                            break
                         if refs['progress_text']:
                             refs['progress_text'].set_text(
                                 f'{n_pairs} Dateipaar(e) · Phase {idx + 1}/{total} · {phase_name} · '
@@ -1325,12 +1356,17 @@ def index_page():
             _logger.debug('Diff-Berechnung fehlgeschlagen: %s', exc)
             s['analysis_diff'] = {}
         s['analysis_running'] = False
+        was_cancelled = bool(s.get('cancel_requested'))
+        s['cancel_requested'] = False
+        if refs.get('cancel_btn'):
+            refs['cancel_btn'].visible = False
         if refs['progress_bar']:
             refs['progress_bar'].value = 1.0
         if refs['progress_text']:
             total_elapsed = time.monotonic() - analysis_start
+            status = 'Abgebrochen' if was_cancelled else 'Fertig'
             refs['progress_text'].set_text(
-                f'Fertig in {total_elapsed:.1f}s · {len(all_results)} Findings'
+                f'{status} in {total_elapsed:.1f}s · {len(all_results)} Findings'
             )
         await asyncio.sleep(0.5)
         if refs['progress_bar']:
@@ -1339,22 +1375,27 @@ def index_page():
             refs['progress_text'].visible = False
         _update_start_btn()
         _refresh_results_area()
-        # Report automatisch in 03_Korrektur speichern
+        # Report automatisch in 03_Korrektur speichern (auch bei Abbruch -> Teilergebnis)
         _save_report_to_project()
-        # Score-Historie aktualisieren (max. 20 Einträge)
-        try:
-            hist = list(s.get('score_history', []) or [])
-            hist.append(int(s.get('current_score', 0)))
-            s['score_history'] = hist[-20:]
-        except Exception:
-            pass
+        # Score-Historie aktualisieren (max. 20 Einträge) — nur bei vollstaendigem Lauf
+        if not was_cancelled:
+            try:
+                hist = list(s.get('score_history', []) or [])
+                hist.append(int(s.get('current_score', 0)))
+                s['score_history'] = hist[-20:]
+            except Exception:
+                pass
         _save_and_notify()
         try:
             _refresh_project_folders()
         except Exception:
             pass
-        ui.notify(f'Analyse abgeschlossen: Score {s["current_score"]}/100, '
-                  f'{len(all_results)} Findings', type='positive')
+        if was_cancelled:
+            ui.notify(f'Analyse abgebrochen · {len(all_results)} Findings (Teilergebnis)',
+                      type='warning')
+        else:
+            ui.notify(f'Analyse abgeschlossen: Score {s["current_score"]}/100, '
+                      f'{len(all_results)} Findings', type='positive')
 
     def _save_report_to_project():
         """Speichert den Analyse-Report automatisch in 03_Korrektur des aktiven Projekts."""
@@ -1706,9 +1747,26 @@ def index_page():
                 refs[key].visible = has_results
         if refs['welcome_area']:
             refs['welcome_area'].visible = not has_results
-        # Filter buttons
+        # Filter buttons: aktiv-Highlight + Severity-Counts in Label
         af = s.get('active_filter', 'all')
+        all_findings_for_count = [_dict_to_finding(d) for d in (s.get('findings', []) or [])]
+        sev_counts_filter = {'all': len(all_findings_for_count),
+                             'critical': 0, 'major': 0, 'minor': 0}
+        for fd in all_findings_for_count:
+            sev = (getattr(fd, 'severity', '') or '').lower()
+            if sev in ('critical', 'kritisch'):
+                sev_counts_filter['critical'] += 1
+            elif sev in ('major', 'wichtig', 'warning'):
+                sev_counts_filter['major'] += 1
+            elif sev in ('minor', 'hinweis', 'info'):
+                sev_counts_filter['minor'] += 1
         for key, btn in filter_btns.items():
+            base = getattr(btn, '_base_label', key)
+            cnt = sev_counts_filter.get(key, 0)
+            try:
+                btn.set_text(f'{base} ({cnt})')
+            except Exception:
+                pass
             if key == af:
                 btn.style('background:#0f2744;color:white;')
             else:
@@ -1815,11 +1873,8 @@ def index_page():
         checked[str(idx)] = val
         s['checked_findings'] = checked
         _push_undo(prev, 'Erledigt-Markierung')
-        # Persistent speichern, damit beim Reload das Häkchen erhalten bleibt
-        try:
-            _save_and_notify()
-        except Exception:
-            pass
+        # Persistent speichern, debounced (vermeidet IO-Storm bei vielen Klicks)
+        _schedule_save()
         # Refresh damit Counter / "Erledigte ausblenden" sofort wirken
         _refresh_results_area()
 
@@ -2408,12 +2463,19 @@ def index_page():
                 'position:sticky;bottom:0;background:white;padding:12px 16px 8px;z-index:10;'
                 'border-top:1px solid rgba(0,0,0,.06);'
             ):
-                refs['start_btn'] = ui.button(
-                    'Analyse starten', icon='play_arrow', on_click=_start_analysis,
-                ).classes('w-full font-bold').props('no-caps size=lg unelevated').style(
-                    'background:linear-gradient(135deg,#0f2744 0%,#1a365d 100%);'
-                    'color:white;height:48px;font-size:14px;border-radius:8px;')
-                refs['start_btn'].tooltip('Tastenkürzel: Strg+Enter')
+                with ui.row().classes('w-full gap-2 items-center no-wrap'):
+                    refs['start_btn'] = ui.button(
+                        'Analyse starten', icon='play_arrow', on_click=_start_analysis,
+                    ).classes('flex-grow font-bold').props('no-caps size=lg unelevated').style(
+                        'background:linear-gradient(135deg,#0f2744 0%,#1a365d 100%);'
+                        'color:white;height:48px;font-size:14px;border-radius:8px;')
+                    refs['start_btn'].tooltip('Tastenkürzel: Strg+Enter')
+                    refs['cancel_btn'] = ui.button(
+                        icon='stop', on_click=_request_cancel,
+                    ).props('no-caps size=lg unelevated').style(
+                        'background:#dc2626;color:white;height:48px;width:48px;border-radius:8px;')
+                    refs['cancel_btn'].tooltip('Analyse abbrechen')
+                    refs['cancel_btn'].visible = False
                 refs['path_label'] = ui.label('').style(
                     'font-size:12px;color:#9ca3af;margin-top:4px;text-align:center;word-break:break-all;')
 
@@ -2906,6 +2968,7 @@ def index_page():
                         ).props('flat dense no-caps size=sm').style(
                             'border-radius:20px;padding:4px 12px;border:1px solid #e2e8f0;'
                             'background:white;color:#4b5563;')
+                        btn._base_label = label_text
                         filter_btns[key] = btn
                     # Toggle: Erledigte ausblenden
                     refs['hide_done_toggle'] = ui.switch('Erledigte ausblenden',
