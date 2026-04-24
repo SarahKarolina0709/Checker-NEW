@@ -196,6 +196,7 @@ from nicegui_app.utils import (  # noqa: E402, F401
 from nicegui_app.findings import finding_fingerprint as _finding_fingerprint  # noqa: E402, F401
 from nicegui_app import ui_findings as _ui_findings  # noqa: E402
 from nicegui_app import ui_dialogs as _ui_dialogs  # noqa: E402
+from nicegui_app import analysis as _analysis  # noqa: E402
 from nicegui_app.text_extraction import get_text_stats as _ext_text_stats  # noqa: E402, F401
 
 
@@ -1153,54 +1154,9 @@ def index_page():
     # Analysis
     # ------------------------------------------------------------------
     def _snapshot_previous_findings():
-        """Sichert den letzten Findings-Stand vor einer Re-Analyse.
-
-        Schreibt nach reports/history/findings_<projekt>_<timestamp>.json
-        sodass Erledigt-Marker und Befunde nach versehentlichem Re-Run
-        rekonstruierbar sind. Nur wenn Findings vorhanden sind.
-        """
-        prev_findings = list(s.get('findings', []) or [])
-        if not prev_findings:
-            return
-        proj = s.get('active_project_path', '') or ''
-        proj_label = os.path.basename(proj.rstrip(os.sep)) or 'session'
-        safe_label = ''.join(c if c.isalnum() or c in '-_' else '_' for c in proj_label)[:60]
-        history_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            'reports', 'history',
-        )
-        try:
-            os.makedirs(history_dir, exist_ok=True)
-        except OSError:
-            return
-        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-        out_path = os.path.join(history_dir, f'findings_{safe_label}_{ts}.json')
-        snapshot = {
-            'timestamp': datetime.now().isoformat(),
-            'project_path': proj,
-            'score': s.get('current_score', -1),
-            'findings': prev_findings,
-            'checked_findings': dict(s.get('checked_findings', {}) or {}),
-        }
-        try:
-            with open(out_path, 'w', encoding='utf-8') as fh:
-                json.dump(snapshot, fh, ensure_ascii=False, indent=2)
-            # Rotation: max. 30 Snapshots behalten
-            try:
-                snaps = sorted(
-                    (os.path.join(history_dir, n) for n in os.listdir(history_dir)
-                     if n.startswith('findings_') and n.endswith('.json')),
-                    key=os.path.getmtime,
-                )
-                for old in snaps[:-30]:
-                    try:
-                        os.remove(old)
-                    except OSError:
-                        pass
-            except OSError:
-                pass
-        except OSError as exc:
-            _logger.debug('Snapshot konnte nicht geschrieben werden: %s', exc)
+        """Sichert den letzten Findings-Stand vor einer Re-Analyse."""
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        _analysis.snapshot_previous_findings(s, repo_root)
 
     async def _start_analysis():
         if s.get('analysis_running'):
