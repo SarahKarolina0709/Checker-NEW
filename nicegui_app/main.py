@@ -253,6 +253,21 @@ body.body--dark [style*="color:#9ca3af"],
 body.body--dark [style*="color:#d1d5db"]{color:var(--text-light)!important}
 body.body--dark [style*="border-bottom:1px solid #f1f5f9"],
 body.body--dark [style*="border:1px solid #e2e8f0"]{border-color:var(--surface-border)!important}
+/* Finding-Karten im Dark Mode */
+body.body--dark [style*="border-top:1px solid #e5e7eb"],
+body.body--dark [style*="border-right:1px solid #e5e7eb"],
+body.body--dark [style*="border-bottom:1px solid #e5e7eb"]{border-color:#334155!important}
+body.body--dark [style*="background:#fef3c7"]{background:#2d2006!important}
+body.body--dark [style*="color:#334155"]{color:#cbd5e1!important}
+body.body--dark [style*="color:#064e3b"]{color:#6ee7b7!important}
+body.body--dark [style*="background:#ecfdf5"]{background:#052e16!important}
+body.body--dark [style*="background:#eff6ff"]{background:#0c1a2e!important}
+body.body--dark [style*="background:#f0f9ff"]{background:#0c1827!important}
+/* Sidebar + Header bleiben dunkel */
+body.body--dark [style*="background:#0f2744"],
+body.body--dark [style*="background:linear-gradient(135deg,#0f2744"]{background:#0a1628!important}
+/* Severity-Gruppenheader */
+body.body--dark [style*="background:#1e293b"]{background:#1e293b!important}
 
 /* Save indicator */
 .save-indicator{opacity:0;transition:opacity 300ms ease}
@@ -803,6 +818,7 @@ def index_page():
         ('current_score', -1), ('active_filter', 'all'), ('search_text', ''),
         ('hide_done', False), ('dark_mode', False), ('sort_mode', 'default'),
         ('show_category_heatmap', True), ('show_per_file_heatmap', True),
+        ('view_mode', 'normal'),
         ('active_customer', ''), ('active_project_path', ''),
     ]:
         s.setdefault(key, default)
@@ -822,7 +838,8 @@ def index_page():
         'src_lang_sel': None, 'tgt_lang_sel': None,
         'save_indicator': None, 'done_counter': None, 'history_chart': None,
         'category_heatmap': None, 'search_input': None, 'glossary_count_label': None,
-        'per_file_heatmap': None, 'undo_btn': None, 'hide_done_toggle': None,
+        'per_file_heatmap': None, 'undo_btn': None, 'hide_done_toggle': None, 'compact_btn': None,
+        'detail_panel': None,
         'diff_badge': None,
     }
     phase_flags = {'phase1': True, 'phase2': True, 'phase3': True, 'phase4': False}
@@ -1849,6 +1866,20 @@ def index_page():
         s['hide_done'] = bool(val)
         _refresh_results_area()
 
+    def _toggle_view_mode():
+        cycle = {'normal': 'compact', 'compact': 'split', 'split': 'normal'}
+        s['view_mode'] = cycle.get(s.get('view_mode', 'normal'), 'normal')
+        if refs.get('compact_btn'):
+            try:
+                icon_map = {'normal': 'density_small', 'compact': 'density_medium', 'split': 'view_sidebar'}
+                icon = icon_map.get(s['view_mode'], 'density_small')
+                refs['compact_btn'].props(f'icon={icon}')
+                tips = {'normal': 'Normal', 'compact': 'Kompakt', 'split': 'Split-Ansicht'}
+                refs['compact_btn'].tooltip(f'Ansicht: {tips[s["view_mode"]]} (umschalten)')
+            except Exception:
+                pass
+        _render_findings_list()
+
     def _on_search_change(e):
         s['search_text'] = getattr(e, 'value', '') or ''
         _render_findings_list()
@@ -2069,6 +2100,168 @@ def index_page():
                 btn.style('background:white;color:#4b5563;')
         _render_findings_list()
 
+    def _render_split_list(filtered):
+        """Linke Spalte im Split-Modus: kompakte Karten ohne Texte."""
+        _SEV_ORDER = [('Kritisch', '#dc2626'), ('Wichtig', '#ea580c'), ('Hinweis', '#6b7280')]
+        _sev_counts = {lbl: sum(1 for _, f in filtered if severity_label(f.severity) == lbl)
+                       for lbl, _ in _SEV_ORDER}
+        _last_sev = None
+        for real_idx, f in filtered:
+            sev_lbl = severity_label(f.severity)
+            sev_clr = severity_color(f.severity)
+            is_sel = real_idx == selected_idx['v']
+            if sev_lbl != _last_sev and _sev_counts.get(sev_lbl, 0) > 0:
+                _last_sev = sev_lbl
+                clr = next((c for l, c in _SEV_ORDER if l == sev_lbl), '#9ca3af')
+                with ui.row().classes('w-full items-center gap-2').style('padding:4px 2px 2px;'):
+                    ui.element('div').style(
+                        f'height:2px;width:10px;border-radius:2px;background:{clr};')
+                    ui.label(f'{sev_lbl}  ({_sev_counts[sev_lbl]})').style(
+                        f'font-size:10px;font-weight:700;color:{clr};'
+                        f'text-transform:uppercase;letter-spacing:0.6px;')
+                    ui.element('div').style(
+                        f'flex-grow:1;height:1px;background:{clr};opacity:.2;')
+            row_bg = '#eff6ff' if is_sel else 'white'
+            with ui.row().classes('w-full items-start cursor-pointer').style(
+                f'padding:6px 8px;border-left:4px solid {sev_clr};'
+                f'background:{row_bg};border-radius:4px;margin-bottom:3px;'
+                f'{"box-shadow:0 0 0 1px #0f2744;" if is_sel else ""}'
+            ).on('click', lambda _, i=real_idx: _select_split_finding(i)):
+                with ui.column().classes('gap-0 flex-grow').style('min-width:0;'):
+                    ui.label(f.message[:80] + ('…' if len(f.message) > 80 else '')).style(
+                        'font-size:11px;color:#1f2937;line-height:1.35;font-weight:500;')
+                    ui.badge(f.code).style(
+                        'background:transparent;color:#9ca3af;border:none;'
+                        'font-size:9px;padding:0;')
+            checked = s.get('checked_findings', {}).get(str(real_idx), False)
+            if checked:
+                ui.icon('check_circle', size='xs').style(
+                    'color:#16a34a;position:absolute;right:6px;top:6px;')
+
+    def _render_detail_panel():
+        """Rechtes Detail-Panel im Split-Modus."""
+        idx = selected_idx['v']
+        if idx < 0:
+            with ui.column().classes('w-full items-center justify-center').style('padding:32px;'):
+                ui.icon('touch_app', size='3rem').style('color:#d1d5db;')
+                ui.label('Finding auswählen').style('font-size:14px;color:#9ca3af;margin-top:8px;')
+                ui.label('Klicke links auf ein Finding für Details').style(
+                    'font-size:12px;color:#d1d5db;')
+            return
+        findings = s.get('findings', [])
+        if idx >= len(findings):
+            return
+        f = _dict_to_finding(findings[idx])
+        sev_lbl = severity_label(f.severity)
+        sev_clr = severity_color(f.severity)
+        phase_lbl = phase_from_code(f.code)
+        meta = getattr(f, 'meta', {}) or {}
+        suggestion = (meta.get('suggestion') or '').strip()
+        error_span = (meta.get('error_text') or '').strip()
+        # Header
+        with ui.row().classes('w-full items-center gap-2 flex-wrap').style('margin-bottom:8px;'):
+            ui.badge(sev_lbl).style(
+                f'background:{sev_clr};color:white;border-radius:20px;font-size:12px;')
+            if phase_lbl:
+                ui.badge(phase_lbl).style(
+                    'background:transparent;color:#6b7280;border:1px solid #d1d5db;border-radius:20px;')
+            ui.badge(f.code).style(
+                'background:transparent;color:#6b7280;border:1px solid #d1d5db;border-radius:20px;')
+            diff = s.get('analysis_diff', {}) or {}
+            if diff.get('has_prev') and idx in set(diff.get('new_idx', []) or []):
+                ui.badge('NEU').style(
+                    'background:#dc2626;color:white;border-radius:20px;font-weight:700;font-size:10px;')
+            ui.element('div').classes('flex-grow')
+            cb = ui.checkbox('Geprüft',
+                value=bool(s.get('checked_findings', {}).get(str(idx), False)),
+                on_change=lambda e, i=idx: _toggle_checked(i, getattr(e, 'value', getattr(e, 'args', False))))
+            cb.style('font-size:13px;')
+        # Datei-Info
+        src_f = getattr(f, 'source_file', '') or ''
+        tgt_f = getattr(f, 'target_file', '') or ''
+        if src_f or tgt_f:
+            with ui.row().classes('items-center gap-1').style(
+                'padding:4px 8px;background:#f1f5f9;border-radius:4px;margin-bottom:8px;'
+            ):
+                ui.icon('description', size='xs').style('color:#6b7280;')
+                if src_f:
+                    ui.label(os.path.basename(src_f)).style(
+                        'font-size:11px;color:#0f2744;font-weight:600;')
+                if src_f and tgt_f:
+                    ui.icon('arrow_forward', size='xs').style('color:#d4af37;')
+                if tgt_f:
+                    ui.label(os.path.basename(tgt_f)).style(
+                        'font-size:11px;color:#16a34a;font-weight:600;')
+        # Nachricht
+        ui.label(f.message).style(
+            'font-size:14px;color:#1f2937;line-height:1.5;font-weight:500;margin-bottom:8px;')
+        # Vorschlag
+        if suggestion:
+            with ui.row().classes('w-full items-start gap-2').style(
+                'background:#ecfdf5;border-left:3px solid #16a34a;'
+                'padding:8px 10px;border-radius:6px;margin-bottom:8px;'
+            ):
+                ui.icon('lightbulb', size='sm').style('color:#16a34a;flex-shrink:0;')
+                with ui.column().classes('gap-0 flex-grow').style('min-width:0;'):
+                    ui.label('Vorschlag').style(
+                        'font-size:10px;font-weight:700;color:#16a34a;'
+                        'text-transform:uppercase;letter-spacing:0.5px;')
+                    ui.label(suggestion).style(
+                        'font-size:13px;color:#064e3b;white-space:pre-wrap;word-break:break-word;')
+                ui.button(icon='content_copy',
+                    on_click=lambda _, t=suggestion: _copy_to_clipboard(t)
+                ).props('flat dense round size=xs').tooltip('Vorschlag kopieren').style('color:#16a34a;')
+        # Queltext + Zieltext
+        if f.source_text:
+            with ui.column().classes('w-full gap-0').style('margin-bottom:6px;'):
+                ui.label('Quelltext').style('font-size:10px;font-weight:700;color:#0f2744;'
+                    'text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;')
+                with ui.row().classes('w-full items-start gap-1').style(
+                    'background:#f8fafc;padding:8px;border-radius:6px;border-left:3px solid #0f2744;'
+                ):
+                    ui.label(f.source_text[:800]).style(
+                        'font-size:12px;color:#334155;white-space:pre-wrap;word-break:break-word;flex-grow:1;')
+                    ui.button(icon='content_copy',
+                        on_click=lambda _, t=f.source_text: _copy_to_clipboard(t)
+                    ).props('flat dense round size=xs').style('color:#94a3b8;flex-shrink:0;')
+        if f.target_text:
+            with ui.column().classes('w-full gap-0'):
+                ui.label('Zieltext').style('font-size:10px;font-weight:700;color:#d97706;'
+                    'text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;')
+                with ui.row().classes('w-full items-start gap-1').style(
+                    'background:#fef3c7;padding:8px;border-radius:6px;border-left:3px solid #d97706;'
+                ):
+                    if error_span and error_span in f.target_text:
+                        pos = f.target_text.find(error_span)
+                        before = f.target_text[:pos][:400]
+                        after = f.target_text[pos + len(error_span):][:400]
+                        ui.html(
+                            f'<span style="font-size:12px;color:#334155;'
+                            f'white-space:pre-wrap;word-break:break-word;">'
+                            f'{_html_esc(before)}'
+                            f'<mark style="background:#fecaca;color:#7f1d1d;'
+                            f'padding:1px 3px;border-radius:3px;font-weight:700;">'
+                            f'{_html_esc(error_span)}</mark>'
+                            f'{_html_esc(after)}</span>'
+                        ).classes('flex-grow')
+                    else:
+                        ui.label(f.target_text[:800]).style(
+                            'font-size:12px;color:#334155;white-space:pre-wrap;word-break:break-word;flex-grow:1;')
+                    ui.button(icon='content_copy',
+                        on_click=lambda _, t=f.target_text: _copy_to_clipboard(t)
+                    ).props('flat dense round size=xs').style('color:#94a3b8;flex-shrink:0;')
+
+    def _select_split_finding(idx: int):
+        """Selektiert Finding in der Split-Ansicht und aktualisiert Detail-Panel."""
+        selected_idx['v'] = idx
+        dp = refs.get('detail_panel')
+        if dp is not None:
+            dp.clear()
+            with dp:
+                _render_detail_panel()
+        # Linke Liste neu rendern (Selection-Highlight aktualisieren)
+        _render_findings_list()
+
     def _render_findings_list():
         container = refs['findings_container']
         if not container:
@@ -2076,6 +2269,8 @@ def index_page():
         container.clear()
         current_score = s.get('current_score', -1)
         filtered = _filtered_findings()
+        split_mode = s.get('view_mode', 'normal') == 'split'
+        refs['detail_panel'] = None  # reset for this render
         with container:
             if current_score < 0:
                 _render_welcome()
@@ -2084,10 +2279,50 @@ def index_page():
                 ui.label('Keine Findings in diesem Filter').style(
                     'font-size:12px;color:#9ca3af;padding:16px 0;text-align:center;')
                 return
-            for real_idx, f in filtered:
-                _render_finding_card(real_idx, f)
-
-    def _render_welcome():
+            if split_mode:
+                # Split: linke Liste (feste Breite) + rechtes Detail-Panel
+                with ui.row().classes('w-full gap-0 items-start').style('min-height:300px;'):
+                    list_col = ui.column().classes('gap-0').style(
+                        'width:340px;min-width:300px;flex-shrink:0;'
+                        'overflow-y:auto;max-height:calc(100vh - 420px);'
+                        'border-right:1px solid #e5e7eb;padding-right:8px;'
+                    )
+                    detail_col = ui.column().classes('flex-grow gap-2').style(
+                        'padding-left:12px;overflow-y:auto;'
+                        'max-height:calc(100vh - 420px);'
+                    )
+                    refs['detail_panel'] = detail_col
+                    with list_col:
+                        _render_split_list(filtered)
+                    with detail_col:
+                        _render_detail_panel()
+            else:
+                # Normal-/Kompakt-Modus: Gruppen-Header zwischen Severity-Bloecken
+                _SEV_ORDER = [('Kritisch', '#dc2626'), ('Wichtig', '#ea580c'), ('Hinweis', '#6b7280')]
+                _sev_counts = {lbl: sum(1 for _, f in filtered if severity_label(f.severity) == lbl)
+                               for lbl, _ in _SEV_ORDER}
+                _last_sev_group = None
+                for real_idx, f in filtered:
+                    sev_lbl = severity_label(f.severity)
+                    if sev_lbl != _last_sev_group and _sev_counts.get(sev_lbl, 0) > 0:
+                        _last_sev_group = sev_lbl
+                        clr = next((c for l, c in _SEV_ORDER if l == sev_lbl), '#9ca3af')
+                        cnt = _sev_counts[sev_lbl]
+                        with ui.row().classes('w-full items-center gap-2').style(
+                            'padding:6px 4px 4px;margin-top:4px;'
+                        ):
+                            ui.element('div').style(
+                                f'height:2px;width:12px;border-radius:2px;'
+                                f'background:{clr};flex-shrink:0;'
+                            )
+                            ui.label(f'{sev_lbl}  ({cnt})').style(
+                                f'font-size:11px;font-weight:700;color:{clr};'
+                                f'text-transform:uppercase;letter-spacing:0.8px;'
+                            )
+                            ui.element('div').style(
+                                f'flex-grow:1;height:1px;background:{clr};opacity:.2;'
+                            )
+                    _render_finding_card(real_idx, f)
         customer = s.get('active_customer', '')
         src_files = s.get('source_files', [])
         tgt_files = s.get('translation_files', [])
@@ -2361,10 +2596,13 @@ def index_page():
         sev_clr = severity_color(f.severity)
         phase_lbl = phase_from_code(f.code)
         is_selected = idx == selected_idx['v']
+        compact = s.get('view_mode', 'normal') == 'compact'
+        pad = '6px 10px' if compact else '12px'
+        mb = '4px' if compact else '8px'
         # Linker farbiger Severity-Balken + optionaler Selection-Ring
         card_style = (
             f'border-left:5px solid {sev_clr};border-radius:6px;'
-            f'margin-bottom:8px;padding:0;background:white;'
+            f'margin-bottom:{mb};padding:0;background:white;'
             f'border-top:1px solid #e5e7eb;border-right:1px solid #e5e7eb;'
             f'border-bottom:1px solid #e5e7eb;'
             f'{"box-shadow:0 0 0 2px #0f2744;" if is_selected else ""}'
@@ -2375,12 +2613,12 @@ def index_page():
                 card_el.props(f'id=finding-card-{idx}')
             except Exception:
                 pass
-            with ui.column().classes('w-full gap-1').style('padding:12px;'):
-                # Datei-Header (wenn Per-File-Attribution vorhanden)
+            with ui.column().classes('w-full gap-1').style(f'padding:{pad};'):
+                # Datei-Header (wenn Per-File-Attribution vorhanden) – im Kompaktmodus ausblenden
                 src_f = getattr(f, 'source_file', '') or ''
                 tgt_f = getattr(f, 'target_file', '') or ''
-                if src_f or tgt_f:
-                    with ui.row().classes('w-full items-center gap-1 cursor-pointer').style(
+                if (src_f or tgt_f) and not compact:
+                    with ui.row().classes('w-full items-center gap-2 cursor-pointer').style(
                         'padding:2px 6px;background:#f1f5f9;border-radius:4px;'
                         'margin-bottom:4px;font-size:11px;'
                     ).on('click', lambda _, sf=os.path.basename(src_f or tgt_f):
@@ -2399,7 +2637,7 @@ def index_page():
                 with ui.row().classes('w-full items-center gap-2 flex-wrap'):
                     ui.badge(sev_lbl).style(
                         f'background:transparent;color:{sev_clr};border:1px solid {sev_clr};border-radius:20px;')
-                    if phase_lbl:
+                    if phase_lbl and not compact:
                         ui.badge(phase_lbl).style(
                             'background:transparent;color:#6b7280;border:1px solid #d1d5db;border-radius:20px;')
                     ui.badge(f.code).style(
@@ -2415,8 +2653,14 @@ def index_page():
                         value=s.get('checked_findings', {}).get(str(idx), False),
                         on_change=lambda e, i=idx: _toggle_checked(i, getattr(e, 'value', getattr(e, 'args', False))))
                     cb.style('font-size:12px;')
-                ui.label(f.message).style(
-                    'font-size:13px;color:#1f2937;line-height:1.45;font-weight:500;')
+                msg_fs = '12px' if compact else '13px'
+                msg_text = (f.message[:120] + '…' if compact and len(f.message) > 120
+                            else f.message)
+                ui.label(msg_text).style(
+                    f'font-size:{msg_fs};color:#1f2937;line-height:1.4;font-weight:500;')
+                # Im Kompakt-Modus: kein Quell-/Zieltext, kein Vorschlag
+                if compact:
+                    return
                 # Korrekturvorschlag wenn vorhanden (meta['suggestion'])
                 meta = getattr(f, 'meta', {}) or {}
                 suggestion = (meta.get('suggestion') or '').strip()
@@ -3881,6 +4125,13 @@ def index_page():
                         'Findings sortieren'
                     ).style('font-size:12px;min-width:140px;')
                     ui.element('div').classes('flex-grow')
+                    # Kompakt-Modus Toggle
+                    _compact_icon = 'density_small' if s.get('view_mode') == 'normal' else 'density_medium'
+                    refs['compact_btn'] = ui.button(icon=_compact_icon,
+                        on_click=lambda: _toggle_view_mode(),
+                    ).props('flat dense round size=sm').tooltip(
+                        'Kompakt-Ansicht umschalten'
+                    ).style('color:#6b7280;')
                     refs['search_input'] = ui.input(placeholder='Findings durchsuchen...',
                         on_change=_on_search_change).props('dense clearable').classes('w-64')
                     ui.button(icon='keyboard',
