@@ -801,7 +801,7 @@ def index_page():
         ('findings', []), ('checked_findings', {}), ('glossary_path', None),
         ('manual_glossary_terms', {}), ('analysis_running', False),
         ('current_score', -1), ('active_filter', 'all'), ('search_text', ''),
-        ('hide_done', False), ('dark_mode', False),
+        ('hide_done', False), ('dark_mode', False), ('sort_mode', 'default'),
         ('active_customer', ''), ('active_project_path', ''),
     ]:
         s.setdefault(key, default)
@@ -1814,7 +1814,31 @@ def index_page():
             if hide_done and checked.get(str(i), False):
                 continue
             result.append((i, f))
+        # Sortierung
+        sort_mode = s.get('sort_mode', 'default')
+        if sort_mode == 'severity':
+            _order = {'Kritisch': 0, 'Wichtig': 1, 'Hinweis': 2}
+            result.sort(key=lambda it: (
+                _order.get(severity_label(it[1].severity), 9),
+                it[0]))
+        elif sort_mode == 'file':
+            result.sort(key=lambda it: (
+                (os.path.basename(getattr(it[1], 'target_file', '') or '')
+                 or os.path.basename(getattr(it[1], 'source_file', '') or '')).lower(),
+                it[1].segment_index if it[1].segment_index >= 0 else it[0],
+                it[0]))
+        elif sort_mode == 'segment':
+            result.sort(key=lambda it: (
+                it[1].segment_index if it[1].segment_index >= 0 else 10**9,
+                it[0]))
+        elif sort_mode == 'category':
+            result.sort(key=lambda it: (
+                (it[1].category or '').lower(), it[0]))
         return result
+
+    def _set_sort_mode(mode: str):
+        s['sort_mode'] = mode
+        _render_findings_list()
 
     def _set_filter(key: str):
         s['active_filter'] = key
@@ -3760,6 +3784,20 @@ def index_page():
                         'Nichts rueckgaengig zu machen'
                     ).style('color:#0f2744;')
                     refs['undo_btn'].disable()
+                    # Sortierung
+                    _sort_opts = {
+                        'default': 'Standard',
+                        'severity': 'Schweregrad',
+                        'file': 'Datei',
+                        'segment': 'Segment',
+                        'category': 'Kategorie',
+                    }
+                    ui.select(_sort_opts,
+                        value=s.get('sort_mode', 'default'),
+                        on_change=lambda e: _set_sort_mode(getattr(e, 'value', 'default')),
+                    ).props('dense outlined options-dense').tooltip(
+                        'Findings sortieren'
+                    ).style('font-size:12px;min-width:140px;')
                     ui.element('div').classes('flex-grow')
                     refs['search_input'] = ui.input(placeholder='Findings durchsuchen...',
                         on_change=_on_search_change).props('dense clearable').classes('w-64')
