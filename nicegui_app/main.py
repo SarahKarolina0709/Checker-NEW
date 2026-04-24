@@ -1609,9 +1609,13 @@ def index_page():
         total = len(phases) or 1
         loop = asyncio.get_event_loop()
         all_results: List[QAIssue] = []
+        analysis_start = time.monotonic()
         for idx, (phase_name, phase_key) in enumerate(phases):
+            phase_start = time.monotonic()
             if refs['progress_text']:
-                refs['progress_text'].set_text(phase_name)
+                refs['progress_text'].set_text(
+                    f'Phase {idx + 1} von {total} · {phase_name} · laeuft …'
+                )
             if refs['progress_bar']:
                 refs['progress_bar'].value = idx / total
             await asyncio.sleep(0.05)
@@ -1621,11 +1625,21 @@ def index_page():
             single['ollama_model'] = config['ollama_model']
             single['src_lang'] = config['src_lang']
             single['tgt_lang'] = config['tgt_lang']
+            phase_count = 0
             try:
                 result = await loop.run_in_executor(None, run_analysis_sync, single)
+                phase_count = len(result)
                 all_results.extend(result)
             except Exception as exc:
                 _logger.warning('%s fehlgeschlagen: %s', phase_name, exc)
+            elapsed = time.monotonic() - phase_start
+            if refs['progress_text']:
+                refs['progress_text'].set_text(
+                    f'Phase {idx + 1} von {total} · {phase_name} · {phase_count} Findings · {elapsed:.1f}s'
+                )
+            if refs['progress_bar']:
+                refs['progress_bar'].value = (idx + 1) / total
+            await asyncio.sleep(0.05)
         # Per-File-Attribution: anhand segment_index die Datei-Pfade taggen
         for f in all_results:
             try:
@@ -1641,7 +1655,10 @@ def index_page():
         if refs['progress_bar']:
             refs['progress_bar'].value = 1.0
         if refs['progress_text']:
-            refs['progress_text'].set_text(f'Fertig -- {len(all_results)} Findings')
+            total_elapsed = time.monotonic() - analysis_start
+            refs['progress_text'].set_text(
+                f'Fertig in {total_elapsed:.1f}s · {len(all_results)} Findings'
+            )
         await asyncio.sleep(0.5)
         if refs['progress_bar']:
             refs['progress_bar'].visible = False
@@ -2536,19 +2553,46 @@ def index_page():
     # ------------------------------------------------------------------
     # Export
     # ------------------------------------------------------------------
-    def _do_export(fmt: str):
+    def _do_export(fmt: str, only_filtered: bool = False):
+        if only_filtered:
+            findings = [_dict_to_finding(s.get('findings', [])[i])
+                        for i, _ in _filtered_findings()]
+            scope_label = 'gefiltert'
+        else:
+            findings = [_dict_to_finding(fd) for fd in s.get('findings', [])]
+            scope_label = 'alle'
+        if not findings:
+            ui.notify('Keine Ergebnisse zum Exportieren', type='warning')
+            return
+        score = s.get('current_score', -1)
         path = None
-        if fmt == 'txt':
-            path = _export_txt()
-        elif fmt == 'excel':
-            path = _export_excel()
-        elif fmt == 'pdf':
-            path = _export_pdf()
-        elif fmt == 'zip':
-            path = _export_correction_package()
+        try:
+            if fmt == 'txt':
+                path = _exports_mod.export_txt(findings, score, _tmp_dir)
+            elif fmt == 'excel':
+                path = _exports_mod.export_excel(findings, _tmp_dir)
+            elif fmt == 'pdf':
+                path = _exports_mod.export_pdf(findings, score, _tmp_dir)
+            elif fmt == 'zip':
+                path = _exports_mod.export_correction_package(
+                    findings, score,
+                    list(s.get('source_files', [])),
+                    list(s.get('translation_files', [])),
+                    _tmp_dir,
+                )
+        except ImportError as exc:
+            ui.notify(f'Modul fehlt: {exc}', type='negative')
+            return
+        except Exception as exc:
+            _logger.warning('Export %s fehlgeschlagen: %s', fmt, exc)
+            ui.notify('Export fehlgeschlagen', type='negative')
+            return
         if path and os.path.exists(path):
             ui.download(path)
-            ui.notify(f'{fmt.upper()}-Export erstellt', type='positive')
+            ui.notify(
+                f'{fmt.upper()}-Export ({scope_label}, {len(findings)} Findings) erstellt',
+                type='positive',
+            )
 
     # ------------------------------------------------------------------
     # Session restore
@@ -3447,7 +3491,7 @@ def index_page():
             refs['results_area'] = ui.column().classes('w-full gap-4')
             refs['results_area'].visible = False
             with refs['results_area']:
-                with ui.row().classes('w-full gap-2 flex-wrap'):
+                with ui.row().classes('w-full gap-2 flex-wrap items-center'):
                     ui.button('PDF', icon='picture_as_pdf',
                         on_click=lambda: _do_export('pdf')).props('outline dense no-caps size=sm')
                     ui.button('Excel', icon='table_chart',
@@ -3456,6 +3500,19 @@ def index_page():
                         on_click=lambda: _do_export('txt')).props('flat dense no-caps size=sm')
                     ui.button('Korrekturpaket', icon='archive',
                         on_click=lambda: _do_export('zip')).props('outline dense no-caps size=sm')
+                    # Gefilterter Export
+                    with ui.button(icon='filter_alt').props(
+                        'flat dense no-caps size=sm color=primary'
+                    ).tooltip('Nur sichtbare (gefilterte) Findings exportieren'):
+                        with ui.menu():
+                            ui.item('Gefilterte als PDF',
+                                on_click=lambda: _do_export('pdf', only_filtered=True))
+                            ui.item('Gefilterte als Excel',
+                                on_click=lambda: _do_export('excel', only_filtered=True))
+                            ui.item('Gefilterte als TXT',
+                                on_click=lambda: _do_export('txt', only_filtered=True))
+                            ui.item('Gefilterte als Korrekturpaket',
+                                on_click=lambda: _do_export('zip', only_filtered=True))
                     ui.element('div').classes('flex-grow')
                     # Korrekturschleife: Neue Übersetzung hochladen
                     def _start_correction_loop():
