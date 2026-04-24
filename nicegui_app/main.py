@@ -1218,14 +1218,31 @@ def index_page():
         if config['phase4']:
             phases.append(('Phase 4: KI-Analyse', 'phase4'))
         total = len(phases) or 1
+        n_pairs = len(text_pairs)
         loop = asyncio.get_event_loop()
         all_results: List[QAIssue] = []
         analysis_start = time.monotonic()
+        phase_durations: List[float] = []
+
+        def _fmt_eta(seconds: float) -> str:
+            if seconds < 1:
+                return '<1s'
+            if seconds < 60:
+                return f'{seconds:.0f}s'
+            mins, secs = divmod(int(seconds), 60)
+            return f'{mins}:{secs:02d} min'
+
         for idx, (phase_name, phase_key) in enumerate(phases):
             phase_start = time.monotonic()
+            # ETA aus bisherigen Phasen-Mittelwert
+            eta_str = ''
+            if phase_durations:
+                avg = sum(phase_durations) / len(phase_durations)
+                remaining = avg * (total - idx)
+                eta_str = f' · noch ~{_fmt_eta(remaining)}'
             if refs['progress_text']:
                 refs['progress_text'].set_text(
-                    f'Phase {idx + 1} von {total} · {phase_name} · laeuft …'
+                    f'{n_pairs} Dateipaar(e) · Phase {idx + 1}/{total} · {phase_name} · laeuft …{eta_str}'
                 )
             if refs['progress_bar']:
                 refs['progress_bar'].value = idx / total
@@ -1238,15 +1255,44 @@ def index_page():
             single['tgt_lang'] = config['tgt_lang']
             phase_count = 0
             try:
-                result = await loop.run_in_executor(None, run_analysis_sync, single)
-                phase_count = len(result)
-                all_results.extend(result)
+                if phase_key == 'phase4' and n_pairs > 1:
+                    # KI-Analyse pro Datei iterieren fuer feineren Fortschritt
+                    for fi, pair in enumerate(text_pairs):
+                        if refs['progress_text']:
+                            refs['progress_text'].set_text(
+                                f'{n_pairs} Dateipaar(e) · Phase {idx + 1}/{total} · {phase_name} · '
+                                f'Datei {fi + 1}/{n_pairs}{eta_str}'
+                            )
+                        if refs['progress_bar']:
+                            refs['progress_bar'].value = (idx + (fi / n_pairs)) / total
+                        await asyncio.sleep(0)
+                        single_pair = dict(single)
+                        single_pair['_text_pairs'] = [pair]
+                        try:
+                            sub = await loop.run_in_executor(None, run_analysis_sync, single_pair)
+                            # segment_index korrigieren (Datei-Pfad-Attribution spaeter)
+                            for finding in sub:
+                                try:
+                                    finding.segment_index = fi
+                                except Exception:
+                                    pass
+                            phase_count += len(sub)
+                            all_results.extend(sub)
+                        except Exception as exc:
+                            _logger.warning('Phase 4 Datei %d fehlgeschlagen: %s', fi + 1, exc)
+                else:
+                    single['_text_pairs'] = text_pairs
+                    result = await loop.run_in_executor(None, run_analysis_sync, single)
+                    phase_count = len(result)
+                    all_results.extend(result)
             except Exception as exc:
                 _logger.warning('%s fehlgeschlagen: %s', phase_name, exc)
             elapsed = time.monotonic() - phase_start
+            phase_durations.append(elapsed)
             if refs['progress_text']:
                 refs['progress_text'].set_text(
-                    f'Phase {idx + 1} von {total} · {phase_name} · {phase_count} Findings · {elapsed:.1f}s'
+                    f'{n_pairs} Dateipaar(e) · Phase {idx + 1}/{total} · {phase_name} · '
+                    f'{phase_count} Findings · {elapsed:.1f}s'
                 )
             if refs['progress_bar']:
                 refs['progress_bar'].value = (idx + 1) / total
