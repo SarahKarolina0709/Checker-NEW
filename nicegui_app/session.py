@@ -50,16 +50,24 @@ def build_session_data(state: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def save_session(path: str, data: Dict[str, Any]) -> bool:
-    """Speichert die Session atomar (tmp + os.replace).
+    """Speichert die Session atomar (tmp + os.replace) und legt Backup an.
 
     Verhindert Korruption der existierenden Datei bei Crash mid-write.
+    Bei Erfolg wird die vorherige Version als <path>.bak rotiert,
+    damit eine korrupte session.json wiederherstellbar ist.
     Returns True bei Erfolg.
     """
     tmp_path = path + '.tmp'
+    bak_path = path + '.bak'
     try:
         os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
         with open(tmp_path, 'w', encoding='utf-8') as fh:
             json.dump(data, fh, ensure_ascii=False, indent=2)
+        if os.path.isfile(path):
+            try:
+                os.replace(path, bak_path)
+            except OSError as exc:
+                _logger.debug('Session-Backup konnte nicht rotiert werden: %s', exc)
         os.replace(tmp_path, path)
         return True
     except Exception as exc:
@@ -74,15 +82,28 @@ def save_session(path: str, data: Dict[str, Any]) -> bool:
 
 
 def load_session_from_path(path: str) -> Optional[Dict[str, Any]]:
-    """Laedt eine session.json. None bei Fehler/Nicht-Existent."""
-    if not path or not os.path.isfile(path):
+    """Laedt eine session.json. Faellt auf <path>.bak zurueck wenn Datei korrupt.
+
+    Returns None nur, wenn weder Hauptdatei noch Backup geladen werden koennen.
+    """
+    if not path:
         return None
-    try:
-        with open(path, 'r', encoding='utf-8') as fh:
-            return json.load(fh)
-    except Exception as exc:
-        _logger.warning('Session laden fehlgeschlagen (%s): %s', path, exc)
-        return None
+    if os.path.isfile(path):
+        try:
+            with open(path, 'r', encoding='utf-8') as fh:
+                return json.load(fh)
+        except Exception as exc:
+            _logger.warning('Session korrupt (%s): %s -- versuche Backup', path, exc)
+    bak = path + '.bak'
+    if os.path.isfile(bak):
+        try:
+            with open(bak, 'r', encoding='utf-8') as fh:
+                data = json.load(fh)
+            _logger.info('Session aus Backup wiederhergestellt: %s', bak)
+            return data
+        except Exception as exc:
+            _logger.warning('Session-Backup unbrauchbar (%s): %s', bak, exc)
+    return None
 
 
 def find_latest_session(base_path: str) -> str:
