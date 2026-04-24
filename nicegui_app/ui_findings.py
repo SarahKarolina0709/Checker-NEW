@@ -396,3 +396,247 @@ def render_findings_list(ctx: SimpleNamespace) -> None:
                             f'flex-grow:1;height:1px;background:{clr};opacity:.2;'
                         )
                 ctx.render_finding_card(real_idx, f)
+
+
+def render_welcome(ctx: SimpleNamespace) -> None:
+    """Welcome-/Customer-/Files-Bildschirm.
+
+    ctx braucht: s, load_customer_info, list_projects, display_name,
+    find_source_folder, find_translation_folder, list_files_in_folder,
+    get_project_path, get_customer_path, count_files_in_folder,
+    scan_project_dates, on_customer_selected, select_auftrag.
+    """
+    from datetime import datetime
+    from nicegui_app.text_extraction import extract_text
+    s = ctx.s
+    customer = s.get('active_customer', '')
+    src_files = s.get('source_files', [])
+    tgt_files = s.get('translation_files', [])
+    has_files = bool(src_files or tgt_files)
+
+    if has_files:
+        # --- Zustand 3: Dateien geladen -> Textvorschau ---
+        with ui.column().classes('w-full gap-4'):
+            ui.label('Textvorschau').style('font-size:16px;font-weight:700;color:#1f2937;')
+            with ui.row().classes('w-full gap-4').style('min-height:200px;'):
+                with ui.card().classes('flex-1').props('flat bordered').style('padding:12px;'):
+                    ui.label('Ausgangstext').style(
+                        'font-size:12px;font-weight:700;color:#0f2744;text-transform:uppercase;letter-spacing:1px;')
+                    if src_files:
+                        for fp in src_files[:3]:
+                            ui.label(os.path.basename(fp)).style('font-size:12px;font-weight:600;color:#1f2937;')
+                            try:
+                                text = extract_text(fp)[:500] if os.path.exists(fp) else ''
+                                if text:
+                                    ui.label(text).style(
+                                        'font-size:12px;color:#6b7280;white-space:pre-wrap;'
+                                        'max-height:150px;overflow:hidden;line-height:1.5;')
+                            except Exception:
+                                ui.label('Vorschau nicht verfügbar').style('font-size:12px;color:#d1d5db;')
+                            ui.separator().style('margin:4px 0;')
+                    else:
+                        ui.label('Keine Ausgangstexte').style('font-size:12px;color:#9ca3af;')
+
+                with ui.card().classes('flex-1').props('flat bordered').style('padding:12px;'):
+                    ui.label('Übersetzung').style(
+                        'font-size:12px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:1px;')
+                    if tgt_files:
+                        for fp in tgt_files[:3]:
+                            ui.label(os.path.basename(fp)).style('font-size:12px;font-weight:600;color:#1f2937;')
+                            try:
+                                text = extract_text(fp)[:500] if os.path.exists(fp) else ''
+                                if text:
+                                    ui.label(text).style(
+                                        'font-size:12px;color:#6b7280;white-space:pre-wrap;'
+                                        'max-height:150px;overflow:hidden;line-height:1.5;')
+                            except Exception:
+                                ui.label('Vorschau nicht verfügbar').style('font-size:12px;color:#d1d5db;')
+                            ui.separator().style('margin:4px 0;')
+                    else:
+                        ui.label('Keine Übersetzungen').style('font-size:12px;color:#9ca3af;')
+
+            pairs = s.get('paired_results', [])
+            if pairs:
+                with ui.card().classes('w-full').props('flat bordered').style('padding:12px;'):
+                    ui.label(f'{len(pairs)} {"Paar" if len(pairs) == 1 else "Paare"} erkannt').style(
+                        'font-size:13px;font-weight:600;color:#0f2744;')
+                    for p in pairs[:5]:
+                        src_name = os.path.basename(p.get('source', ''))
+                        tgt_name = os.path.basename(p.get('translation', ''))
+                        with ui.row().classes('w-full items-center gap-2').style('padding:4px 0;'):
+                            ui.icon('description', size='xs').style('color:#6b7280;')
+                            ui.label(src_name).style('font-size:12px;color:#1f2937;')
+                            ui.icon('arrow_forward', size='xs').style('color:#d4af37;')
+                            ui.label(tgt_name).style('font-size:12px;color:#1f2937;')
+
+    elif customer:
+        # --- Zustand 2: Kunde gewaehlt, keine Dateien ---
+        info = ctx.load_customer_info(customer)
+        projects = ctx.list_projects(customer)
+        with ui.column().classes('w-full items-center').style('padding:32px 0;gap:16px;'):
+            ui.icon('business' if info.get('typ') == 'firma' else 'person', size='3rem').style('color:#d4af37;')
+            ui.label(ctx.display_name(customer)).style('font-size:20px;font-weight:700;color:#1f2937;')
+            proj_path = s.get('active_project_path', '')
+            if proj_path:
+                proj_name = os.path.basename(proj_path)
+                display = proj_name
+                try:
+                    date_part = proj_name.split('_')[0]
+                    d = datetime.strptime(date_part, '%Y-%m-%d')
+                    display = d.strftime('%d.%m.%Y')
+                    rest = proj_name[len(date_part)+1:]
+                    if rest and rest != customer:
+                        display += f' — {ctx.display_name(rest)}'
+                except Exception:
+                    pass
+                with ui.row().classes('items-center gap-2').style(
+                    'background:#eff6ff;padding:6px 16px;border-radius:20px;margin-top:4px;'):
+                    ui.icon('folder_open', size='xs').style('color:#0f2744;')
+                    ui.label(f'Projekt: {display}').style('font-size:13px;font-weight:600;color:#0f2744;')
+            if info.get('email') or info.get('telefon'):
+                with ui.row().classes('gap-4').style('margin-top:4px;'):
+                    if info.get('email'):
+                        with ui.row().classes('items-center gap-1'):
+                            ui.icon('email', size='xs').style('color:#9ca3af;')
+                            ui.label(info['email']).style('font-size:12px;color:#6b7280;')
+                    if info.get('telefon'):
+                        with ui.row().classes('items-center gap-1'):
+                            ui.icon('phone', size='xs').style('color:#9ca3af;')
+                            ui.label(info['telefon']).style('font-size:12px;color:#6b7280;')
+            with ui.row().classes('gap-6').style('margin-top:8px;'):
+                with ui.column().classes('items-center'):
+                    ui.label(str(len(projects))).style('font-size:24px;font-weight:800;color:#0f2744;')
+                    ui.label('Projekte').style('font-size:12px;color:#9ca3af;')
+                n_src = len(s.get('source_files', []))
+                n_tgt = len(s.get('translation_files', []))
+                with ui.column().classes('items-center'):
+                    ui.label(str(n_src)).style('font-size:24px;font-weight:800;color:#0f2744;')
+                    ui.label('Ausgangstexte').style('font-size:12px;color:#9ca3af;')
+                with ui.column().classes('items-center'):
+                    ui.label(str(n_tgt)).style('font-size:24px;font-weight:800;color:#16a34a;')
+                    ui.label('Übersetzungen').style('font-size:12px;color:#9ca3af;')
+            if not proj_path:
+                ui.label('Wählen Sie ein Projekt und laden Sie Dateien hoch').style(
+                    'font-size:12px;color:#9ca3af;margin-top:12px;')
+            elif proj_path and os.path.isdir(proj_path):
+                src_dir = ctx.find_source_folder(proj_path)
+                tgt_dir = ctx.find_translation_folder(proj_path)
+                src_files_list = ctx.list_files_in_folder(src_dir) if src_dir else []
+                tgt_files_list = ctx.list_files_in_folder(tgt_dir) if tgt_dir else []
+
+                if src_files_list or tgt_files_list:
+                    with ui.row().classes('w-full gap-4').style('margin-top:16px;'):
+                        with ui.card().classes('flex-1').props('flat bordered').style('padding:12px;'):
+                            with ui.row().classes('items-center gap-2').style('margin-bottom:8px;'):
+                                ui.element('div').style('width:4px;height:16px;border-radius:2px;background:#0f2744;')
+                                ui.label(f'Ausgangstexte ({len(src_files_list)})').style(
+                                    'font-size:13px;font-weight:700;color:#0f2744;')
+                            if src_files_list:
+                                for fp in src_files_list:
+                                    fname = os.path.basename(fp)
+                                    fsize = os.path.getsize(fp) if os.path.exists(fp) else 0
+                                    with ui.row().classes('w-full items-center gap-2').style(
+                                        'padding:4px 0;border-bottom:1px solid #f1f5f9;'):
+                                        ui.icon('description', size='xs').style('color:#6b7280;')
+                                        ui.label(fname).style(
+                                            'font-size:12px;color:#1f2937;flex-grow:1;'
+                                            'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
+                                        ui.label(f'{fsize/1024:.0f} KB').style('font-size:12px;color:#9ca3af;')
+                            else:
+                                ui.label('Keine Dateien').style('font-size:12px;color:#d1d5db;')
+
+                        with ui.card().classes('flex-1').props('flat bordered').style('padding:12px;'):
+                            with ui.row().classes('items-center gap-2').style('margin-bottom:8px;'):
+                                ui.element('div').style('width:4px;height:16px;border-radius:2px;background:#16a34a;')
+                                ui.label(f'Übersetzungen ({len(tgt_files_list)})').style(
+                                    'font-size:13px;font-weight:700;color:#16a34a;')
+                            if tgt_files_list:
+                                for fp in tgt_files_list:
+                                    fname = os.path.basename(fp)
+                                    fsize = os.path.getsize(fp) if os.path.exists(fp) else 0
+                                    with ui.row().classes('w-full items-center gap-2').style(
+                                        'padding:4px 0;border-bottom:1px solid #f1f5f9;'):
+                                        ui.icon('translate', size='xs').style('color:#6b7280;')
+                                        ui.label(fname).style(
+                                            'font-size:12px;color:#1f2937;flex-grow:1;'
+                                            'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
+                                        ui.label(f'{fsize/1024:.0f} KB').style('font-size:12px;color:#9ca3af;')
+                            else:
+                                ui.label('Keine Dateien').style('font-size:12px;color:#d1d5db;')
+                else:
+                    ui.label('Projekt ist leer — laden Sie Dateien über die Ordner links hoch').style(
+                        'font-size:12px;color:#9ca3af;margin-top:12px;')
+
+            if len(projects) > 1:
+                with ui.card().classes('w-full').props('flat bordered').style('padding:12px;margin-top:12px;'):
+                    ui.label(f'Alle Projekte von {ctx.display_name(customer)}').style(
+                        'font-size:13px;font-weight:700;color:#1f2937;margin-bottom:8px;')
+                    for proj in projects[:8]:
+                        pp = ctx.get_project_path(customer, proj) or os.path.join(ctx.get_customer_path(customer), proj)
+                        n_s = ctx.count_files_in_folder(ctx.find_source_folder(pp) or '')
+                        n_t = ctx.count_files_in_folder(ctx.find_translation_folder(pp) or '')
+                        is_active = pp == proj_path
+                        display = proj
+                        try:
+                            d = datetime.strptime(proj.split('_')[0], '%Y-%m-%d')
+                            display = d.strftime('%d.%m.%Y')
+                            rest = proj[11:] if len(proj) > 10 else ''
+                            if rest and rest != customer:
+                                display += f' — {ctx.display_name(rest)}'
+                        except Exception:
+                            pass
+                        with ui.row().classes('w-full items-center gap-3 cursor-pointer').style(
+                            f'padding:6px 8px;border-radius:6px;'
+                            f'{"background:#eff6ff;border:1px solid #93c5fd;" if is_active else "border:1px solid transparent;"}'
+                        ).on('click', lambda _, p=proj, pp2=pp, ns=n_s, nt=n_t:
+                             ctx.select_auftrag(p, pp2, ns, nt)):
+                            ui.icon('folder', size='xs').style(
+                                f'color:{"#0f2744" if is_active else "#d4af37"};')
+                            ui.label(display).style(
+                                f'font-size:12px;{"font-weight:700;color:#0f2744;" if is_active else "color:#1f2937;"}flex-grow:1;')
+                            if n_s or n_t:
+                                ui.label(f'{n_s}Q · {n_t}Ü').style('font-size:12px;color:#6b7280;')
+
+    else:
+        # --- Zustand 1: Kein Kunde -> Welcome + Mini-Kalender ---
+        with ui.column().classes('w-full items-center').style('padding:32px 0;gap:20px;'):
+            ui.icon('translate', size='3rem').style('color:#d1d5db')
+            ui.label('Übersetzungsqualität prüfen').classes('t-title').style('color:#1f2937;')
+            with ui.column().style('gap:8px;margin-top:4px;'):
+                for num, text in [('1', 'Kunde wählen (links)'),
+                                   ('2', 'Ausgangstext + Übersetzung hochladen'),
+                                   ('3', 'Analyse starten')]:
+                    with ui.row().classes('items-center gap-2'):
+                        ui.badge(num).style('background:#0f2744;color:white;border-radius:20px;')
+                        ui.label(text).style('font-size:13px;color:#6b7280;')
+
+        all_dates = ctx.scan_project_dates()
+        if all_dates:
+            with ui.card().classes('w-full').props('flat bordered').style('padding:16px;margin-top:8px;'):
+                ui.label('Letzte Projekte').style('font-size:14px;font-weight:700;color:#1f2937;margin-bottom:12px;')
+                sorted_dates = sorted(all_dates.keys(), reverse=True)[:10]
+                for day_str in sorted_dates:
+                    customers_on_day = all_dates[day_str]
+                    try:
+                        display_date = datetime.strptime(day_str, '%Y-%m-%d').strftime('%d.%m.%Y')
+                    except Exception:
+                        display_date = day_str
+                    with ui.row().classes('w-full items-start gap-3').style(
+                        'padding:6px 0;border-bottom:1px solid #f1f5f9;'):
+                        with ui.element('div').style('min-width:70px;text-align:center;'):
+                            ui.label(display_date).style('font-size:12px;font-weight:700;color:#0f2744;')
+                        with ui.column().classes('gap-1 flex-grow'):
+                            for cust in customers_on_day[:3]:
+                                with ui.row().classes('items-center gap-2 cursor-pointer').on(
+                                    'click', lambda _, c=cust: ctx.on_customer_selected(c)):
+                                    ui.element('div').style(
+                                        'width:24px;height:24px;border-radius:6px;'
+                                        'background:linear-gradient(135deg,#0f2744,#1a365d);'
+                                        'display:flex;align-items:center;justify-content:center;'
+                                        'font-size:12px;font-weight:700;color:#d4af37;'
+                                    )
+                                    ui.label(ctx.display_name(cust)).style(
+                                        'font-size:12px;color:#1f2937;cursor:pointer;')
+                            if len(customers_on_day) > 3:
+                                ui.label(f'+{len(customers_on_day)-3} weitere').style(
+                                    'font-size:12px;color:#9ca3af;')
