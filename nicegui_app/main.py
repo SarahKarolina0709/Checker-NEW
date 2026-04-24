@@ -802,6 +802,7 @@ def index_page():
         ('manual_glossary_terms', {}), ('analysis_running', False),
         ('current_score', -1), ('active_filter', 'all'), ('search_text', ''),
         ('hide_done', False), ('dark_mode', False), ('sort_mode', 'default'),
+        ('show_category_heatmap', True), ('show_per_file_heatmap', True),
         ('active_customer', ''), ('active_project_path', ''),
     ]:
         s.setdefault(key, default)
@@ -2360,10 +2361,20 @@ def index_page():
         sev_clr = severity_color(f.severity)
         phase_lbl = phase_from_code(f.code)
         is_selected = idx == selected_idx['v']
-        with ui.card().classes('w-full').props('flat').style(
-            f'{severity_border(f.severity)};border-radius:6px;margin-bottom:8px;'
-            f'padding:0;{"box-shadow:0 0 0 2px #0f2744;" if is_selected else ""}'
-        ):
+        # Linker farbiger Severity-Balken + optionaler Selection-Ring
+        card_style = (
+            f'border-left:5px solid {sev_clr};border-radius:6px;'
+            f'margin-bottom:8px;padding:0;background:white;'
+            f'border-top:1px solid #e5e7eb;border-right:1px solid #e5e7eb;'
+            f'border-bottom:1px solid #e5e7eb;'
+            f'{"box-shadow:0 0 0 2px #0f2744;" if is_selected else ""}'
+        )
+        with ui.card().classes('w-full').props('flat').style(card_style) as card_el:
+            # HTML-Anker fuer Auto-Scroll bei Tastatur-Nav
+            try:
+                card_el.props(f'id=finding-card-{idx}')
+            except Exception:
+                pass
             with ui.column().classes('w-full gap-1').style('padding:12px;'):
                 # Datei-Header (wenn Per-File-Attribution vorhanden)
                 src_f = getattr(f, 'source_file', '') or ''
@@ -2557,6 +2568,46 @@ def index_page():
     # ------------------------------------------------------------------
     # Keyboard navigation
     # ------------------------------------------------------------------
+    def _scroll_to_selected():
+        """Scrollt selektiertes Finding ins Sichtfeld."""
+        idx = selected_idx['v']
+        if idx < 0:
+            return
+        try:
+            ui.run_javascript(
+                f"var el=document.getElementById('finding-card-{idx}');"
+                f"if(el)el.scrollIntoView({{behavior:'smooth',block:'center'}});"
+            )
+        except Exception:
+            pass
+
+    def _show_keyboard_help():
+        with ui.dialog() as dlg, ui.card().style('width:480px;'):
+            ui.label('Tastatur-Kuerzel').style(
+                'font-size:18px;font-weight:700;color:#0f2744;margin-bottom:8px;')
+            shortcuts = [
+                ('Strg + Eingabe', 'Analyse starten'),
+                ('Strg + Z', 'Letzte Erledigt-Aktion rueckgaengig'),
+                ('j  /  Pfeil ab', 'Naechstes Finding'),
+                ('k  /  Pfeil auf', 'Vorheriges Finding'),
+                ('x  /  Leertaste', 'Aktuelles Finding als erledigt markieren'),
+                ('1 / 2 / 3 / 0', 'Filter Kritisch / Wichtig / Hinweis / Alle'),
+                ('?', 'Diese Hilfe anzeigen'),
+                ('Esc', 'Hilfe schliessen'),
+            ]
+            for keys, desc in shortcuts:
+                with ui.row().classes('w-full items-center gap-3').style(
+                    'padding:6px 0;border-bottom:1px solid #f1f5f9;'
+                ):
+                    ui.label(keys).style(
+                        'font-family:monospace;font-size:12px;font-weight:700;'
+                        'color:#0f2744;background:#f1f5f9;padding:3px 8px;'
+                        'border-radius:4px;min-width:140px;')
+                    ui.label(desc).style('font-size:13px;color:#4b5563;')
+            ui.button('Schliessen', on_click=dlg.close).props(
+                'flat dense no-caps').style('margin-top:12px;')
+        dlg.open()
+
     def _handle_key(e):
         # Ctrl+Enter → Analyse starten
         try:
@@ -2578,7 +2629,8 @@ def index_page():
         if not filtered:
             return
         indices = [i for i, _ in filtered]
-        if e.key == 'n' and not e.action.repeat:
+        # Naechstes Finding: n / j / ArrowDown
+        if e.key in ('n', 'j', 'ArrowDown') and not e.action.repeat:
             if selected_idx['v'] < 0 or selected_idx['v'] not in indices:
                 selected_idx['v'] = indices[0]
             else:
@@ -2586,7 +2638,9 @@ def index_page():
                 if pos + 1 < len(indices):
                     selected_idx['v'] = indices[pos + 1]
             _render_findings_list()
-        elif e.key == 'p' and not e.action.repeat:
+            _scroll_to_selected()
+        # Voriges Finding: p / k / ArrowUp
+        elif e.key in ('p', 'k', 'ArrowUp') and not e.action.repeat:
             if selected_idx['v'] < 0 or selected_idx['v'] not in indices:
                 selected_idx['v'] = indices[-1]
             else:
@@ -2594,8 +2648,29 @@ def index_page():
                 if pos - 1 >= 0:
                     selected_idx['v'] = indices[pos - 1]
             _render_findings_list()
+            _scroll_to_selected()
+        # Erledigt-Toggle: x / Space
+        elif e.key in ('x', ' ') and not e.action.repeat and e.action.keydown:
+            if selected_idx['v'] in indices:
+                cur = bool(s.get('checked_findings', {}).get(
+                    str(selected_idx['v']), False))
+                _toggle_checked(selected_idx['v'], not cur)
+        # Severity-Filter: 1=Kritisch, 2=Wichtig, 3=Hinweis, 0=alle
+        elif e.key in ('1', '2', '3', '0') and not e.action.repeat and e.action.keydown:
+            try:
+                if not e.modifiers.ctrl and not e.modifiers.alt:
+                    _set_filter({'1': 'critical', '2': 'major',
+                                 '3': 'minor', '0': 'all'}[e.key])
+            except Exception:
+                pass
+        # Hilfe: ?
+        elif e.key == '?' and not e.action.repeat and e.action.keydown:
+            try:
+                _show_keyboard_help()
+            except Exception:
+                pass
 
-    ui.keyboard(on_key=_handle_key)
+    ui.keyboard(on_key=_handle_key, ignore=['input', 'textarea', 'select'])
 
     # ------------------------------------------------------------------
     # Settings dialog
@@ -3652,15 +3727,22 @@ def index_page():
                             ui.label(sev_name).style(
                                 f'font-size:12px;color:{sev_clr};opacity:.7;')
                 ui.separator().style('margin:8px 0 6px;')
-                ui.label('Top-Kategorien').style(
-                    'font-size:11px;font-weight:700;color:#9ca3af;'
-                    'text-transform:uppercase;letter-spacing:1px;')
-                refs['category_heatmap'] = ui.column().classes('w-full gap-1').style('margin-top:4px;')
-                ui.separator().style('margin:8px 0 6px;')
-                ui.label('Score je Datei-Paar').style(
-                    'font-size:11px;font-weight:700;color:#9ca3af;'
-                    'text-transform:uppercase;letter-spacing:1px;')
-                refs['per_file_heatmap'] = ui.column().classes('w-full gap-1').style('margin-top:4px;')
+                with ui.expansion('Top-Kategorien', icon='analytics',
+                                  value=bool(s.get('show_category_heatmap', True))
+                                  ).classes('w-full').props('dense header-class=text-xs').on(
+                    'update:model-value',
+                    lambda e: s.update({'show_category_heatmap':
+                                        bool(getattr(e, 'args', True))})
+                ):
+                    refs['category_heatmap'] = ui.column().classes('w-full gap-1').style('margin-top:4px;')
+                with ui.expansion('Score je Datei-Paar', icon='insights',
+                                  value=bool(s.get('show_per_file_heatmap', True))
+                                  ).classes('w-full').props('dense header-class=text-xs').on(
+                    'update:model-value',
+                    lambda e: s.update({'show_per_file_heatmap':
+                                        bool(getattr(e, 'args', True))})
+                ):
+                    refs['per_file_heatmap'] = ui.column().classes('w-full gap-1').style('margin-top:4px;')
 
             # Results area (export + filter + findings)
             refs['results_area'] = ui.column().classes('w-full gap-4')
@@ -3801,6 +3883,11 @@ def index_page():
                     ui.element('div').classes('flex-grow')
                     refs['search_input'] = ui.input(placeholder='Findings durchsuchen...',
                         on_change=_on_search_change).props('dense clearable').classes('w-64')
+                    ui.button(icon='keyboard',
+                        on_click=lambda: _show_keyboard_help(),
+                    ).props('flat dense round size=sm').tooltip(
+                        'Tastatur-Kuerzel anzeigen (?)'
+                    ).style('color:#6b7280;')
 
             # Findings container
             refs['findings_container'] = ui.column().classes('w-full gap-0').style(
