@@ -9,7 +9,7 @@ NiceGUI Web-App, Python 3.12. Start: `python nicegui_app/main.py`.
 
 ```
 nicegui_app/
-├── main.py            UI + Routing (~4.000 Z., index_page mit ~3.300 Z.)
+├── main.py            UI + Routing (~3.000 Z., index_page mit ~2.300 Z.)
 ├── styles.py          APP_CSS Design-System (rein)
 ├── app_settings.py    load_settings() + zentraler settings-Dict (rein)
 ├── utils.py           safe_open_folder, fmt_size, html_esc, copy_to_clipboard
@@ -19,6 +19,9 @@ nicegui_app/
 ├── exports.py         TXT/Excel/PDF/ZIP (rein, testbar)
 ├── text_extraction.py DOCX/PDF/OCR + extract_text-Cache (rein, testbar)
 ├── findings.py        finding_fingerprint (Diff zwischen Analyselaeufen)
+├── analysis.py        snapshot_previous_findings (rein, testbar)
+├── ui_findings.py     Findings-Render (Cards, Welcome, Split, Detail-Panel)
+├── ui_dialogs.py      Settings, Pairing, Glossar-Editor, Kunden-Dialoge, Hilfe
 ├── page_kalender.py   Route /kalender (registriert via @ui.page beim Import)
 └── page_kunden.py     Route /kunden  (registriert via @ui.page beim Import)
 ```
@@ -28,6 +31,15 @@ main.py importiert `page_kalender` + `page_kunden` ganz unten — der
 
 `settings` ist ein Modul-globales Dict in `app_settings.py`. Mutationen
 (Settings-Dialog) sind ueberall sichtbar, da Python Dicts per Referenz teilt.
+
+UI-Render-/Dialog-Funktionen aus `index_page()` werden via **ctx-Pattern**
+(`SimpleNamespace` mit den benoetigten Closures) an `ui_findings`/`ui_dialogs`
+uebergeben. Beispiel:
+
+```python
+ctx = SimpleNamespace(s=s, refs=refs, save_and_notify=_save_and_notify)
+_ui_dialogs.open_glossary_editor(ctx, _tmp_dir)
+```
 
 Backend-Module im Repo-Root: `quality_gui_phase{1,2,3,4}_*.py`,
 `neutral_pairing_service.py`, `neutral_upload_service.py`, `ki_module.py`, etc.
@@ -50,10 +62,11 @@ Backend-Module im Repo-Root: `quality_gui_phase{1,2,3,4}_*.py`,
 python -m pytest tests/ -q
 ```
 
-230+ Tests, sollten immer 100% grün sein nach Änderungen. Test-Dateien:
+280+ Tests, sollten immer 100% grün sein nach Änderungen. Test-Dateien:
 - `test_quality_gui_phase{1,2,3}_*.py` — Phase-Checker (62)
 - `test_severity.py`, `test_text_extraction.py` (45)
 - `test_customers.py`, `test_session.py`, `test_exports.py` (79)
+- `test_analysis.py` — Snapshot-Logik (6)
 - `test_neutral_pairing_service.py`, `test_glossary.py` (~50)
 
 Bei neuen Hilfsfunktionen: Tests schreiben.
