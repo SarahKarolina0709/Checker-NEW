@@ -1,54 +1,29 @@
-📌 Framework & Technologie:
-Verwende explizit CustomTkinter (aktuelle Version).
+# Anleitung für Python-Entwicklung
 
-Nutze ausschließlich das zentralisierte UITheme für alle Farben, Schriftarten und Abstände.
+## Framework
+- **NiceGUI** für die Web-Oberfläche (nicht CustomTkinter)
+- Python 3.12+
+- Styling über Tailwind CSS Klassen
 
-📌 DPI-Scaling & Layout:
-Deaktiviere vollständig jegliche automatische DPI-Skalierung.
+## Code-Standards
+- Type Hints verwenden
+- `encoding='utf-8'` bei allen Datei-Operationen
+- `try/except` für optionale Dependencies (pytesseract, reportlab, etc.)
+- Logging über `logging` Modul, nicht `print()`
 
-Keine automatischen Anpassungen der Fenstergröße.
+## UI-Entwicklung (NiceGUI)
+- Icons erlaubt: `ui.icon('check_circle')` (Material Icons)
+- Farben über Tailwind: `.classes('text-blue-700 bg-gray-50')`
+- Responsive: `flex-grow`, `w-full`, `gap-4`
+- Notifications: `ui.notify('Nachricht', type='positive')`
+- Dialoge: `ui.dialog()` mit `.open()`
 
-Der ScalingTracker von CustomTkinter wurde bereits vollständig per Monkey-Patch deaktiviert – bitte nicht erneut aktivieren oder modifizieren.
+## Backend-Module
+- Checker-Logik in eigenen Modulen (`quality_gui_phase*.py`)
+- Keine UI-Elemente in Backend-Modulen
+- Rückgabe als `QAIssue` Dataclass oder Dict
 
-📌 Layout-Konfiguration:
-Setze explizit und fix die Grundgröße des Fensters auf:
-
-min: 1400x900 Pixel
-
-max: 2560x1440 Pixel
-
-Alle Layouts ausschließlich manuell verwalten mittels:
-
-python
-Kopieren
-Bearbeiten
-widget.pack_propagate(False)
-widget.grid_propagate(False)
-Nutze stets explizite grid()- oder pack()-Angaben für alle Widgets.
-
-📌 Icons & Assets:
-Lade Icons ausschließlich als CTkImage über den vorhandenen FluentIconManager.
-
-Alle Icons liegen im Ordner icons als PNG-Dateien vor.
-
-Persistente Referenzen zu Icons explizit halten, um Garbage-Collection zu verhindern.
-
-📌 Animationen & Hover-Effekte:
-Vorschläge zu subtilen Animationen (Fade, leichte Vergrößerung bei Hover) sind erwünscht, aber unbedingt ressourcenschonend umsetzen.
-
-📌 Debugging & Logging:
-Nutze das bereits implementierte zentrale Logging (self.logger).
-
-Gib im Produktivmodus ausschließlich Meldungen der Stufen WARNING oder ERROR aus.
-
-📌 Codequalität & Struktur:
-Halte unbedingt die bestehende Welcome-Screen-basierte Architektur ein.
-
-Vorschläge sollen gut dokumentiert, sauber strukturiert und explizit in den bestehenden Stil integriert werden.
-
-Bevorzuge klare und leicht verständliche Kommentare in Deutsch.
-
-📌 Performance:
-Vermeide unnötige Aktualisierungen des Layouts oder UI-Refreshes.
-
-Schlage gezielte Performance-Optimierungen vor, die explizit die UI-Responsivität erhöhen und Overhead reduzieren.
+## Tests
+- Tests in `tests/` Ordner
+- `pytest` als Test-Framework
+- Checker-Tests testen Logik isoliert (ohne UI)

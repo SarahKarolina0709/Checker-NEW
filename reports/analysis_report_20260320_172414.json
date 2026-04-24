@@ -1,0 +1,57 @@
+{
+  "created_ts": 1774027454.9646642,
+  "overall_score": 82.26,
+  "plugins_run": 0,
+  "findings": [
+    {
+      "rule": "TARGET_LANGUAGE_MIX",
+      "message": "Zieltext enthält 40.4% Englisch Tokens (erwartet Deutsch).",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "TARGET_LANGUAGE_SEGMENTS",
+      "message": "1 Segmente wirken Englisch statt Deutsch.",
+      "severity": "warning",
+      "metadata": {}
+    },
+    {
+      "rule": "COMPANY_NAME_MISSING",
+      "message": "Firmenname fehlt/verändert: 'Müller GmbH' muss exakt übernommen werden",
+      "severity": "error",
+      "metadata": {}
+    },
+    {
+      "rule": "COMPANY_SUFFIX_TRANSLATED",
+      "message": "Rechtsform 'GmbH' wurde fälschlich zu 'Ltd' übersetzt. Deutsche Rechtsformen bleiben unübersetzt!",
+      "severity": "error",
+      "metadata": {}
+    },
+    {
+      "rule": "EMPTY_TRANSLATION",
+      "message": "Übersetzung ist leer (nur Tags/Leerzeichen)",
+      "severity": "error",
+      "metadata": {}
+    },
+    {
+      "rule": "heuristic.no_sentence_end",
+      "message": "Satz endet nicht mit Punkt/!/?",
+      "severity": "info",
+      "metadata": {}
+    }
+  ],
+  "context": {
+    "source_files": [
+      "C:\\Users\\sarah\\Desktop\\Checker\\Checker_Projekte\\neu\\2026-01-23\\01_Ausgangstext\\test_source_de.txt"
+    ],
+    "translation_files": [
+      "C:\\Users\\sarah\\Desktop\\Checker\\Checker_Projekte\\neu\\2026-01-23\\02_Übersetzungen\\test_translation_en.txt"
+    ],
+    "ui_completed_ts": 1774027454.9646642,
+    "phase": "ui"
+  },
+  "file_counts": {
+    "source": 1,
+    "translation": 1
+  }
+}

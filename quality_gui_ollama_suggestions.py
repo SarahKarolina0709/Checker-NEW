@@ -15,10 +15,23 @@ import os
 import json
 import hashlib
 import threading
+import logging
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime
 import time
+
+_logger = logging.getLogger(__name__)
+
+__all__ = [
+    'OllamaSuggestionGenerator',
+    'CorrectionSuggestion',
+    'is_ollama_available',
+    'check_ollama_connection',
+    'get_suggestion',
+    'get_suggestion_async',
+    '_call_ollama',
+]
 
 # ============================================================================
 # Ollama Client
@@ -48,26 +61,43 @@ if not _ollama_available:
 
 # Fallback: Direkter Ollama-Aufruf per HTTP
 if not _ollama_available:
-    import json
     from urllib.request import Request, urlopen
-    from urllib.error import URLError
+    from urllib.error import URLError, HTTPError
+    import time as _time_module
     
-    def _direct_ollama_call(prompt: str, model: str = "mistral", timeout: int = 60) -> str:
-        """Direkter HTTP-Aufruf an Ollama API."""
-        url = "http://localhost:11434/api/generate"
+    def _direct_ollama_call(prompt: str, model: str = "llama3.2:3b", timeout: int = 60) -> str:
+        """🔧 VERBESSERT: Direkter HTTP-Aufruf mit Retry-Logik und besserem Error-Handling."""
+        host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+        url = f"{host}/api/generate"
         data = json.dumps({
             "model": model,
             "prompt": prompt,
-            "stream": False
+            "stream": False,
+            "options": {
+                "num_predict": 1024,
+                "temperature": 0.4
+            }
         }).encode('utf-8')
         
-        req = Request(url, data=data, headers={'Content-Type': 'application/json'})
-        try:
-            with urlopen(req, timeout=timeout) as resp:
-                result = json.loads(resp.read().decode('utf-8'))
-                return result.get('response', '')
-        except Exception:
-            return ""
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                req = Request(url, data=data, headers={'Content-Type': 'application/json'})
+                with urlopen(req, timeout=timeout) as resp:
+                    result = json.loads(resp.read().decode('utf-8'))
+                    return result.get('response', '')
+            except HTTPError as e:
+                if e.code == 404:
+                    return ""  # Modell nicht gefunden
+                if attempt < max_retries - 1:
+                    _time_module.sleep(0.5)
+            except URLError:
+                if attempt < max_retries - 1:
+                    _time_module.sleep(1)
+            except Exception:
+                if attempt < max_retries - 1:
+                    _time_module.sleep(0.5)
+        return ""
     
     _call_ollama = _direct_ollama_call
     _ollama_available = True
@@ -79,7 +109,7 @@ def is_ollama_available() -> bool:
 
 
 def check_ollama_connection(timeout: float = 3.0) -> Tuple[bool, str]:
-    """Prüft ob Ollama erreichbar ist.
+    """🔧 VERBESSERT: Prüft ob Ollama erreichbar ist und Modelle verfügbar sind.
     
     Returns:
         (erreichbar, info_text)
@@ -88,27 +118,46 @@ def check_ollama_connection(timeout: float = 3.0) -> Tuple[bool, str]:
         return False, "Ollama-Modul nicht verfügbar"
     
     try:
-        import socket
         host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+        
+        # Methode 1: HTTP-Request (besser als Socket)
+        try:
+            from urllib.request import urlopen
+            url = f"{host}/api/tags" if "://" in host else f"http://{host}/api/tags"
+            with urlopen(url, timeout=timeout) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode('utf-8'))
+                    models = data.get('models', [])
+                    model_count = len(models)
+                    if model_count > 0:
+                        model_names = [m.get('name', '?') for m in models[:3]]
+                        return True, f"Ollama OK: {model_count} Modelle ({', '.join(model_names)}...)"
+                    return True, "Ollama erreichbar (keine Modelle installiert)"
+        except Exception:
+            pass
+        
+        # Methode 2: Socket-Fallback
+        import socket
         # Parse host
-        if "://" in host:
-            host = host.split("://")[1]
-        if ":" in host:
-            host, port_str = host.split(":")
+        clean_host = host
+        if "://" in clean_host:
+            clean_host = clean_host.split("://")[1]
+        if ":" in clean_host:
+            clean_host, port_str = clean_host.split(":")
             port = int(port_str.split("/")[0])
         else:
-            host = host.split("/")[0]
+            clean_host = clean_host.split("/")[0]
             port = 11434
         
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.settimeout(timeout)
-        result = sock.connect_ex((host, port))
+        result = sock.connect_ex((clean_host, port))
         sock.close()
         
         if result == 0:
-            return True, f"Ollama erreichbar ({host}:{port})"
+            return True, f"Ollama erreichbar ({clean_host}:{port})"
         else:
-            return False, f"Ollama nicht erreichbar ({host}:{port})"
+            return False, f"Ollama nicht erreichbar ({clean_host}:{port})"
     except Exception as e:
         return False, f"Verbindungsfehler: {str(e)[:50]}"
 
@@ -119,6 +168,8 @@ def check_ollama_connection(timeout: float = 3.0) -> Tuple[bool, str]:
 
 _suggestion_cache: Dict[str, Dict[str, Any]] = {}
 _cache_lock = threading.Lock()
+_CACHE_MAX_SIZE = 500  # Maximal 500 Einträge
+_CACHE_TTL_SECONDS = 3600  # 1 Stunde TTL
 
 
 def _cache_key(source: str, target: str, rule_id: str) -> str:
@@ -128,16 +179,38 @@ def _cache_key(source: str, target: str, rule_id: str) -> str:
 
 
 def get_cached_suggestion(source: str, target: str, rule_id: str) -> Optional[Dict[str, Any]]:
-    """Holt gecachten Vorschlag falls vorhanden."""
+    """Holt gecachten Vorschlag falls vorhanden und nicht abgelaufen."""
     key = _cache_key(source, target, rule_id)
     with _cache_lock:
-        return _suggestion_cache.get(key)
+        entry = _suggestion_cache.get(key)
+        if entry:
+            # TTL prüfen
+            cached_at = entry.get('cached_at', '')
+            if cached_at:
+                try:
+                    cached_time = datetime.fromisoformat(cached_at)
+                    age = (datetime.now() - cached_time).total_seconds()
+                    if age > _CACHE_TTL_SECONDS:
+                        del _suggestion_cache[key]
+                        return None
+                except Exception:
+                    pass
+            return entry
+        return None
 
 
 def cache_suggestion(source: str, target: str, rule_id: str, suggestion: Dict[str, Any]):
-    """Speichert Vorschlag im Cache."""
+    """Speichert Vorschlag im Cache (mit Limit)."""
     key = _cache_key(source, target, rule_id)
     with _cache_lock:
+        # Limit prüfen - älteste Einträge entfernen
+        if len(_suggestion_cache) >= _CACHE_MAX_SIZE:
+            # Entferne ältesten Eintrag (einfache FIFO-Strategie)
+            try:
+                oldest_key = next(iter(_suggestion_cache))
+                del _suggestion_cache[oldest_key]
+            except Exception:
+                pass
         _suggestion_cache[key] = {
             **suggestion,
             'cached_at': datetime.now().isoformat()
@@ -339,6 +412,8 @@ class OllamaSuggestionGenerator:
                 generation_time=generation_time
             )
             
+            _logger.debug("Korrektur generiert: %s, %.2fs, Konfidenz: %s", self.model, generation_time, suggestion.confidence)
+            
             # Cache speichern
             if use_cache and suggestion.corrected_target:
                 cache_suggestion(source, target, rule_id, suggestion.to_dict())
@@ -354,37 +429,52 @@ class OllamaSuggestionGenerator:
             )
     
     def _parse_response(self, response: str) -> Dict[str, Any]:
-        """Parst die Ollama-Antwort."""
+        """Parst die Ollama-Antwort robust gegen Markdown-Fences und Präfixtext."""
         try:
-            # JSON extrahieren
+            import re as _re
             text = response.strip()
-            
-            # Versuche JSON zu finden
+
+            # Markdown-Code-Fences entfernen (```json ... ``` oder ``` ... ```)
+            text = _re.sub(r'```(?:json)?\s*', '', text).strip()
+
+            # JSON-Objekt extrahieren: ersten { bis zugehörigem } suchen
             start_idx = text.find('{')
-            end_idx = text.rfind('}')
-            
-            if start_idx != -1 and end_idx != -1:
-                json_str = text[start_idx:end_idx + 1]
-                data = json.loads(json_str)
-                
-                # Normalisiere Feldnamen (DE/EN)
-                return {
-                    'corrected_target': data.get('korrigierte_uebersetzung') or data.get('corrected_translation', ''),
-                    'explanation': data.get('erklaerung') or data.get('explanation', ''),
-                    'confidence': data.get('konfidenz') or data.get('confidence', 0.8)
-                }
-            
-            # Fallback: Gesamte Antwort als Korrektur
+            if start_idx != -1:
+                # Klammer-Tiefe verfolgen um korrektes End-} zu finden
+                depth = 0
+                end_idx = -1
+                for i, ch in enumerate(text[start_idx:], start_idx):
+                    if ch == '{':
+                        depth += 1
+                    elif ch == '}':
+                        depth -= 1
+                        if depth == 0:
+                            end_idx = i
+                            break
+                if end_idx != -1:
+                    json_str = text[start_idx:end_idx + 1]
+                    data = json.loads(json_str)
+                    try:
+                        confidence = float(data.get('konfidenz') or data.get('confidence') or 0.8)
+                    except (TypeError, ValueError):
+                        confidence = 0.8
+                    return {
+                        'corrected_target': data.get('korrigierte_uebersetzung') or data.get('corrected_translation', ''),
+                        'explanation': data.get('erklaerung') or data.get('explanation', ''),
+                        'confidence': confidence,
+                    }
+
+            # Fallback: Gesamte Antwort als Korrekturtext
             return {
                 'corrected_target': text[:500],
                 'explanation': 'Direkte Antwort (kein JSON)',
-                'confidence': 0.5
+                'confidence': 0.5,
             }
-            
+
         except json.JSONDecodeError as e:
-            return {'error': f'JSON-Parsing fehlgeschlagen: {str(e)[:50]}'}
+            return {'error': f'JSON-Parsing fehlgeschlagen: {str(e)[:80]}'}
         except Exception as e:
-            return {'error': f'Parsing-Fehler: {str(e)[:50]}'}
+            return {'error': f'Parsing-Fehler: {str(e)[:80]}'}
     
     def generate_batch_suggestions(self,
                                    findings: List[Dict[str, Any]],
@@ -444,7 +534,9 @@ def get_suggestion(finding: Dict[str, Any],
     """
     global _default_generator
     
-    if _default_generator is None or _default_generator.model != model:
+    if (_default_generator is None
+            or _default_generator.model != model
+            or _default_generator.language != language):
         _default_generator = OllamaSuggestionGenerator(model=model, language=language)
     
     source = finding.get('source') or finding.get('source_text') or ''

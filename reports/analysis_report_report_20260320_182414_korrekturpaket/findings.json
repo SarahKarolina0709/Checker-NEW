@@ -1,0 +1,156 @@
+[
+  {
+    "phase": "phase2",
+    "code": "TARGET_LANGUAGE_MIX",
+    "severity": "major",
+    "category": "completeness",
+    "rule_id": "TARGET_LANGUAGE_MIX",
+    "rule": "TARGET_LANGUAGE_MIX",
+    "message": "Zieltext enthält 40.4% Englisch Tokens (erwartet Deutsch).",
+    "source": "",
+    "target": "Übersetzung (gesamt)",
+    "source_excerpt": "",
+    "target_excerpt": "Übersetzung (gesamt)",
+    "segment_index": -1,
+    "segment_id": "",
+    "suggestion": "",
+    "meta": {
+      "target_language": "de",
+      "target_ratio": 0.0213,
+      "top_other_language": "en",
+      "top_other_ratio": 0.4043,
+      "flagged_segments": 1
+    }
+  },
+  {
+    "phase": "phase2",
+    "code": "TARGET_LANGUAGE_SEGMENTS",
+    "severity": "major",
+    "category": "completeness",
+    "rule_id": "TARGET_LANGUAGE_SEGMENTS",
+    "rule": "TARGET_LANGUAGE_SEGMENTS",
+    "message": "1 Segmente wirken Englisch statt Deutsch.",
+    "source": "",
+    "target": "Übersetzung (gesamt)",
+    "source_excerpt": "",
+    "target_excerpt": "Übersetzung (gesamt)",
+    "segment_index": -1,
+    "segment_id": "",
+    "suggestion": "",
+    "meta": {
+      "segments": [
+        {
+          "hash": "4222b87e",
+          "segment_index": 0,
+          "language": "en",
+          "language_label": "Englisch",
+          "flag_ratio": 0.4043,
+          "target_ratio": 0.0213,
+          "preview": "Business Report 2025\n\nMüller Ltd achieved a turnover of 15,750,000 euros in 2025.\n\nThis represents an increase of 12.5% compared to the previous year.\n\nOur CEO "
+        }
+      ],
+      "language_counts": {
+        "en": 1
+      },
+      "target_language": "de"
+    }
+  },
+  {
+    "phase": "phase2",
+    "code": "COMPANY_NAME_MISSING",
+    "severity": "critical",
+    "category": "terminology",
+    "rule_id": "COMPANY_NAME_MISSING",
+    "rule": "COMPANY_NAME_MISSING",
+    "message": "Firmenname fehlt/verändert: 'Müller GmbH' muss exakt übernommen werden",
+    "source": "Geschäftsbericht 2025\nDie Müller GmbH hat im Jahr 2025 einen Umsatz von 15.750.000 Euro erzielt.",
+    "target": "Business Report 2025\nMüller Ltd achieved a turnover of 15,750,000 euros in 2025.",
+    "source_excerpt": "Geschäftsbericht 2025\nDie Müller GmbH hat im Jahr 2025 einen Umsatz von 15.750.000 Euro erzielt.",
+    "target_excerpt": "Business Report 2025\nMüller Ltd achieved a turnover of 15,750,000 euros in 2025.",
+    "segment_index": 0,
+    "segment_id": "0",
+    "suggestion": "",
+    "meta": {
+      "company": "Müller GmbH",
+      "pair": {
+        "index": 0,
+        "source": "test_source_de.txt",
+        "target": "test_translation_en.txt"
+      }
+    }
+  },
+  {
+    "phase": "phase2",
+    "code": "COMPANY_SUFFIX_TRANSLATED",
+    "severity": "critical",
+    "category": "terminology",
+    "rule_id": "COMPANY_SUFFIX_TRANSLATED",
+    "rule": "COMPANY_SUFFIX_TRANSLATED",
+    "message": "Rechtsform 'GmbH' wurde fälschlich zu 'Ltd' übersetzt. Deutsche Rechtsformen bleiben unübersetzt!",
+    "source": "Geschäftsbericht 2025\nDie Müller GmbH hat im Jahr 2025 einen Umsatz von 15.750.000 Euro erzielt.",
+    "target": "Business Report 2025\nMüller Ltd achieved a turnover of 15,750,000 euros in 2025.",
+    "source_excerpt": "Geschäftsbericht 2025\nDie Müller GmbH hat im Jahr 2025 einen Umsatz von 15.750.000 Euro erzielt.",
+    "target_excerpt": "Business Report 2025\nMüller Ltd achieved a turnover of 15,750,000 euros in 2025.",
+    "segment_index": 0,
+    "segment_id": "0",
+    "suggestion": "",
+    "meta": {
+      "original": "GmbH",
+      "translated": "Ltd",
+      "pair": {
+        "index": 0,
+        "source": "test_source_de.txt",
+        "target": "test_translation_en.txt"
+      }
+    }
+  },
+  {
+    "phase": "phase2",
+    "code": "EMPTY_TRANSLATION",
+    "severity": "critical",
+    "category": "completeness",
+    "rule_id": "EMPTY_TRANSLATION",
+    "rule": "EMPTY_TRANSLATION",
+    "message": "Übersetzung ist leer (nur Tags/Leerzeichen)",
+    "source": "Weitere Informationen finden Sie auf www.mueller-gmbh.de",
+    "target": "",
+    "source_excerpt": "Weitere Informationen finden Sie auf www.mueller-gmbh.de",
+    "target_excerpt": "",
+    "segment_index": 5,
+    "segment_id": "5",
+    "suggestion": "",
+    "meta": {
+      "pair": {
+        "index": 0,
+        "source": "test_source_de.txt",
+        "target": "test_translation_en.txt"
+      }
+    }
+  },
+  {
+    "phase": "phase3",
+    "code": "heuristic.no_sentence_end",
+    "severity": "minor",
+    "category": "grammar",
+    "rule_id": "heuristic.no_sentence_end",
+    "rule": "heuristic.no_sentence_end",
+    "message": "Satz endet nicht mit Punkt/!/?",
+    "source": "Kontakt: info@mueller-gmbh.de oder Tel. +49 89 123456",
+    "target": "Contact: info@mueller-gmbh.de or phone +49 89 123456\nMore information at www.mueller-gmbh.de",
+    "source_excerpt": "Kontakt: info@mueller-gmbh.de oder Tel. +49 89 123456",
+    "target_excerpt": "Contact: info@mueller-gmbh.de or phone +49 89 123456\nMore information at www.mueller-gmbh.de",
+    "segment_index": 4,
+    "segment_id": "4",
+    "suggestion": "",
+    "meta": {
+      "checker": "heuristic",
+      "suggestion": "",
+      "excerpt": "\nMore information at www.mueller-gmbh.de",
+      "pair": {
+        "index": 0,
+        "source": "test_source_de.txt",
+        "target": "test_translation_en.txt"
+      }
+    }
+  }
+]

@@ -2,144 +2,111 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Run Welcome Screen Test",
+			"label": "Run Welcome Screen",
 			"type": "shell",
-			"command": "${workspaceFolder}/final_test.bat",
+			"command": "python",
+			"args": [
+				"${workspaceFolder}/welcome_screen.py"
+			],
 			"group": "build",
 			"problemMatcher": [],
-			"isBackground": false
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			}
 		},
 		{
-			"label": "Run Welcome Screen Test",
+			"label": "Run Quality GUI",
 			"type": "shell",
-			"command": "${workspaceFolder}/final_test.bat",
-			"isBackground": false,
-			"group": "build"
+			"command": "python",
+			"args": [
+				"${workspaceFolder}/quality_gui_main_app.py"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			}
 		},
 		{
-			"label": "Run Welcome Screen Test",
+			"label": "Run Current File",
 			"type": "shell",
-			"command": "${workspaceFolder}/final_test.bat",
-			"isBackground": false,
-			"group": "build"
+			"command": "python",
+			"args": [
+				"${file}"
+			],
+			"group": "build",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			}
 		},
 		{
-			"label": "Run Welcome Screen Test",
+			"label": "Run Pytest",
 			"type": "shell",
-			"command": "${workspaceFolder}/final_test.bat",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Run Welcome Screen Test",
-			"type": "shell",
-			"command": "${workspaceFolder}/final_test.bat",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Run Welcome Screen Test",
-			"type": "shell",
-			"command": "${workspaceFolder}/final_test.bat",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Run Welcome Screen Test",
-			"type": "shell",
-			"command": "${workspaceFolder}/final_test.bat",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Run Welcome Screen Test",
-			"type": "shell",
-			"command": "${workspaceFolder}/final_test.bat",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Run Welcome Screen Test",
-			"type": "shell",
-			"command": "${workspaceFolder}/final_test.bat",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Run Welcome Screen Test",
-			"type": "shell",
-			"command": "${workspaceFolder}/final_test.bat",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Run Welcome Screen Test",
-			"type": "shell",
-			"command": "${workspaceFolder}/final_test.bat",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Run Welcome Screen Test",
-			"type": "shell",
-			"command": "${workspaceFolder}/final_test.bat",
-			"isBackground": false,
-			"group": "build"
+			"command": "python",
+			"args": [
+				"-m",
+				"pytest",
+				"-q"
+			],
+			"group": "test",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always"
+			}
 		},
 		{
 			"label": "Backup all .py files",
 			"type": "shell",
 			"command": "${workspaceFolder}/backup_py.bat",
-			"isBackground": false,
-			"group": "build"
+			"group": "build",
+			"problemMatcher": []
 		},
 		{
-			"label": "Run Welcome Screen Test",
+			"label": "Run Quality GUI",
 			"type": "shell",
-			"command": "${workspaceFolder}/final_test.bat",
-			"isBackground": false,
-			"group": "build"
+			"command": ".venv/Scripts/python.exe",
+			"args": [
+				"quality_gui_main_app.py"
+			]
 		},
 		{
-			"label": "Run Welcome Screen Test",
+			"label": "Test Dashboard",
 			"type": "shell",
-			"command": "${workspaceFolder}/final_test.bat",
-			"isBackground": false,
-			"group": "build"
+			"command": ".venv/Scripts/python.exe",
+			"args": [
+				"quality_gui_main_app.py"
+			]
 		},
 		{
-			"label": "Run Welcome Screen Test",
+			"label": "Start Quality GUI",
 			"type": "shell",
-			"command": "${workspaceFolder}/final_test.bat",
-			"isBackground": false,
-			"group": "build"
+			"command": ".venv/Scripts/python.exe",
+			"args": [
+				"quality_gui_main_app.py"
+			]
 		},
 		{
-			"label": "Run Python Tests (pytest)",
+			"label": "Test UI Changes",
 			"type": "shell",
-			"command": "C:/Users/sarah/AppData/Local/Programs/Python/Python312/python.exe -m pytest -q",
-			"isBackground": false,
-			"group": "build"
+			"command": ".venv/Scripts/python.exe",
+			"args": [
+				"quality_gui_main_app.py"
+			]
 		},
 		{
-			"label": "Run Pytest (dashboard)",
+			"label": "Test Upload Dashboard",
 			"type": "shell",
-			"command": "C:/Users/sarah/AppData/Local/Programs/Python/Python312/python.exe -m pytest -q",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Run Pytest (dashboard)",
-			"type": "shell",
-			"command": "C:/Users/sarah/AppData/Local/Programs/Python/Python312/python.exe -m pytest -q",
-			"isBackground": false,
-			"group": "build"
-		},
-		{
-			"label": "Run Pytest (dashboard)",
-			"type": "shell",
-			"command": "C:/Users/sarah/AppData/Local/Programs/Python/Python312/python.exe -m pytest -q",
-			"isBackground": false,
+			"command": "python",
+			"args": [
+				"quality_gui_main_app.py"
+			],
 			"group": "build"
 		}
 	]

@@ -1,0 +1,112 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Export Report</title>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { color: #333; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
+        .section { margin: 20px 0; }
+        .key { font-weight: bold; color: #666; }
+        .value { margin-left: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1 class="header">Export Report</h1>
+    <p><strong>Generated:</strong> 2026-03-20 19:27:13</p>
+<div class='section'><h2 class='key'>Verwendete Ähnlichkeitsschwellen</h2><div>Kritisch ≥ 75%, Wesentlich ≥ 85%</div></div>
+<div class='section'>
+<h2 class='key'>Befunde</h2>
+<table><thead><tr><th>Schweregrad</th><th>Regel</th><th>Nachricht</th><th>Anzahl</th><th>Prüfer</th><th>Sicherheitswert</th></tr></thead><tbody><tr><td>kritisch</td><td>COMPANY_NAME_MISSING</td><td>Firmenname fehlt/verändert: &amp;#x27;Müller GmbH&amp;#x27; muss exakt übernommen werden</td><td>1</td><td></td><td></td></tr><tr><td>kritisch</td><td>COMPANY_SUFFIX_TRANSLATED</td><td>Rechtsform &amp;#x27;GmbH&amp;#x27; wurde fälschlich zu &amp;#x27;Ltd&amp;#x27; übersetzt. Deutsche Rechtsformen bleiben unübersetzt!</td><td>1</td><td></td><td></td></tr><tr><td>kritisch</td><td>EMPTY_TRANSLATION</td><td>Übersetzung ist leer (nur Tags/Leerzeichen)</td><td>1</td><td></td><td></td></tr><tr><td>wesentlich</td><td>TARGET_LANGUAGE_MIX</td><td>Zieltext enthält 40.4% Englisch Tokens (erwartet Deutsch).</td><td>1</td><td></td><td></td></tr><tr><td>wesentlich</td><td>TARGET_LANGUAGE_SEGMENTS</td><td>1 Segmente wirken Englisch statt Deutsch.</td><td>1</td><td></td><td></td></tr><tr><td>gering</td><td>SEMANTIC_LOW</td><td>Strukturelle Ähnlichkeit niedrig (0.31 &amp;lt; 0.65) [Lightweight-Fallback]</td><td>2</td><td></td><td></td></tr><tr><td>info</td><td>KI_ANALYSE</td><td>KI-Analyse: Ollama API Fehler: &amp;quot;nomic-embed-text&amp;quot; does not support chat (status code: 400). (Status Code: 400)</td><td>1</td><td></td><td></td></tr></tbody></table></div>
+<div class='section'><h2 class='key'>metrics</h2>
+<div class='section'><span class='key'>pair_count:</span> <span class='value'>1</span></div>
+<div class='section'><span class='key'>avg_similarity:</span> <span class='value'>1.0</span></div>
+<div class='section'><span class='key'>avg_length_ratio:</span> <span class='value'>0.8641</span></div>
+<div class='section'><span class='key'>terminology_match_rate:</span> <span class='value'>None</span></div>
+<div class='section'><span class='key'>readability_score:</span> <span class='value'>100</span></div>
+<div class='section'><span class='key'>avg_sentence_length:</span> <span class='value'>6.375</span></div>
+<div class='section'><span class='key'>passive_voice_rate:</span> <span class='value'>0.0</span></div>
+<div class='section'><span class='key'>analysis_time_ms:</span> <span class='value'>103351</span></div>
+<div class='section'><span class='key'>overall_score:</span> <span class='value'>82.46</span></div>
+<div class='section'><h3 class='key'>glossary_status</h3>
+<div class='section'><span class='key'>loaded:</span> <span class='value'>False</span></div>
+<div class='section'><span class='key'>term_count:</span> <span class='value'>0</span></div>
+<div class='section'><span class='key'>path:</span> <span class='value'>None</span></div>
+<div class='section'><span class='key'>info:</span> <span class='value'>None</span></div>
+</div>
+<div class='section'><span class='key'>length_ratio_expected:</span> <span class='value'>0.9</span></div>
+<div class='section'><span class='key'>length_ratio_tolerance:</span> <span class='value'>0.08</span></div>
+<div class='section'><span class='key'>length_ratio_lower:</span> <span class='value'>0.82</span></div>
+<div class='section'><span class='key'>length_ratio_upper:</span> <span class='value'>0.98</span></div>
+<div class='section'><h3 class='key'>length_ratio_languages</h3>
+<div class='section'><span class='key'>source:</span> <span class='value'>de</span></div>
+<div class='section'><span class='key'>target:</span> <span class='value'>de</span></div>
+</div>
+<div class='section'><span class='key'>length_ratio_label:</span> <span class='value'>Deutsch->Deutsch</span></div>
+<div class='section'><span class='key'>segments_total:</span> <span class='value'>1</span></div>
+<div class='section'><span class='key'>segments_translated:</span> <span class='value'>1</span></div>
+<div class='section'><span class='key'>segments_untranslated:</span> <span class='value'>0</span></div>
+<div class='section'><span class='key'>translated_ratio:</span> <span class='value'>1.0</span></div>
+<div class='section'><span class='key'>untranslated_ratio:</span> <span class='value'>0.0</span></div>
+<div class='section'><span class='key'>translation_completeness_score:</span> <span class='value'>1.0</span></div>
+<div class='section'><span class='key'>completeness:</span> <span class='value'>1.0</span></div>
+<div class='section'><h3 class='key'>similarity_thresholds_used</h3>
+<div class='section'><span class='key'>critical:</span> <span class='value'>0.75</span></div>
+<div class='section'><span class='key'>major:</span> <span class='value'>0.85</span></div>
+<div class='section'><span class='key'>mode:</span> <span class='value'>static</span></div>
+<div class='section'><span class='key'>p_critical:</span> <span class='value'>None</span></div>
+<div class='section'><span class='key'>p_major:</span> <span class='value'>None</span></div>
+</div>
+<div class='section'><h3 class='key'>grammar_status</h3>
+<div class='section'><span class='key'>used:</span>
+<ul>
+</ul></div>
+<div class='section'><span class='key'>disabled:</span>
+<ul>
+</ul></div>
+<div class='section'><span class='key'>force:</span> <span class='value'>False</span></div>
+<div class='section'><span class='key'>cache_hit:</span> <span class='value'>False</span></div>
+</div>
+<div class='section'><h3 class='key'>similarity_distribution</h3>
+<div class='section'><h4 class='key'>buckets</h4>
+<div class='section'><span class='key'>0-0.50:</span> <span class='value'>0</span></div>
+<div class='section'><span class='key'>0.50-0.70:</span> <span class='value'>0</span></div>
+<div class='section'><span class='key'>0.70-0.85:</span> <span class='value'>0</span></div>
+<div class='section'><span class='key'>0.85-0.95:</span> <span class='value'>0</span></div>
+<div class='section'><span class='key'>0.95-1.00:</span> <span class='value'>1</span></div>
+</div>
+<div class='section'><span class='key'>min:</span> <span class='value'>1.0</span></div>
+<div class='section'><span class='key'>max:</span> <span class='value'>1.0</span></div>
+<div class='section'><span class='key'>median:</span> <span class='value'>1.0</span></div>
+</div>
+<div class='section'><h3 class='key'>target_language_analysis</h3>
+<div class='section'><span class='key'>token_total:</span> <span class='value'>47</span></div>
+<div class='section'><span class='key'>expected_target:</span> <span class='value'>de</span></div>
+<div class='section'><span class='key'>target_ratio:</span> <span class='value'>0.0213</span></div>
+<div class='section'><span class='key'>source_ratio:</span> <span class='value'>0.0213</span></div>
+<div class='section'><h4 class='key'>ratios</h4>
+<div class='section'><span class='key'>nl:</span> <span class='value'>0.0213</span></div>
+<div class='section'><span class='key'>de:</span> <span class='value'>0.0213</span></div>
+<div class='section'><span class='key'>tr:</span> <span class='value'>0.0638</span></div>
+<div class='section'><span class='key'>fr:</span> <span class='value'>0.0213</span></div>
+<div class='section'><span class='key'>en:</span> <span class='value'>0.4043</span></div>
+</div>
+<div class='section'><span class='key'>flagged_segments:</span> <span class='value'>1</span></div>
+<div class='section'><h4 class='key'>top_other_language</h4>
+<div class='section'><span class='key'>code:</span> <span class='value'>en</span></div>
+<div class='section'><span class='key'>label:</span> <span class='value'>Englisch</span></div>
+<div class='section'><span class='key'>ratio:</span> <span class='value'>0.4043</span></div>
+</div>
+<div class='section'><h4 class='key'>thresholds</h4>
+<div class='section'><span class='key'>mix_total:</span> <span class='value'>0.08</span></div>
+<div class='section'><span class='key'>segment_source:</span> <span class='value'>0.35</span></div>
+</div>
+</div>
+</div>
+
+</body>
+</html>

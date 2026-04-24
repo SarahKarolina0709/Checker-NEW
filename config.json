@@ -1,12 +1,4 @@
 
-# 🚨 CRITICAL SYSTEM FILE - NIEMALS LÖSCHEN!
-# DATEI: config.json
-# STATUS: ESSENTIAL (Priorität: 2)
-# BESCHREIBUNG: Hauptkonfiguration der Anwendung
-# LETZTE VERIFIZIERUNG: 2025-07-19
-# ⚠️ WARNUNG: Diese Datei ist systemkritisch - nicht löschen oder stark modifizieren!
-# 🔒 SCHUTZ: Automatisches Backup bei Änderungen erforderlich
-# 📋 ABHÄNGIGKEITEN: 
 
 {
     "app": {
@@ -94,6 +86,28 @@
         "projekt_workflow": {
             "enabled": true,
             "title": "Projektübersicht"
+        }
+    },
+    "analysis": {
+        "phases": {
+            "phase3": {
+                "enabled": true,
+                "spellcheck": {
+                    "enabled": true,
+                    "use_language_tool": true,
+                    "use_hunspell": true,
+                    "use_ollama": false,
+                    "max_issues_per_segment": 10,
+                    "ratio_threshold": 0.15
+                }
+            },
+            "phase4": {
+                "enabled": true,
+                "ollama_model": "llama3.2:3b",
+                "fachgebiet": "Allgemein",
+                "pruefstufe": "v1",
+                "max_segments": 30
+            }
         }
     }
 }

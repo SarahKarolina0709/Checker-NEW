@@ -1,0 +1,27 @@
+{
+  "created_ts": 1773675388.5007136,
+  "overall_score": 93.67,
+  "plugins_run": 0,
+  "findings": [
+    {
+      "rule": "completeness",
+      "message": "Längenverhältnis Deutsch->Italienisch liegt über dem erwarteten Bereich. Ist: 104% · Erwartet: 90% ±8%",
+      "severity": "warning",
+      "metadata": {}
+    }
+  ],
+  "context": {
+    "source_files": [
+      "C:\\Users\\sarah\\AppData\\Local\\Temp\\test_de_source.txt"
+    ],
+    "translation_files": [
+      "C:\\Users\\sarah\\AppData\\Local\\Temp\\test_it_translation.txt"
+    ],
+    "ui_completed_ts": 1773675388.5007136,
+    "phase": "ui"
+  },
+  "file_counts": {
+    "source": 1,
+    "translation": 1
+  }
+}

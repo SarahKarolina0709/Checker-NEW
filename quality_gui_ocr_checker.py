@@ -24,6 +24,18 @@ from __future__ import annotations
 from typing import List, Dict, Tuple, Set, Any, Optional, Iterable
 from dataclasses import dataclass, field
 import re
+import logging
+
+_logger = logging.getLogger(__name__)
+
+__all__ = [
+    'OCRChecker',
+    'OCRFinding',
+    'run_ocr_check',
+    'check_ocr_as_issues',
+    'OCR_CONFUSABLES',
+    'KNOWN_OCR_ERRORS',
+]
 
 # ============================================================================
 # OCR-Verwechslungspaare (visuell ähnliche Zeichen)
@@ -130,6 +142,37 @@ KNOWN_OCR_ERRORS = {
     'lf': 'If',
     'ls': 'Is',
     'ln': 'In',
+    # Weitere häufige OCR-Fehler
+    'Marz': 'März',
+    'Tur': 'Tür',
+    'fur': 'für',
+    'ubér': 'über',
+    'iiber': 'über',
+    'Ubersetzen': 'Übersetzen',
+    'rnehr': 'mehr',
+    'sehern': 'sehen',
+    'gehern': 'gehen',
+    'stehern': 'stehen',
+    'rnachen': 'machen',
+    'rnöglich': 'möglich',
+    'kornrnen': 'kommen',
+    'kornmt': 'kommt',
+    'Kornrna': 'Komma',
+    'zusarnrnen': 'zusammen',
+    'Zusarnrnenfassung': 'Zusammenfassung',
+    'irnrner': 'immer',
+    'nurnrner': 'nummer',
+    'Nurnrner': 'Nummer',
+    # Englisch erweitert
+    'cornputer': 'computer',
+    'cornpany': 'company',
+    'cornplete': 'complete',
+    'lnternet': 'Internet',
+    'lnformation': 'Information',
+    'lnput': 'Input',
+    'rnernory': 'memory',
+    'rnessage': 'message',
+    'rnethod': 'method',
 }
 
 # Regex für Wort-Extraktion (unicode-sicher)
@@ -147,6 +190,7 @@ class OCRFinding:
     segment_index: int
     error_type: str  # 'confusable', 'ligature', 'pattern', 'known_error'
     suggestion: str = ""
+    confidence: float = 0.7  # 🔧 NEU: Konfidenz-Score (0.0-1.0)
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -160,6 +204,7 @@ class OCRFinding:
             'meta': {
                 'error_type': self.error_type,
                 'suggestion': self.suggestion,
+                'confidence': self.confidence,  # 🔧 NEU
             }
         }
 
@@ -198,6 +243,9 @@ class OCRChecker:
         
         # Kompilierte Pattern
         self.compiled_patterns = []
+        
+        # 🔧 NEU: Ligatur-Mapping für Prüfung
+        self.ligature_map = LIGATURE_ISSUES.copy()
         for pattern, correction, desc in OCR_ERROR_PATTERNS:
             try:
                 self.compiled_patterns.append((re.compile(pattern), correction, desc))
@@ -225,7 +273,7 @@ class OCRChecker:
         if word_lower in self.known_errors:
             correction = self.known_errors[word_lower]
             # Großschreibung beibehalten wenn nötig
-            if word[0].isupper():
+            if word and correction and word[0].isupper():
                 correction = correction[0].upper() + correction[1:]
             return (correction, f"'{word}' → '{correction}'")
         
@@ -254,9 +302,11 @@ class OCRChecker:
             Liste von (gefunden, erwartet, beschreibung) Tuples
         """
         findings = []
+        seen_pairs: Set[Tuple[str, str]] = set()  # 🔧 NEU: Deduplizierung
         
         # Extrahiere Wörter aus beiden Texten
         source_words = set(self._extract_words(source))
+        source_words_lower = {w.lower() for w in source_words}
         target_words = self._extract_words(target)
         
         for target_word in target_words:
@@ -266,20 +316,51 @@ class OCRChecker:
                     # Erstelle mögliche Korrekturen
                     if char1 in target_word:
                         corrected = target_word.replace(char1, char2)
-                        if corrected in source_words or corrected.lower() in {w.lower() for w in source_words}:
-                            findings.append((
-                                target_word, 
-                                corrected, 
-                                f"OCR-Verwechslung: '{char1}'→'{char2}'"
-                            ))
+                        pair_key = (target_word.lower(), corrected.lower())
+                        if pair_key not in seen_pairs:
+                            if corrected in source_words or corrected.lower() in source_words_lower:
+                                findings.append((
+                                    target_word, 
+                                    corrected, 
+                                    f"OCR-Verwechslung: '{char1}'→'{char2}'"
+                                ))
+                                seen_pairs.add(pair_key)
                     if char2 in target_word:
                         corrected = target_word.replace(char2, char1)
-                        if corrected in source_words or corrected.lower() in {w.lower() for w in source_words}:
-                            findings.append((
-                                target_word, 
-                                corrected, 
-                                f"OCR-Verwechslung: '{char2}'→'{char1}'"
-                            ))
+                        pair_key = (target_word.lower(), corrected.lower())
+                        if pair_key not in seen_pairs:
+                            if corrected in source_words or corrected.lower() in source_words_lower:
+                                findings.append((
+                                    target_word, 
+                                    corrected, 
+                                    f"OCR-Verwechslung: '{char2}'→'{char1}'"
+                                ))
+                                seen_pairs.add(pair_key)
+        
+        return findings
+    
+    def _check_ligatures(self, text: str) -> List[Tuple[str, str, str]]:
+        """🔧 NEU: Prüft auf Ligatur-Probleme im Text.
+        
+        Ligaturen (fi, fl, ff, ffi, ffl) werden manchmal falsch
+        erkannt oder durch Unicode-Ligaturen ersetzt.
+        
+        Returns:
+            Liste von (gefunden, erwartet, beschreibung) Tuples
+        """
+        findings = []
+        if not text:
+            return findings
+        
+        for standard, variants in self.ligature_map.items():
+            for variant in variants:
+                if variant != standard and variant in text:
+                    # Unicode-Ligatur gefunden, sollte aufgelöst werden
+                    findings.append((
+                        variant,
+                        standard,
+                        f"Unicode-Ligatur '{variant}' → '{standard}'"
+                    ))
         
         return findings
     
@@ -324,10 +405,15 @@ class OCRChecker:
         # 1. Bekannte OCR-Fehler prüfen
         if self.check_known_errors:
             target_words = self._extract_words(target)
+            seen_errors: Set[str] = set()  # 🔧 NEU: Deduplizierung
             for word in target_words:
+                word_key = word.lower()
+                if word_key in seen_errors:
+                    continue
                 result = self._check_known_error(word)
                 if result:
                     correction, desc = result
+                    seen_errors.add(word_key)
                     findings.append(OCRFinding(
                         rule_id='OCR_KNOWN_ERROR',
                         severity='major',
@@ -336,13 +422,19 @@ class OCRChecker:
                         target_excerpt=self._find_context(target, word),
                         segment_index=segment_index,
                         error_type='known_error',
-                        suggestion=correction
+                        suggestion=correction,
+                        confidence=0.95  # 🔧 NEU: Hohe Konfidenz für bekannte Fehler
                     ))
         
         # 2. OCR-Pattern prüfen
         if self.check_patterns:
             pattern_findings = self._check_patterns(target)
+            seen_patterns: Set[str] = set()  # 🔧 NEU: Deduplizierung
             for found, correction, desc in pattern_findings:
+                pattern_key = found.lower()
+                if pattern_key in seen_patterns:
+                    continue
+                seen_patterns.add(pattern_key)
                 findings.append(OCRFinding(
                     rule_id='OCR_PATTERN',
                     severity='minor',
@@ -351,7 +443,8 @@ class OCRChecker:
                     target_excerpt=self._find_context(target, found),
                     segment_index=segment_index,
                     error_type='pattern',
-                    suggestion=correction
+                    suggestion=correction,
+                    confidence=0.7  # 🔧 NEU: Mittlere Konfidenz für Pattern
                 ))
         
         # 3. Verwechselbare Zeichen zwischen Quelle und Ziel
@@ -366,8 +459,24 @@ class OCRChecker:
                     target_excerpt=self._find_context(target, found),
                     segment_index=segment_index,
                     error_type='confusable',
-                    suggestion=expected
+                    suggestion=expected,
+                    confidence=0.6  # Niedrigere Konfidenz für Vermutungen
                 ))
+        
+        # 4. 🔧 NEU: Ligatur-Probleme prüfen
+        ligature_findings = self._check_ligatures(target)
+        for found, expected, desc in ligature_findings:
+            findings.append(OCRFinding(
+                rule_id='OCR_LIGATURE',
+                severity='minor',
+                message=f"Ligatur-Problem: {desc}",
+                source_excerpt=self._find_context(source, found) if source else '',
+                target_excerpt=self._find_context(target, found),
+                segment_index=segment_index,
+                error_type='ligature',
+                suggestion=expected,
+                confidence=0.8
+            ))
         
         return findings
     
@@ -388,6 +497,9 @@ class OCRChecker:
         
         # Sortiere nach Schweregrad und Segment
         all_findings.sort(key=lambda f: (0 if f.severity == 'major' else 1, f.segment_index))
+        
+        if all_findings:
+            _logger.debug("OCR-Prüfung: %s Findings in %s Segmenten", len(all_findings), len(list(pairs)) if hasattr(pairs, '__len__') else 'n')
         
         return all_findings
     
@@ -435,6 +547,7 @@ def check_ocr_as_issues(pairs: Iterable[Tuple[str, str]], **kwargs) -> List[Any]
             message: str
             source_text: str
             target_text: str
+            segment_index: int = -1
             meta: dict = field(default_factory=dict)
     
     checker = OCRChecker(**kwargs)
@@ -442,6 +555,7 @@ def check_ocr_as_issues(pairs: Iterable[Tuple[str, str]], **kwargs) -> List[Any]
     
     issues = []
     for f in findings:
+        # 🔧 FIX: segment_index als separater Parameter (nicht nur in meta)
         issues.append(QAIssue(
             code=f.rule_id,
             severity=f.severity,
@@ -449,10 +563,11 @@ def check_ocr_as_issues(pairs: Iterable[Tuple[str, str]], **kwargs) -> List[Any]
             message=f.message,
             source_text=f.source_excerpt,
             target_text=f.target_excerpt,
+            segment_index=f.segment_index,
             meta={
-                'segment_index': f.segment_index,
                 'error_type': f.error_type,
                 'suggestion': f.suggestion,
+                'confidence': f.confidence,  # 🔧 NEU: Konfidenz-Score übergeben
             }
         ))
     

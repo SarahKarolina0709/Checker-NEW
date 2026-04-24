@@ -57,7 +57,15 @@
     "python.analysis.diagnosticMode": "openFilesOnly",
     "files.autoSave": "afterDelay",
     "editor.minimap.enabled": false,
-    "breadcrumbs.enabled": false,
+    "breadcrumbs.enabled": true,
     "editor.formatOnSave": false,
-    "python.analysis.typeCheckingMode": "off"
+    "python.analysis.typeCheckingMode": "off",
+    "chat.tools.terminal.autoApprove": {
+        "/^python -c \"\nimport os\ncount = 0\nfor f in os\\.listdir\\(r'c:\\\\\\\\Users\\\\\\\\sarah\\\\\\\\Desktop\\\\\\\\Checker'\\):\n    if f\\.endswith\\('\\.py'\\):\n        path = os\\.path\\.join\\(r'c:\\\\\\\\Users\\\\\\\\sarah\\\\\\\\Desktop\\\\\\\\Checker', f\\)\n        with open\\(path, 'r', encoding='utf-8'\\) as file:\n            for i, line in enumerate\\(file, 1\\):\n                for c in line:\n                    if c == '\\\\u2013' or c == '\\\\u2014':\n                        print\\(f'\\{f\\}:\\{i\\} - En/Em-dash found'\\)\n                        count \\+= 1\nprint\\(f'Total: \\{count\\} dashes found'\\)\n\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "Test-Path": true,
+        "Start-Process": true
+    }
 }

@@ -17,10 +17,14 @@ Ergebnis-Einträge (Finding Dict):
 }
 """
 from __future__ import annotations
-from typing import List, Dict, Tuple, Set, Any, Optional, Iterable
-from collections import defaultdict
+import logging
+import hashlib
 import re
+from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+
+_logger = logging.getLogger(__name__)
 
 # Minimum Termlänge für Konsistenzprüfung
 MIN_TERM_LENGTH = 3
@@ -37,7 +41,7 @@ STOPWORDS = {
     'mit', 'für', 'von', 'auf', 'aus', 'bei', 'nach', 'vor', 'über', 'unter', 'durch',
     'ist', 'sind', 'war', 'waren', 'wird', 'werden', 'hat', 'haben', 'kann', 'können',
     'nicht', 'kein', 'keine', 'keinen', 'keinem', 'keiner', 'keines',
-    'sich', 'ich', 'du', 'er', 'sie', 'es', 'wir', 'ihr', 'sie', 'man',
+    'sich', 'ich', 'du', 'er', 'sie', 'es', 'wir', 'ihr', 'man',
     'diese', 'dieser', 'dieses', 'diesem', 'diesen', 'jede', 'jeder', 'jedes',
     'alle', 'alles', 'allem', 'allen', 'aller',
     'sehr', 'mehr', 'viel', 'viele', 'wenig', 'wenige', 'einige',
@@ -115,13 +119,20 @@ class ConsistencyChecker:
     Findet Fälle wo der gleiche Quellterm unterschiedlich übersetzt wurde.
     """
     
+    # Cache für Term-Extraktion (class-level)
+    _term_cache: Dict[str, List[str]] = {}
+    _cache_hits: int = 0
+    _cache_misses: int = 0
+    _CACHE_MAX_ENTRIES: int = 2000  # Verhindert unbegrenztes Wachstum
+    
     def __init__(self,
                  min_term_length: int = MIN_TERM_LENGTH,
                  min_occurrences: int = MIN_TERM_OCCURRENCES,
                  max_terms: int = MAX_TERMS_TO_CHECK,
                  case_sensitive: bool = False,
                  check_multiword: bool = True,
-                 custom_stopwords: Optional[Set[str]] = None):
+                 custom_stopwords: Optional[Set[str]] = None,
+                 use_cache: bool = True):
         """Initialisiert den Konsistenz-Checker.
         
         Args:
@@ -131,15 +142,34 @@ class ConsistencyChecker:
             case_sensitive: Groß-/Kleinschreibung beachten
             check_multiword: Auch Multi-Wort-Terme prüfen
             custom_stopwords: Zusätzliche Stoppwörter
+            use_cache: Term-Extraktion cachen
         """
         self.min_term_length = min_term_length
         self.min_occurrences = min_occurrences
         self.max_terms = max_terms
         self.case_sensitive = case_sensitive
         self.check_multiword = check_multiword
+        self.use_cache = use_cache
         self.stopwords = STOPWORDS.copy()
         if custom_stopwords:
             self.stopwords.update(custom_stopwords)
+    
+    @classmethod
+    def clear_cache(cls):
+        """Leert den Term-Extraktions-Cache."""
+        cls._term_cache.clear()
+        _logger.debug("Term cache cleared (hits: %d, misses: %d)", cls._cache_hits, cls._cache_misses)
+        cls._cache_hits = 0
+        cls._cache_misses = 0
+    
+    @classmethod
+    def get_cache_stats(cls) -> Dict[str, int]:
+        """Gibt Cache-Statistiken zurück."""
+        return {
+            'size': len(cls._term_cache),
+            'hits': cls._cache_hits,
+            'misses': cls._cache_misses
+        }
     
     def _normalize_term(self, term: str) -> str:
         """Normalisiert einen Term für Vergleiche."""
@@ -152,7 +182,8 @@ class ConsistencyChecker:
         normalized = self._normalize_term(term)
         if len(normalized) < self.min_term_length:
             return False
-        if normalized in self.stopwords:
+        # Stoppwort-Vergleich immer case-insensitive – Stoppwörter sind lowercase
+        if normalized.lower() in self.stopwords:
             return False
         # Nur Zahlen oder Sonderzeichen ausschließen
         if not any(c.isalpha() for c in normalized):
@@ -163,6 +194,24 @@ class ConsistencyChecker:
         """Extrahiert alle relevanten Terme aus einem Text."""
         if not text:
             return []
+        
+        # Cache-Key basierend auf Text + ALLEN cache-relevanten Einstellungen.
+        # min_term_length und stopwords beeinflussen _is_valid_term — wenn sie
+        # nicht im Key stehen, liefert der class-level Cache False-Hits an
+        # Instanzen mit anderer Konfiguration zurueck.
+        if self.use_cache:
+            sw_fp = hashlib.md5(
+                ('|'.join(sorted(self.stopwords))).encode('utf-8')
+            ).hexdigest()[:8]
+            cache_key = (
+                f"{hashlib.md5(text.encode('utf-8')).hexdigest()[:16]}:"
+                f"{self.case_sensitive}:{self.check_multiword}:"
+                f"{self.min_term_length}:{sw_fp}"
+            )
+            if cache_key in self._term_cache:
+                ConsistencyChecker._cache_hits += 1
+                return self._term_cache[cache_key].copy()
+            ConsistencyChecker._cache_misses += 1
         
         terms = []
         
@@ -181,6 +230,15 @@ class ConsistencyChecker:
                 if all(self._is_valid_term(w) for w in words):
                     terms.append(self._normalize_term(term))
         
+        # Cache speichern (mit Größenbegrenzung)
+        if self.use_cache:
+            if len(self._term_cache) >= self._CACHE_MAX_ENTRIES:
+                # Älteste 10 % entfernen
+                evict_n = max(1, self._CACHE_MAX_ENTRIES // 10)
+                for k in list(self._term_cache)[:evict_n]:
+                    del self._term_cache[k]
+            self._term_cache[cache_key] = terms.copy()
+
         return terms
     
     def _find_term_context(self, text: str, term: str, context_chars: int = 30) -> str:
@@ -258,12 +316,17 @@ class ConsistencyChecker:
         if not trans1 or not trans2:
             return False
         
-        # Normalisieren
-        words1 = set(w.lower() for w in WORD_PATTERN.findall(trans1) if len(w) >= 2)
-        words2 = set(w.lower() for w in WORD_PATTERN.findall(trans2) if len(w) >= 2)
-        
-        if not words1 or not words2:
-            return trans1.lower().strip() == trans2.lower().strip()
+        # Normalisieren – Groß-/Kleinschreibung nur ignorieren wenn case_sensitive=False
+        if self.case_sensitive:
+            words1 = set(w for w in WORD_PATTERN.findall(trans1) if len(w) >= 2)
+            words2 = set(w for w in WORD_PATTERN.findall(trans2) if len(w) >= 2)
+            if not words1 or not words2:
+                return trans1.strip() == trans2.strip()
+        else:
+            words1 = set(w.lower() for w in WORD_PATTERN.findall(trans1) if len(w) >= 2)
+            words2 = set(w.lower() for w in WORD_PATTERN.findall(trans2) if len(w) >= 2)
+            if not words1 or not words2:
+                return trans1.lower().strip() == trans2.lower().strip()
         
         # Jaccard-Ähnlichkeit
         intersection = words1 & words2
@@ -476,6 +539,7 @@ def check_consistency_as_issues(pairs: Iterable[Tuple[str, str]],
             message: str
             source_text: str
             target_text: str
+            segment_index: int = -1
             meta: dict = field(default_factory=dict)
     
     checker = ConsistencyChecker(**kwargs)
@@ -490,6 +554,8 @@ def check_consistency_as_issues(pairs: Iterable[Tuple[str, str]],
         else:
             src = tgt = ""
         
+        first_segment_idx = f.segment_indices[0] if f.segment_indices else -1
+        
         issues.append(QAIssue(
             code=f.rule_id,
             severity=f.severity,
@@ -497,6 +563,7 @@ def check_consistency_as_issues(pairs: Iterable[Tuple[str, str]],
             message=f.message,
             source_text=src,
             target_text=tgt,
+            segment_index=first_segment_idx,
             meta={
                 'source_term': f.source_term,
                 'translations': f.translations,
@@ -506,3 +573,17 @@ def check_consistency_as_issues(pairs: Iterable[Tuple[str, str]],
         ))
     
     return issues
+
+
+# Export
+__all__ = [
+    'ConsistencyChecker',
+    'ConsistencyFinding',
+    'TermOccurrence',
+    'run_consistency_check',
+    'check_consistency_as_issues',
+    'STOPWORDS',
+    'MIN_TERM_LENGTH',
+    'MIN_TERM_OCCURRENCES',
+    'MAX_TERMS_TO_CHECK',
+]

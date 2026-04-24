@@ -35,8 +35,14 @@
             "created_at": "2025-08-25T11:38:11",
             "last_activity": "2025-08-25T11:38:11.799082",
             "last_activity_type": "selected_from_favorites"
+        },
+        {
+            "name": "Babygmbh",
+            "created_at": "2026-01-22T21:07:44",
+            "last_activity": null,
+            "last_activity_type": null
         }
     ],
     "favorites": [],
-    "last_updated": "2026-01-22T16:04:55.841043"
+    "last_updated": "2026-03-19T22:00:04.476405"
 }

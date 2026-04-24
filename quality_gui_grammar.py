@@ -23,14 +23,21 @@ Ergebnis-Einträge (Finding Dict):
 """
 from __future__ import annotations
 from typing import List, Dict, Any, Tuple
-import re, json, os, bisect
+import re, json, os, bisect, importlib, logging
+
+# Modul-Logger für einmalige Warnungen
+_logger = logging.getLogger(__name__)
+_LT_UNSUPPORTED_WARNED: set = set()  # Verhindert Log-Spam bei wiederholten LT-Sprachfehlern
 
 # -------------------- Optionale Imports --------------------
 
 def _import_optional(name: str):
+    """Importiert ein Modul optional - gibt None zurück wenn nicht verfügbar.
+    
+    Verwendet importlib.import_module() statt __import__ für sauberere Semantik.
+    """
     try:
-        module = __import__(name)
-        return module
+        return importlib.import_module(name)
     except Exception:
         return None
 
@@ -38,7 +45,8 @@ _language_tool = _import_optional('language_tool_python')
 _hunspell = _import_optional('hunspell')  # Benötigt evtl. System-Wörterbücher
 
 # -------------------- Regex & Konstanten --------------------
-_SENT_END = re.compile(r"[\.!?][\s\"'»«“”‚‘’\)\]]*$")  # erweitert: zusätzliche deutsche/typografische Abschlusszeichen
+# Erweitert: Auch "..." (Ellipse/Auslassungspunkte) und "…" (Unicode-Ellipse) als gültiges Satzende
+_SENT_END = re.compile(r"(?:\.{2,}|\u2026|[\.!?])[\s\"'»«""‚'')\\]]*$")
 _MULTI_SPACES = re.compile(r"\s{3,}")
 _DOUBLE_PUNCT = re.compile(r"[\?!]{2,}")
 _START_LOWER_SENT = re.compile(r"^[a-zäöüß]")
@@ -86,12 +94,15 @@ class GrammarChecker:
 
     # -------- Sprache erkennen (erweitert für mehr Sprachen) --------
     # Mapping von langdetect-Codes zu LanguageTool-Codes
+    # HINWEIS: Nicht alle LT-Installationen unterstützen alle Sprachen!
+    # Besonders zh (Chinesisch), ja (Japanisch), ar (Arabisch) etc. sind oft nicht verfügbar.
+    # Bei fehlender Unterstützung wird einmalig gewarnt und auf en-US gefallbackt.
     LANG_TO_LT_CODE = {
         'de': 'de-DE', 'en': 'en-US', 'fr': 'fr', 'es': 'es',
         'it': 'it', 'pt': 'pt-PT', 'nl': 'nl', 'pl': 'pl-PL',
         'ru': 'ru-RU', 'uk': 'uk-UA', 'cs': 'cs-CZ', 'sk': 'sk-SK',
         'ro': 'ro-RO', 'ca': 'ca-ES', 'gl': 'gl-ES', 'ast': 'ast-ES',
-        'ja': 'ja-JP', 'zh': 'zh-CN', 'ar': 'ar', 'fa': 'fa',
+        'ja': 'ja-JP', 'zh': 'zh-CN', 'ar': 'ar', 'fa': 'fa',  # Diese oft nicht unterstützt!
         'el': 'el-GR', 'da': 'da-DK', 'sv': 'sv', 'nb': 'nb', 'nn': 'nn-NO',
         'be': 'be-BY', 'sl': 'sl-SI', 'tl': 'tl-PH', 'ta': 'ta-IN',
         'br': 'br-FR', 'km': 'km-KH', 'eo': 'eo', 'ga': 'ga-IE',
@@ -130,6 +141,9 @@ class GrammarChecker:
             text = " ".join(segments)[:8000].lower()
             if not text:
                 return 'de'
+            # Padding mit Spaces, damit Wort-Lookup `f' {word} '` auch fuer
+            # Begriffe am Anfang/Ende des Textes greift.
+            padded_text = ' ' + text + ' '
             
             # Sprachindikatoren mit Gewichtung
             indicators = {
@@ -171,7 +185,7 @@ class GrammarChecker:
                     score += sum(text.count(c) for c in data['chars']) * data['weight']
                 # Wörter zählen
                 for word in data['words']:
-                    if f' {word} ' in f' {text} ':
+                    if f' {word} ' in padded_text:
                         score += 2
                 scores[lang] = score
             
@@ -218,7 +232,9 @@ class GrammarChecker:
         if not text or len(text.strip()) < 4:
             return out
         stripped = text.strip()
-        if not _SENT_END.search(stripped) and len(stripped.split()) >= 5:
+        # Satzende-Prüfung: Nur bei echten Sätzen (nicht bei Kontaktzeilen, Listen, Überschriften)
+        _is_contact_or_list = bool(re.search(r'@[\w.-]+\.\w|https?://|Tel\.|Fax[:\s]|\+\d{2}|\d{3,}$|:$', stripped))
+        if not _SENT_END.search(stripped) and len(stripped.split()) >= 8 and not _is_contact_or_list:
             out.append(self._mk("heuristic.no_sentence_end", "Satz endet nicht mit Punkt/!/?", stripped[-40:], idx, 'minor'))
         if _MULTI_SPACES.search(stripped):
             out.append(self._mk("heuristic.multi_spaces", "Mehrfache Leerzeichen", stripped[:60], idx, 'minor'))
@@ -325,14 +341,33 @@ class GrammarChecker:
             code = self._get_lt_code(language)
             # Neu-Initialisierung bei Sprachwechsel oder erstmaliger Nutzung
             if self._lt_tool is None or self._lt_code != code:
+                # Bei Sprachwechsel altes Tool sauber schliessen, sonst leakt
+                # LanguageTool den lokalen Java-Subprozess (jeweils mehrere
+                # hundert MB RAM pro vergessener Instanz).
+                if self._lt_tool is not None and self._lt_code != code:
+                    try:
+                        close = getattr(self._lt_tool, 'close', None)
+                        if callable(close):
+                            close()
+                    except Exception:
+                        pass
+                    self._lt_tool = None
                 try:
                     self._lt_tool = _language_tool.LanguageTool(code)  # type: ignore
                     self._lt_code = code
                 except Exception as e:
-                    # Sprache nicht unterstützt - Fallback zu Englisch
+                    # Sprache nicht unterstützt - einmalig warnen
+                    if code not in _LT_UNSUPPORTED_WARNED:
+                        _LT_UNSUPPORTED_WARNED.add(code)
+                        _logger.warning("[LanguageTool] Sprache '%s' nicht unterstützt: %s", code, e)
+                    # Fallback zu Englisch falls noch kein Tool initialisiert
                     if self._lt_tool is None:
-                        self._lt_tool = _language_tool.LanguageTool('en-US')  # type: ignore
-                        self._lt_code = 'en-US'
+                        try:
+                            self._lt_tool = _language_tool.LanguageTool('en-US')  # type: ignore
+                            self._lt_code = 'en-US'
+                        except Exception:
+                            self.enable_languagetool = False
+                            return out
             use_batch = len(segments) >= self.batch_lt_min_segments
             if not use_batch:
                 # Einzelprüfung (bestehendes Verhalten)
@@ -341,7 +376,8 @@ class GrammarChecker:
                         continue
                     try:
                         matches = self._lt_tool.check(seg)  # type: ignore
-                    except Exception:
+                    except Exception as lt_err:
+                        _logger.debug("[LanguageTool] check failed for segment %d: %s", idx, lt_err)
                         continue
                     out.extend(self._lt_matches_to_findings(matches, seg, idx))
             else:
@@ -356,7 +392,8 @@ class GrammarChecker:
                     pos += len(s) + len(separator)
                 try:
                     matches = self._lt_tool.check(joined)  # type: ignore
-                except Exception:
+                except Exception as lt_batch_err:
+                    _logger.warning("[LanguageTool] batch check failed: %s", lt_batch_err)
                     return out
                 for m in matches:
                     try:
@@ -444,9 +481,19 @@ class GrammarChecker:
     def _ollama_pass(self, segments_with_ids: List[Tuple[int, str]], language: str) -> List[Dict[str, Any]]:
         """Ollama Analyse mit Batching; behält Original-Segment-IDs bei und entfernt Duplikate."""
         out: List[Dict[str, Any]] = []
+        _call_fn = None
         try:
             from ki_module import _call_ollama  # type: ignore
+            _call_fn = _call_ollama
         except Exception:
+            pass
+        if _call_fn is None:
+            try:
+                from quality_gui_ollama_suggestions import _call_ollama as _fallback_call  # type: ignore
+                _call_fn = _fallback_call
+            except Exception:
+                pass
+        if _call_fn is None:
             return out
 
         if not segments_with_ids:
@@ -514,8 +561,9 @@ class GrammarChecker:
         for start in range(0, len(segments_with_ids), MAX_PER_BATCH):
             batch = segments_with_ids[start:start + MAX_PER_BATCH]
             try:
-                raw = _call_ollama(_build_prompt(batch), model=model, timeout=timeout)
-            except Exception:
+                raw = _call_fn(_build_prompt(batch), model=model, timeout=timeout)
+            except Exception as ollama_err:
+                _logger.warning("[Ollama grammar] batch %d failed: %s", start // MAX_PER_BATCH, ollama_err)
                 continue
             objs = _parse_json_like(raw)
             for obj in objs:
@@ -526,11 +574,17 @@ class GrammarChecker:
                     if not isinstance(idx, int):
                         m2 = re.search(r"\[(\d+)\]", str(obj.get("excerpt", "")))
                         idx = int(m2.group(1)) if m2 else -1
-                    rule_id = obj.get("rule_id") or "ollama.grammar"
+                    # rule_id normalisieren: immer 'ollama.' Prefix erzwingen
+                    raw_rule = obj.get("rule_id") or "grammar"
+                    if not str(raw_rule).startswith("ollama."):
+                        rule_id = f"ollama.{raw_rule}"
+                    else:
+                        rule_id = str(raw_rule)
                     sev = (obj.get("severity") or "minor").lower()
                     if sev not in ("minor", "major", "critical"):
                         sev = "minor"
                     msg = obj.get("message") or "Unklare Meldung"
+                    # critical nur bei begründeten Schlüsselwörtern
                     if sev == "critical" and not any(
                         k in msg.lower() for k in ("schwer", "critical", "grober", "fatal", "fragment", "satzfragment", "unverständlich", "severe", "ungrammatical")
                     ):
@@ -571,6 +625,15 @@ class GrammarChecker:
             return "languagetool"
         return rid.split(".")[0] or "other"
 
+    def close(self) -> None:
+        """Gibt LanguageTool-Ressourcen frei (Server-Prozess beenden)."""
+        if self._lt_tool is not None:
+            try:
+                self._lt_tool.close()  # type: ignore
+            except Exception:
+                pass
+            self._lt_tool = None
+
     def _mk(self, rule_id: str, message: str, excerpt: str, segment_index: int, severity: str, suggestion: str = '') -> Dict[str, Any]:
         checker = self._infer_checker(rule_id)
         if checker in ('heuristic','hunspell'):
@@ -588,5 +651,17 @@ class GrammarChecker:
         }
 
 
+_default_checker: GrammarChecker | None = None
+
 def run_grammar_analysis(segments: List[str], language: str = 'de') -> List[Dict[str, Any]]:
-    return GrammarChecker().analyze_segments(segments, language)
+    """Convenience-Funktion mit gecachtem GrammarChecker (für wiederholte Aufrufe)."""
+    global _default_checker
+    if _default_checker is None:
+        _default_checker = GrammarChecker()
+    return _default_checker.analyze_segments(segments, language)
+
+
+__all__ = [
+    'GrammarChecker',
+    'run_grammar_analysis',
+]

@@ -12,18 +12,25 @@ Unterstuetzte Verzeichnis-Strukturen:
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
 import time
 import logging
-from typing import Dict, List, Tuple
+from datetime import datetime
+from typing import Any, Dict, List, Tuple
 
 _logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Konstanten
 # ---------------------------------------------------------------------------
+PROJECT_FOLDERS = [
+    '01_Ausgangstext', '02_Übersetzung', '03_Korrektur',
+    '04_Finalisierung_und_Lieferung',
+]
+
 MONTH_NAMES_DE = {
     1: 'Januar', 2: 'Februar', 3: 'März', 4: 'April',
     5: 'Mai', 6: 'Juni', 7: 'Juli', 8: 'August',
@@ -322,3 +329,93 @@ def archive_customer(base_path: str, customer: str) -> bool:
     except OSError as exc:
         _logger.warning('Archivieren: Verzeichnis-Iteration fehlgeschlagen: %s', exc)
     return moved_any
+
+
+# ---------------------------------------------------------------------------
+# Kunden-Info (kundeninfo.json)
+# ---------------------------------------------------------------------------
+def load_customer_info(base_path: str, customer: str) -> Dict[str, Any]:
+    """Laedt kundeninfo.json aus dem Kundenordner."""
+    info_path = os.path.join(get_customer_path(base_path, customer), 'kundeninfo.json')
+    try:
+        if os.path.exists(info_path):
+            with open(info_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+
+def save_customer_info(base_path: str, customer: str, info: Dict[str, Any]) -> bool:
+    """Speichert kundeninfo.json in den Kundenordner."""
+    try:
+        cpath = get_customer_path(base_path, customer)
+        os.makedirs(cpath, exist_ok=True)
+        with open(os.path.join(cpath, 'kundeninfo.json'), 'w', encoding='utf-8') as f:
+            json.dump(info, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as exc:
+        _logger.error('Kundeninfo speichern fehlgeschlagen: %s', exc)
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Projekt erstellen
+# ---------------------------------------------------------------------------
+def ensure_project(
+    base_path: str,
+    customer: str,
+    date_str: str = '',
+    project_folders: List[str] | None = None,
+    month_names: Dict[int, str] | None = None,
+) -> str:
+    """Erstellt Projektverzeichnis-Struktur und liefert den Projektpfad.
+
+    Legt Monat-Ordner (Variante B) und alle Unterordner an.
+    Kopiert ggf. vorhandene kundeninfo.json aus alter Struktur.
+    """
+    if not base_path:
+        return ''
+    if project_folders is None:
+        project_folders = PROJECT_FOLDERS
+    if month_names is None:
+        month_names = MONTH_NAMES_DE
+    if not date_str:
+        date_str = datetime.now().strftime('%Y-%m-%d')
+    try:
+        parsed = datetime.strptime(date_str, '%Y-%m-%d')
+        date_str = parsed.strftime('%Y-%m-%d')
+        month_num = parsed.month
+        year_str = parsed.strftime('%Y')
+    except ValueError:
+        _logger.warning('ensure_project: ungültiges Datum %r → heute', date_str)
+        now = datetime.now()
+        date_str = now.strftime('%Y-%m-%d')
+        month_num = now.month
+        year_str = now.strftime('%Y')
+    safe_customer = sanitize_folder_name(customer)
+    month_folder = f'{month_names.get(month_num, str(month_num))}_{year_str}'
+    project_dir = os.path.join(base_path, month_folder, f'{date_str}_{safe_customer}')
+    for folder in project_folders:
+        os.makedirs(os.path.join(project_dir, folder), exist_ok=True)
+    info_path = os.path.join(project_dir, 'kundeninfo.json')
+    if not os.path.exists(info_path):
+        old_info = os.path.join(base_path, safe_customer, 'kundeninfo.json')
+        if os.path.exists(old_info):
+            try:
+                shutil.copy2(old_info, info_path)
+            except Exception:
+                pass
+        else:
+            try:
+                with open(info_path, 'w', encoding='utf-8') as f:
+                    json.dump({'name': customer, 'typ': 'firma'}, f, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
+    return project_dir
+
+
+def get_project_folders(project_path: str, project_folders: List[str] | None = None) -> Dict[str, str]:
+    """Liefert Mapping {Ordnername: Vollpfad} fuer alle Projektordner."""
+    folders = project_folders if project_folders is not None else PROJECT_FOLDERS
+    return {f: os.path.join(project_path, f) for f in folders}

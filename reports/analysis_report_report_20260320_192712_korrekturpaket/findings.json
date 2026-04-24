@@ -1,0 +1,207 @@
+[
+  {
+    "phase": "phase2",
+    "code": "TARGET_LANGUAGE_MIX",
+    "severity": "major",
+    "category": "completeness",
+    "rule_id": "TARGET_LANGUAGE_MIX",
+    "rule": "TARGET_LANGUAGE_MIX",
+    "message": "Zieltext enthält 40.4% Englisch Tokens (erwartet Deutsch).",
+    "source": "",
+    "target": "Übersetzung (gesamt)",
+    "source_excerpt": "",
+    "target_excerpt": "Übersetzung (gesamt)",
+    "segment_index": -1,
+    "segment_id": "",
+    "suggestion": "",
+    "meta": {
+      "target_language": "de",
+      "target_ratio": 0.0213,
+      "top_other_language": "en",
+      "top_other_ratio": 0.4043,
+      "flagged_segments": 1
+    }
+  },
+  {
+    "phase": "phase2",
+    "code": "TARGET_LANGUAGE_SEGMENTS",
+    "severity": "major",
+    "category": "completeness",
+    "rule_id": "TARGET_LANGUAGE_SEGMENTS",
+    "rule": "TARGET_LANGUAGE_SEGMENTS",
+    "message": "1 Segmente wirken Englisch statt Deutsch.",
+    "source": "",
+    "target": "Übersetzung (gesamt)",
+    "source_excerpt": "",
+    "target_excerpt": "Übersetzung (gesamt)",
+    "segment_index": -1,
+    "segment_id": "",
+    "suggestion": "",
+    "meta": {
+      "segments": [
+        {
+          "hash": "4222b87e",
+          "segment_index": 0,
+          "language": "en",
+          "language_label": "Englisch",
+          "flag_ratio": 0.4043,
+          "target_ratio": 0.0213,
+          "preview": "Business Report 2025\n\nMüller Ltd achieved a turnover of 15,750,000 euros in 2025.\n\nThis represents an increase of 12.5% compared to the previous year.\n\nOur CEO "
+        }
+      ],
+      "language_counts": {
+        "en": 1
+      },
+      "target_language": "de"
+    }
+  },
+  {
+    "phase": "phase2",
+    "code": "COMPANY_NAME_MISSING",
+    "severity": "critical",
+    "category": "terminology",
+    "rule_id": "COMPANY_NAME_MISSING",
+    "rule": "COMPANY_NAME_MISSING",
+    "message": "Firmenname fehlt/verändert: 'Müller GmbH' muss exakt übernommen werden",
+    "source": "Geschäftsbericht 2025\nDie Müller GmbH hat im Jahr 2025 einen Umsatz von 15.750.000 Euro erzielt.",
+    "target": "Business Report 2025\nMüller Ltd achieved a turnover of 15,750,000 euros in 2025.",
+    "source_excerpt": "Geschäftsbericht 2025\nDie Müller GmbH hat im Jahr 2025 einen Umsatz von 15.750.000 Euro erzielt.",
+    "target_excerpt": "Business Report 2025\nMüller Ltd achieved a turnover of 15,750,000 euros in 2025.",
+    "segment_index": 0,
+    "segment_id": "0",
+    "suggestion": "",
+    "meta": {
+      "company": "Müller GmbH",
+      "pair": {
+        "index": 0,
+        "source": "test_source_de.txt",
+        "target": "test_translation_en.txt"
+      }
+    }
+  },
+  {
+    "phase": "phase2",
+    "code": "COMPANY_SUFFIX_TRANSLATED",
+    "severity": "critical",
+    "category": "terminology",
+    "rule_id": "COMPANY_SUFFIX_TRANSLATED",
+    "rule": "COMPANY_SUFFIX_TRANSLATED",
+    "message": "Rechtsform 'GmbH' wurde fälschlich zu 'Ltd' übersetzt. Deutsche Rechtsformen bleiben unübersetzt!",
+    "source": "Geschäftsbericht 2025\nDie Müller GmbH hat im Jahr 2025 einen Umsatz von 15.750.000 Euro erzielt.",
+    "target": "Business Report 2025\nMüller Ltd achieved a turnover of 15,750,000 euros in 2025.",
+    "source_excerpt": "Geschäftsbericht 2025\nDie Müller GmbH hat im Jahr 2025 einen Umsatz von 15.750.000 Euro erzielt.",
+    "target_excerpt": "Business Report 2025\nMüller Ltd achieved a turnover of 15,750,000 euros in 2025.",
+    "segment_index": 0,
+    "segment_id": "0",
+    "suggestion": "",
+    "meta": {
+      "original": "GmbH",
+      "translated": "Ltd",
+      "pair": {
+        "index": 0,
+        "source": "test_source_de.txt",
+        "target": "test_translation_en.txt"
+      }
+    }
+  },
+  {
+    "phase": "phase2",
+    "code": "EMPTY_TRANSLATION",
+    "severity": "critical",
+    "category": "completeness",
+    "rule_id": "EMPTY_TRANSLATION",
+    "rule": "EMPTY_TRANSLATION",
+    "message": "Übersetzung ist leer (nur Tags/Leerzeichen)",
+    "source": "Weitere Informationen finden Sie auf www.mueller-gmbh.de",
+    "target": "",
+    "source_excerpt": "Weitere Informationen finden Sie auf www.mueller-gmbh.de",
+    "target_excerpt": "",
+    "segment_index": 5,
+    "segment_id": "5",
+    "suggestion": "",
+    "meta": {
+      "pair": {
+        "index": 0,
+        "source": "test_source_de.txt",
+        "target": "test_translation_en.txt"
+      }
+    }
+  },
+  {
+    "phase": "phase3",
+    "code": "SEMANTIC_LOW",
+    "severity": "minor",
+    "category": "semantic",
+    "rule_id": "SEMANTIC_LOW",
+    "rule": "SEMANTIC_LOW",
+    "message": "Strukturelle Ähnlichkeit niedrig (0.31 < 0.65) [Lightweight-Fallback]",
+    "source": "Das entspricht einer Steigerung von 12,5% gegenüber dem Vorjahr.",
+    "target": "This represents an increase of 12.5% compared to the previous year.",
+    "source_excerpt": "Das entspricht einer Steigerung von 12,5% gegenüber dem Vorjahr.",
+    "target_excerpt": "This represents an increase of 12.5% compared to the previous year.",
+    "segment_index": 1,
+    "segment_id": "1",
+    "suggestion": "",
+    "meta": {
+      "similarity": 0.314,
+      "threshold": 0.6499999999999999,
+      "backend": "lightweight",
+      "src_len": 64,
+      "tgt_len": 67,
+      "pair": {
+        "index": 0,
+        "source": "test_source_de.txt",
+        "target": "test_translation_en.txt"
+      }
+    }
+  },
+  {
+    "phase": "phase3",
+    "code": "SEMANTIC_LOW",
+    "severity": "minor",
+    "category": "semantic",
+    "rule_id": "SEMANTIC_LOW",
+    "rule": "SEMANTIC_LOW",
+    "message": "Strukturelle Ähnlichkeit niedrig (0.63 < 0.65) [Lightweight-Fallback]",
+    "source": "Die Hauptniederlassung in München beschäftigt 342 Mitarbeiter.",
+    "target": "The headquarters in Munich employs 342 staff members.",
+    "source_excerpt": "Die Hauptniederlassung in München beschäftigt 342 Mitarbeiter.",
+    "target_excerpt": "The headquarters in Munich employs 342 staff members.",
+    "segment_index": 3,
+    "segment_id": "3",
+    "suggestion": "",
+    "meta": {
+      "similarity": 0.628,
+      "threshold": 0.6499999999999999,
+      "backend": "lightweight",
+      "src_len": 62,
+      "tgt_len": 53,
+      "pair": {
+        "index": 0,
+        "source": "test_source_de.txt",
+        "target": "test_translation_en.txt"
+      }
+    }
+  },
+  {
+    "phase": "custom_ki",
+    "code": "KI_ANALYSE",
+    "severity": "info",
+    "category": "custom_ki",
+    "rule_id": "KI_ANALYSE",
+    "rule": "KI_ANALYSE",
+    "message": "KI-Analyse: Ollama API Fehler: \"nomic-embed-text\" does not support chat (status code: 400). (Status Code: 400)",
+    "source": "",
+    "target": "",
+    "source_excerpt": "",
+    "target_excerpt": "",
+    "segment_index": -1,
+    "segment_id": "",
+    "suggestion": "",
+    "meta": {
+      "custom_prompt": "Prüfe ob die Übersetzung korrekt ist im Abgleich mit dem Ausgangstext. Achte auf: Bedeutung, Vollständigkeit, Zahlen, Namen und Terminologie. Melde konkrete Fehler mit Segment-Nummer.",
+      "checker": "ollama",
+      "ki_answer": "Ollama API Fehler: \"nomic-embed-text\" does not support chat (status code: 400). (Status Code: 400)"
+    }
+  }
+]

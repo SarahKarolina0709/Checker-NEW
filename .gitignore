@@ -68,3 +68,6 @@ Desktop.ini
 #############################
 coverage.xml
 *.coverage
+
+# Alte CustomTkinter App (archiviert)
+_legacy/

@@ -1,0 +1,8 @@
+"severity";"rule_id";"message";"count";"confidence"
+"critical";"COMPANY_NAME_MISSING";"Firmenname fehlt/verändert: 'Müller GmbH' muss exakt übernommen werden";"1";""
+"critical";"COMPANY_SUFFIX_TRANSLATED";"Rechtsform 'GmbH' wurde fälschlich zu 'Ltd' übersetzt. Deutsche Rechtsformen bleiben unübersetzt!";"1";""
+"critical";"EMPTY_TRANSLATION";"Übersetzung ist leer (nur Tags/Leerzeichen)";"1";""
+"major";"TARGET_LANGUAGE_MIX";"Zieltext enthält 40.4% Englisch Tokens (erwartet Deutsch).";"1";""
+"major";"TARGET_LANGUAGE_SEGMENTS";"1 Segmente wirken Englisch statt Deutsch.";"1";""
+"minor";"SEMANTIC_LOW";"Strukturelle Ähnlichkeit niedrig (0.31 < 0.65) [Lightweight-Fallback]";"2";""
+"info";"KI_ANALYSE";"KI-Analyse: Ollama API Fehler: ""nomic-embed-text"" does not support chat (status code: 400). (Status Code: 400)";"1";""

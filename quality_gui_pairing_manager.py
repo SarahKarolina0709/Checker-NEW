@@ -11,6 +11,9 @@ import json
 import time
 import os
 import tempfile
+import logging
+
+_logger = logging.getLogger(__name__)
 
 try:  # Optional externe Utilities
     from pairing_utils import smart_pair_files  # type: ignore
@@ -19,12 +22,12 @@ except Exception:  # pragma: no cover
 
 PairDict = Dict[str, Any]
 
-@dataclass(slots=True)
+@dataclass
 class PairRecord:
     source: str
     translation: str
 
-@dataclass(slots=True)
+@dataclass
 class PairingState:
     pairs: List[PairRecord] = field(default_factory=list)
     unmatched_sources: List[str] = field(default_factory=list)
@@ -119,18 +122,29 @@ class QualityGuiPairingManager:
         with self.transaction():
             self.state.pairs = [p for p in self.state.pairs if not (p.source == source and p.translation == translation)]
 
-    def undo(self):
+    def clear(self):
+        """Leert alle Paarungen und unmatched Files (mit History-Snapshot)."""
+        with self.transaction():
+            self.state.pairs.clear()
+            self.state.unmatched_sources.clear()
+            self.state.unmatched_translations.clear()
+        self._legacy_pairs = []
+        self._legacy_unmatched = {'source': [], 'translation': []}
+
+    def undo(self) -> Optional[PairingState]:
         prev = self.history.undo(self.state)
-        if prev:
-            self.state = prev
-            self._sync_legacy()
+        if prev is None:
+            return None
+        self.state = prev
+        self._sync_legacy()
         return self.state
 
-    def redo(self):
+    def redo(self) -> Optional[PairingState]:
         nxt = self.history.redo(self.state)
-        if nxt:
-            self.state = nxt
-            self._sync_legacy()
+        if nxt is None:
+            return None
+        self.state = nxt
+        self._sync_legacy()
         return self.state
 
     # ---------------- Smart Pairing ----------------
@@ -147,7 +161,34 @@ class QualityGuiPairingManager:
                 self.state.unmatched_translations.clear()
             return [], unmatched
         try:
-            if smart_pair_files:
+            # Smart Pairing via PairingService (Score-Matrix + globales Ranking)
+            service = None
+            if pairing_service_supplier:
+                try:
+                    service = pairing_service_supplier()
+                except Exception:
+                    pass
+            if not service:
+                try:
+                    from neutral_pairing_service import get_pairing_service
+                    service = get_pairing_service()
+                except Exception:
+                    service = None
+
+            if service and hasattr(service, 'pair'):
+                raw_pairs, um_src, um_trg = service.pair(source_files, translation_files)
+                for p in raw_pairs:
+                    pairs.append({
+                        'source': p.source,
+                        'translation': p.translation,
+                        'similarity': getattr(p, 'similarity', 0.0),
+                        'source_name': getattr(p, 'source_name', os.path.basename(p.source)),
+                        'translation_name': getattr(p, 'translation_name', os.path.basename(p.translation)),
+                        'source_lang': getattr(p, 'source_lang', None),
+                        'translation_lang': getattr(p, 'translation_lang', None),
+                    })
+                unmatched = {'source': um_src, 'translation': um_trg}
+            elif smart_pair_files:
                 service_factory = pairing_service_supplier if pairing_service_supplier else (lambda: None)
                 raw_pairs, um_src, um_trg = smart_pair_files(source_files, translation_files, service_factory)
                 for p in raw_pairs:
@@ -156,21 +197,30 @@ class QualityGuiPairingManager:
                         'translation': p.translation,
                         'similarity': getattr(p, 'similarity', 0.0),
                         'source_name': getattr(p, 'source_name', os.path.basename(p.source)),
-                        'translation_name': getattr(p, 'translation_name', os.path.basename(p.translation))
+                        'translation_name': getattr(p, 'translation_name', os.path.basename(p.translation)),
                     })
                 unmatched = {'source': um_src, 'translation': um_trg}
             else:
-                lim = min(len(source_files), len(translation_files))
-                for i in range(lim):
-                    s, t = source_files[i], translation_files[i]
+                # Letzter Fallback: Similarity-basiert mit eigenem Algorithmus
+                from itertools import product
+                scored = [(s, t, self.similarity(s, t)) for s, t in product(source_files, translation_files)]
+                scored.sort(key=lambda x: x[2], reverse=True)
+                used_s, used_t = set(), set()
+                for s, t, sim in scored:
+                    if s in used_s or t in used_t:
+                        continue
                     pairs.append({
-                        'source': s,
-                        'translation': t,
-                        'similarity': 0.0,
+                        'source': s, 'translation': t,
+                        'similarity': sim,
                         'source_name': os.path.basename(s),
                         'translation_name': os.path.basename(t)
                     })
-                unmatched = {'source': source_files[lim:], 'translation': translation_files[lim:]}
+                    used_s.add(s)
+                    used_t.add(t)
+                unmatched = {
+                    'source': [s for s in source_files if s not in used_s],
+                    'translation': [t for t in translation_files if t not in used_t]
+                }
         except Exception:
             unmatched = {'source': list(source_files), 'translation': list(translation_files)}
             pairs = []
@@ -234,6 +284,119 @@ class QualityGuiPairingManager:
         self._sync_state_from_legacy()
         self.history.snapshot(self.state)
         return removed
+    
+    def auto_pair_unmatched(self, threshold: float = 0.7) -> int:
+        """🔧 NEU: Versucht automatisch ungematchte Dateien zu paaren.
+        
+        Args:
+            threshold: Mindest-Similarity für automatisches Pairing
+            
+        Returns:
+            Anzahl der neu erstellten Paare
+        """
+        if not self._legacy_unmatched.get('source') or not self._legacy_unmatched.get('translation'):
+            return 0
+        
+        new_pairs = 0
+        sources_to_remove = []
+        translations_to_remove = []
+        
+        # Alle möglichen Paarungen mit Scores berechnen
+        candidates: List[Tuple[str, str, float]] = []
+        for src in self._legacy_unmatched.get('source', []):
+            for trg in self._legacy_unmatched.get('translation', []):
+                sim = self.similarity(src, trg)
+                if sim >= threshold:
+                    candidates.append((src, trg, sim))
+        
+        # Sortiere nach höchster Similarity
+        candidates.sort(key=lambda x: x[2], reverse=True)
+        
+        # Greedy Matching: Beste Paare zuerst
+        used_sources = set()
+        used_translations = set()
+        
+        for src, trg, sim in candidates:
+            if src in used_sources or trg in used_translations:
+                continue
+            
+            # Paar erstellen
+            new_pair = {
+                'source': src,
+                'translation': trg,
+                'similarity': sim,
+                'source_name': os.path.basename(src),
+                'translation_name': os.path.basename(trg),
+                'auto_paired': True  # 🔧 NEU: Markierung für Auto-Pairing
+            }
+            self._legacy_pairs.append(new_pair)
+            
+            used_sources.add(src)
+            used_translations.add(trg)
+            sources_to_remove.append(src)
+            translations_to_remove.append(trg)
+            new_pairs += 1
+        
+        # Aus unmatched entfernen
+        for src in sources_to_remove:
+            if src in self._legacy_unmatched['source']:
+                self._legacy_unmatched['source'].remove(src)
+        for trg in translations_to_remove:
+            if trg in self._legacy_unmatched['translation']:
+                self._legacy_unmatched['translation'].remove(trg)
+        
+        if new_pairs > 0:
+            self._sync_state_from_legacy()
+            self.history.snapshot(self.state)
+        
+        return new_pairs
+    
+    def get_low_confidence_pairs(self, threshold: float = 0.7) -> List[PairDict]:
+        """🔧 NEU: Gibt Paare mit niedriger Similarity zurück (zur Überprüfung).
+        
+        Returns:
+            Liste von Paaren unter dem Threshold
+        """
+        return [
+            p for p in self._legacy_pairs 
+            if p.get('similarity', 0.0) < threshold
+        ]
+    
+    def get_pairing_statistics(self) -> Dict[str, Any]:
+        """🔧 NEU: Gibt Statistiken über die aktuelle Paarung zurück."""
+        pairs = self._legacy_pairs
+        unmatched = self._legacy_unmatched
+        
+        if not pairs:
+            return {
+                'total_pairs': 0,
+                'high_confidence': 0,
+                'medium_confidence': 0,
+                'low_confidence': 0,
+                'avg_similarity': 0.0,
+                'unmatched_sources': len(unmatched.get('source', [])),
+                'unmatched_translations': len(unmatched.get('translation', [])),
+                'auto_paired': 0
+            }
+        
+        similarities = [p.get('similarity', 0.0) for p in pairs]
+        high = sum(1 for s in similarities if s >= 0.85)
+        medium = sum(1 for s in similarities if 0.7 <= s < 0.85)
+        low = sum(1 for s in similarities if s < 0.7)
+        auto = sum(1 for p in pairs if p.get('auto_paired', False))
+        
+        return {
+            'total_pairs': len(pairs),
+            'high_confidence': high,
+            'medium_confidence': medium,
+            'low_confidence': low,
+            'avg_similarity': sum(similarities) / len(similarities) if similarities else 0.0,
+            'min_similarity': min(similarities) if similarities else 0.0,
+            'max_similarity': max(similarities) if similarities else 0.0,
+            'unmatched_sources': len(unmatched.get('source', [])),
+            'unmatched_translations': len(unmatched.get('translation', [])),
+            'auto_paired': auto
+        }
 
     # ---------------- Legacy Helpers ----------------
     def get_legacy_pairs(self) -> List[PairDict]:
@@ -244,6 +407,34 @@ class QualityGuiPairingManager:
             'source': list(self._legacy_unmatched.get('source', [])),
             'translation': list(self._legacy_unmatched.get('translation', []))
         }
+
+    # ---------------- Public Setters (statt direktem _legacy_* Zugriff) ----------------
+    def set_legacy_pairs(self, pairs: List[PairDict]) -> None:
+        """Öffentlicher Setter für Legacy-Pairs. Synchronisiert internen State."""
+        self._legacy_pairs = list(pairs) if pairs else []
+        self._sync_state_from_legacy()
+
+    def set_legacy_unmatched(self, unmatched: Dict[str, List[str]]) -> None:
+        """Öffentlicher Setter für Legacy-Unmatched. Synchronisiert internen State."""
+        self._legacy_unmatched = {
+            'source': list(unmatched.get('source', [])) if unmatched else [],
+            'translation': list(unmatched.get('translation', [])) if unmatched else []
+        }
+        self._sync_state_from_legacy()
+
+    def restore_from_snapshot(self, pairs: List[PairDict], unmatched: Dict[str, List[str]]) -> None:
+        """Stellt State aus einem Snapshot wieder her (für Undo/Redo).
+        
+        Args:
+            pairs: Liste von Pair-Dictionaries
+            unmatched: Dict mit 'source' und 'translation' Listen
+        """
+        self._legacy_pairs = list(pairs) if pairs else []
+        self._legacy_unmatched = {
+            'source': list(unmatched.get('source', [])) if unmatched else [],
+            'translation': list(unmatched.get('translation', [])) if unmatched else []
+        }
+        self._sync_state_from_legacy()
 
     def _sync_state_from_legacy(self):
         self.state.pairs = [PairRecord(p['source'], p['translation']) for p in self._legacy_pairs]
@@ -285,25 +476,112 @@ class QualityGuiPairingManager:
 
     # ---------------- Similarity Placeholder ----------------
     def similarity(self, a: str, b: str) -> float:
+        """🔧 VERBESSERT: Erweiterte Similarity-Berechnung mit mehreren Strategien."""
         if not a or not b:
             return 0.0
         a_s = os.path.splitext(os.path.basename(a).casefold())[0]
         b_s = os.path.splitext(os.path.basename(b).casefold())[0]
         if a_s == b_s:
             return 1.0
-        # Token-basierte Jaccard-Ähnlichkeit über einfache Trenner
+        
         import re
+        
+        # Language-Code entfernen für fairen Vergleich (deckungsgleich mit NeutralPairingService)
+        lang_pattern = (
+            r'[_\-\.](?:de|en|fr|es|it|nl|pl|pt|ru|zh|ja|ko'
+            r'|cs|sv|da|fi|nb|nn|hu|ro|bg|hr|sk|sl|et|lv|lt|el|tr|ar|he)'
+            r'(?=[_\-\.]|$)'
+        )
+        a_clean = re.sub(lang_pattern, '', a_s)
+        b_clean = re.sub(lang_pattern, '', b_s)
+
+        # Wenn nach Entfernung der Language-Codes identisch
+        if a_clean == b_clean:
+            return 0.95
+
+        # Gängige Suffixe entfernen — NUR am Anfang/Ende, sonst werden
+        # Tokens wie "transformer_" mit Suffix "trans_" zerstört (-> "former_").
+        suffixes = [
+            '_source', '_target', '_translation', '_translated', '_trans',
+            '_original', '_orig', '_src', '_übersetzung', '_übersetzt',
+            '_quelle', '_ziel', '_final', '_korrektur', '_review',
+            '_draft', '_v2', '_neu', '_clean', '_edited',
+            '_proofread', '_lektoriert',
+        ]
+        prefixes = ['source_', 'target_', 'trans_', 'orig_']
+        def _strip_affixes(s: str) -> str:
+            changed = True
+            while changed:
+                changed = False
+                for suf in suffixes:
+                    if s.endswith(suf) and len(s) > len(suf):
+                        s = s[:-len(suf)]
+                        changed = True
+                for pre in prefixes:
+                    if s.startswith(pre) and len(s) > len(pre):
+                        s = s[len(pre):]
+                        changed = True
+            return s
+        a_clean = _strip_affixes(a_clean)
+        b_clean = _strip_affixes(b_clean)
+        a_clean = re.sub(r'_v?\d+$', '', a_clean).strip('_- ')
+        b_clean = re.sub(r'_v?\d+$', '', b_clean).strip('_- ')
+
+        if a_clean == b_clean:
+            return 0.9
+        
+        # Token-basierte Jaccard-Ähnlichkeit
         def tok(s: str) -> set[str]:
             return set(filter(None, re.split(r"[\W_]+", s)))
-        ta, tb = tok(a_s), tok(b_s)
+        
+        ta, tb = tok(a_clean), tok(b_clean)
+        if not ta or not tb:
+            return 0.0
+            
         inter = len(ta & tb)
         union = len(ta | tb) or 1
-        return inter / union
+        jaccard = inter / union
+        
+        # 🔧 NEU: Präfix-Bonus
+        prefix_len = 0
+        for i, (ca, cb) in enumerate(zip(a_clean, b_clean)):
+            if ca == cb:
+                prefix_len = i + 1
+            else:
+                break
+        
+        prefix_bonus = 0.0
+        if prefix_len >= 4:
+            prefix_bonus = min(0.15, prefix_len / max(len(a_clean), len(b_clean)) * 0.25)
+        
+        return min(jaccard + prefix_bonus, 1.0)
+    
+    def suggest_pairs(self, unmatched_sources: List[str], unmatched_translations: List[str], 
+                      top_n: int = 3) -> Dict[str, List[Tuple[str, float]]]:
+        """🔧 NEU: Schlägt mögliche Paarungen für ungematchte Dateien vor.
+        
+        Returns:
+            Dict mit source -> [(translation, similarity), ...] Top-N Vorschläge
+        """
+        suggestions: Dict[str, List[Tuple[str, float]]] = {}
+        
+        for src in unmatched_sources:
+            scores = []
+            for trg in unmatched_translations:
+                sim = self.similarity(src, trg)
+                if sim > 0.3:  # Mindest-Threshold für Vorschläge
+                    scores.append((trg, sim))
+            
+            # Sortiere nach Similarity absteigend
+            scores.sort(key=lambda x: x[1], reverse=True)
+            suggestions[src] = scores[:top_n]
+        
+        return suggestions
 
     # ---------------- Public helpers ----------------
     def update_similarity(self, source: str, translation: str, similarity: float) -> bool:
-        """Aktualisiert die Similarity eines vorhandenen Legacy-Paares ohne Snapshot.
-        Nützlich nach Re-Scoring; bumped nur den Timestamp für Persistenz.
+        """Aktualisiert die Similarity eines vorhandenen Legacy-Paares und persistiert sofort.
+        Nützlich nach Re-Scoring oder manueller Korrektur.
         """
         updated = False
         for p in self._legacy_pairs:
@@ -313,6 +591,8 @@ class QualityGuiPairingManager:
                 break
         if updated:
             self.state.last_update_ts = time.time()
+            # Sofort persistieren, damit Similarity-Korrekturen nicht verloren gehen
+            self.save()
         return updated
 
     def get_last_persist_path(self) -> Optional[str]:
@@ -371,6 +651,7 @@ class QualityGuiPairingManager:
                 except Exception:
                     pass
                 self._last_error = None
+                _logger.debug("Pairing geladen: %d Paare aus %s", len(self._legacy_pairs), p)
                 return True
         except Exception as e:
             self._last_error = f"load failed: {e}"
@@ -403,9 +684,11 @@ class QualityGuiPairingManager:
                     pass
             self._last_persist_path = p
             self._last_error = None
+            _logger.debug("Pairing gespeichert: %d Paare nach %s", len(self._legacy_pairs), p)
             return True
         except Exception as e:
             self._last_error = f"save failed: {e}"
+            _logger.warning("Pairing-Speichern fehlgeschlagen: %s", e)
             return False
 
     def get_last_error(self) -> Optional[str]:

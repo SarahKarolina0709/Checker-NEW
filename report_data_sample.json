@@ -1,7 +1,0 @@
-{
-  "meta": {"reportId": "sample123", "generatedAt": "2025-08-23T12:00:00Z"},
-  "issues": [
-    {"id":"i1","priority":"hoch","category":"Terminologie","location":"Segment 12","description":"Begriff uneinheitlich","sourceText":"Original Text A","currentText":"Aktueller Text A","suggestedText":"Vorgeschlagener Text A","recommendation":"Bitte Terminologie vereinheitlichen.","status":{"marked":false,"resolved":false},"notes":[],"comments":[]},
-    {"id":"i2","priority":"mittel","category":"Stil","location":"Segment 45","description":"Satz zu lang","sourceText":"Langer Originalsatz...","currentText":"Sehr langer aktueller Satz...","suggestedText":"Kürzerer Satz.","recommendation":"Satz teilen für bessere Lesbarkeit.","status":{"marked":true,"resolved":false},"notes":[],"comments":[]}
-  ]
-}

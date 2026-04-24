@@ -1,0 +1,20 @@
+{
+  "created_ts": 1773674756.7116706,
+  "overall_score": 95.89,
+  "plugins_run": 0,
+  "findings": [],
+  "context": {
+    "source_files": [
+      "C:\\Users\\sarah\\AppData\\Local\\Temp\\test_source.txt"
+    ],
+    "translation_files": [
+      "C:\\Users\\sarah\\AppData\\Local\\Temp\\test_translation.txt"
+    ],
+    "ui_completed_ts": 1773674756.7116706,
+    "phase": "ui"
+  },
+  "file_counts": {
+    "source": 1,
+    "translation": 1
+  }
+}
