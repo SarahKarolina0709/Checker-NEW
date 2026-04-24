@@ -821,12 +821,14 @@ def index_page():
         'src_lang_sel': None, 'tgt_lang_sel': None,
         'save_indicator': None, 'done_counter': None, 'history_chart': None,
         'category_heatmap': None, 'search_input': None, 'glossary_count_label': None,
-        'per_file_heatmap': None,
+        'per_file_heatmap': None, 'undo_btn': None, 'hide_done_toggle': None,
     }
     phase_flags = {'phase1': True, 'phase2': True, 'phase3': True, 'phase4': False}
     ollama_model = {'v': ''}
     filter_btns: Dict[str, Any] = {}
     selected_idx = {'v': -1}
+    # Undo-Stack fuer 'Erledigt'-Aktionen (in-memory, max. 20 Schritte)
+    undo_stack: List[Dict[str, Any]] = []
 
     # 'hide_done' Switch — separat damit Test-Restore möglich ist
     s.setdefault('score_history', [])
@@ -2287,10 +2289,44 @@ def index_page():
                                 'font-size:12px;font-family:monospace;background:#f8fafc;'
                                 'padding:8px;border-radius:6px;white-space:pre-wrap;word-break:break-all;')
 
+    def _push_undo(prev_checked: Dict[str, Any], label: str):
+        """Speichert vorherige checked_findings-Map fuer Undo (max. 20)."""
+        undo_stack.append({'checked': dict(prev_checked or {}), 'label': label})
+        if len(undo_stack) > 20:
+            del undo_stack[0]
+        if refs.get('undo_btn'):
+            try:
+                refs['undo_btn'].enable()
+                refs['undo_btn'].tooltip(f'Rueckgaengig: {label}')
+            except Exception:
+                pass
+
+    def _undo_last():
+        if not undo_stack:
+            ui.notify('Nichts zum Rueckgaengig machen', type='info')
+            return
+        entry = undo_stack.pop()
+        s['checked_findings'] = dict(entry.get('checked') or {})
+        if refs.get('undo_btn'):
+            try:
+                if not undo_stack:
+                    refs['undo_btn'].disable()
+                    refs['undo_btn'].tooltip('Nichts rueckgaengig zu machen')
+            except Exception:
+                pass
+        try:
+            _save_and_notify()
+        except Exception:
+            pass
+        _refresh_results_area()
+        ui.notify(f'Rueckgaengig: {entry.get("label", "Aenderung")}', type='positive')
+
     def _toggle_checked(idx: int, val: bool):
-        checked = dict(s.get('checked_findings', {}))
+        prev = dict(s.get('checked_findings', {}) or {})
+        checked = dict(prev)
         checked[str(idx)] = val
         s['checked_findings'] = checked
+        _push_undo(prev, 'Erledigt-Markierung')
         # Persistent speichern, damit beim Reload das Häkchen erhalten bleibt
         try:
             _save_and_notify()
@@ -2298,6 +2334,35 @@ def index_page():
             pass
         # Refresh damit Counter / "Erledigte ausblenden" sofort wirken
         _refresh_results_area()
+
+    def _bulk_mark_filtered(done: bool):
+        """Markiert alle aktuell sichtbaren (gefilterten) Findings als done/undone."""
+        filtered = _filtered_findings()
+        if not filtered:
+            ui.notify('Keine sichtbaren Findings', type='info')
+            return
+        prev = dict(s.get('checked_findings', {}) or {})
+        checked = dict(prev)
+        n_changed = 0
+        for i, _ in filtered:
+            key = str(i)
+            if bool(checked.get(key, False)) != done:
+                checked[key] = done
+                n_changed += 1
+        if n_changed == 0:
+            ui.notify('Nichts zu aendern', type='info')
+            return
+        s['checked_findings'] = checked
+        _push_undo(prev, f'{n_changed}× {"erledigt" if done else "wieder offen"}')
+        try:
+            _save_and_notify()
+        except Exception:
+            pass
+        _refresh_results_area()
+        ui.notify(
+            f'{n_changed} Findings als {"erledigt" if done else "offen"} markiert',
+            type='positive',
+        )
 
     # ------------------------------------------------------------------
     # Keyboard navigation
@@ -2308,6 +2373,14 @@ def index_page():
             if e.key == 'Enter' and e.modifiers.ctrl and not e.action.repeat and e.action.keydown:
                 if not s.get('analysis_running'):
                     asyncio.create_task(_start_analysis())
+                return
+        except Exception:
+            pass
+        # Ctrl+Z → Undo letzte Erledigt-Aenderung
+        try:
+            if (e.key == 'z' and e.modifiers.ctrl and not e.action.repeat
+                    and e.action.keydown):
+                _undo_last()
                 return
         except Exception:
             pass
@@ -3461,6 +3534,24 @@ def index_page():
                     # Counter "X von Y erledigt"
                     refs['done_counter'] = ui.label('').style(
                         'font-size:12px;color:#6b7280;font-weight:600;padding:0 8px;')
+                    # Bulk-Aktionen: alle sichtbaren erledigen / oeffnen
+                    ui.button(icon='done_all',
+                        on_click=lambda: _bulk_mark_filtered(True),
+                    ).props('flat dense round size=sm').tooltip(
+                        'Alle sichtbaren als erledigt markieren'
+                    ).style('color:#16a34a;')
+                    ui.button(icon='remove_done',
+                        on_click=lambda: _bulk_mark_filtered(False),
+                    ).props('flat dense round size=sm').tooltip(
+                        'Alle sichtbaren als offen markieren'
+                    ).style('color:#6b7280;')
+                    # Undo
+                    refs['undo_btn'] = ui.button(icon='undo',
+                        on_click=lambda: _undo_last(),
+                    ).props('flat dense round size=sm').tooltip(
+                        'Nichts rueckgaengig zu machen'
+                    ).style('color:#0f2744;')
+                    refs['undo_btn'].disable()
                     ui.element('div').classes('flex-grow')
                     refs['search_input'] = ui.input(placeholder='Findings durchsuchen...',
                         on_change=_on_search_change).props('dense clearable').classes('w-64')
