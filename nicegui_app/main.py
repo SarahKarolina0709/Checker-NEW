@@ -24,6 +24,7 @@ import urllib.request
 import zipfile
 from datetime import datetime, date as _date_type
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Tuple
 
 import atexit
@@ -193,6 +194,7 @@ from nicegui_app.utils import (  # noqa: E402, F401
     copy_to_clipboard as _copy_to_clipboard,
 )
 from nicegui_app.findings import finding_fingerprint as _finding_fingerprint  # noqa: E402, F401
+from nicegui_app import ui_findings as _ui_findings  # noqa: E402
 from nicegui_app.text_extraction import get_text_stats as _ext_text_stats  # noqa: E402, F401
 
 
@@ -2392,147 +2394,12 @@ def index_page():
                                         'font-size:12px;color:#9ca3af;')
 
     def _render_finding_card(idx: int, f: QAIssue):
-        sev_lbl = severity_label(f.severity)
-        sev_clr = severity_color(f.severity)
-        phase_lbl = phase_from_code(f.code)
-        is_selected = idx == selected_idx['v']
-        compact = s.get('view_mode', 'normal') == 'compact'
-        pad = '6px 10px' if compact else '12px'
-        mb = '4px' if compact else '8px'
-        # Linker farbiger Severity-Balken + optionaler Selection-Ring
-        card_style = (
-            f'border-left:5px solid {sev_clr};border-radius:6px;'
-            f'margin-bottom:{mb};padding:0;background:white;'
-            f'border-top:1px solid #e5e7eb;border-right:1px solid #e5e7eb;'
-            f'border-bottom:1px solid #e5e7eb;'
-            f'{"box-shadow:0 0 0 2px #0f2744;" if is_selected else ""}'
+        ctx = SimpleNamespace(
+            s=s, refs=refs, selected_idx=selected_idx,
+            toggle_checked=_toggle_checked,
+            refresh_results=_refresh_results_area,
         )
-        with ui.card().classes('w-full').props('flat').style(card_style) as card_el:
-            # HTML-Anker fuer Auto-Scroll bei Tastatur-Nav
-            try:
-                card_el.props(f'id=finding-card-{idx}')
-            except Exception:
-                pass
-            with ui.column().classes('w-full gap-1').style(f'padding:{pad};'):
-                # Datei-Header (wenn Per-File-Attribution vorhanden) – im Kompaktmodus ausblenden
-                src_f = getattr(f, 'source_file', '') or ''
-                tgt_f = getattr(f, 'target_file', '') or ''
-                if (src_f or tgt_f) and not compact:
-                    with ui.row().classes('w-full items-center gap-2 cursor-pointer').style(
-                        'padding:2px 6px;background:#f1f5f9;border-radius:4px;'
-                        'margin-bottom:4px;font-size:11px;'
-                    ).on('click', lambda _, sf=os.path.basename(src_f or tgt_f):
-                         (s.update({'search_text': sf}),
-                          refs.get('search_input') and refs['search_input'].set_value(sf),
-                          _refresh_results_area())):
-                        ui.icon('description', size='xs').style('color:#6b7280;')
-                        if src_f:
-                            ui.label(os.path.basename(src_f)).style(
-                                'color:#0f2744;font-weight:600;')
-                        if src_f and tgt_f:
-                            ui.icon('arrow_forward', size='xs').style('color:#d4af37;')
-                        if tgt_f:
-                            ui.label(os.path.basename(tgt_f)).style(
-                                'color:#16a34a;font-weight:600;')
-                with ui.row().classes('w-full items-center gap-2 flex-wrap'):
-                    ui.badge(sev_lbl).style(
-                        f'background:transparent;color:{sev_clr};border:1px solid {sev_clr};border-radius:20px;')
-                    if phase_lbl and not compact:
-                        ui.badge(phase_lbl).style(
-                            'background:transparent;color:#6b7280;border:1px solid #d1d5db;border-radius:20px;')
-                    ui.badge(f.code).style(
-                        'background:transparent;color:#6b7280;border:1px solid #d1d5db;border-radius:20px;')
-                    # NEU-Badge wenn dieses Finding seit letzter Analyse hinzukam
-                    diff = s.get('analysis_diff', {}) or {}
-                    if diff.get('has_prev') and idx in set(diff.get('new_idx', []) or []):
-                        ui.badge('NEU').style(
-                            'background:#dc2626;color:white;border-radius:20px;'
-                            'font-weight:700;font-size:10px;')
-                    ui.element('div').classes('flex-grow')
-                    cb = ui.checkbox('Geprueft',
-                        value=s.get('checked_findings', {}).get(str(idx), False),
-                        on_change=lambda e, i=idx: _toggle_checked(i, getattr(e, 'value', getattr(e, 'args', False))))
-                    cb.style('font-size:12px;')
-                msg_fs = '12px' if compact else '13px'
-                msg_text = (f.message[:120] + '…' if compact and len(f.message) > 120
-                            else f.message)
-                ui.label(msg_text).style(
-                    f'font-size:{msg_fs};color:#1f2937;line-height:1.4;font-weight:500;')
-                # Im Kompakt-Modus: kein Quell-/Zieltext, kein Vorschlag
-                if compact:
-                    return
-                # Korrekturvorschlag wenn vorhanden (meta['suggestion'])
-                meta = getattr(f, 'meta', {}) or {}
-                suggestion = (meta.get('suggestion') or '').strip()
-                if suggestion:
-                    with ui.row().classes('w-full items-start gap-2').style(
-                        'background:#ecfdf5;border-left:3px solid #16a34a;'
-                        'padding:8px 10px;border-radius:6px;margin-top:6px;'
-                    ):
-                        ui.icon('lightbulb', size='sm').style('color:#16a34a;flex-shrink:0;margin-top:1px;')
-                        with ui.column().classes('gap-0 flex-grow').style('min-width:0;'):
-                            ui.label('Vorschlag').style(
-                                'font-size:10px;font-weight:700;color:#16a34a;'
-                                'text-transform:uppercase;letter-spacing:0.5px;')
-                            ui.label(suggestion[:500]).style(
-                                'font-size:12px;color:#064e3b;'
-                                'white-space:pre-wrap;word-break:break-word;')
-                        ui.button(icon='content_copy',
-                            on_click=lambda _, t=suggestion: _copy_to_clipboard(t)
-                        ).props('flat dense round size=xs').tooltip(
-                            'Vorschlag kopieren'
-                        ).style('color:#16a34a;flex-shrink:0;')
-                # Quell- und Zieltext direkt sichtbar (kein Click noetig)
-                if f.source_text or f.target_text:
-                    error_span = (meta.get('error_text') or '').strip()
-                    with ui.column().classes('w-full gap-1').style('margin-top:6px;'):
-                        if f.source_text:
-                            with ui.row().classes('w-full items-start gap-1').style(
-                                'background:#f8fafc;padding:6px 8px;border-radius:6px;'
-                                'border-left:2px solid #0f2744;'
-                            ):
-                                ui.label('SRC').style(
-                                    'font-size:9px;font-weight:700;color:#0f2744;'
-                                    'min-width:30px;padding-top:1px;')
-                                ui.label(f.source_text[:400]).style(
-                                    'font-size:12px;color:#334155;'
-                                    'white-space:pre-wrap;word-break:break-word;flex-grow:1;')
-                                ui.button(icon='content_copy',
-                                    on_click=lambda _, t=f.source_text: _copy_to_clipboard(t)
-                                ).props('flat dense round size=xs').tooltip(
-                                    'Quelltext kopieren'
-                                ).style('color:#94a3b8;flex-shrink:0;')
-                        if f.target_text:
-                            with ui.row().classes('w-full items-start gap-1').style(
-                                'background:#fef3c7;padding:6px 8px;border-radius:6px;'
-                                'border-left:2px solid #d97706;'
-                            ):
-                                ui.label('ZIEL').style(
-                                    'font-size:9px;font-weight:700;color:#d97706;'
-                                    'min-width:30px;padding-top:1px;')
-                                # Bad span hervorheben wenn meta['error_text'] vorhanden
-                                if error_span and error_span in f.target_text:
-                                    pos = f.target_text.find(error_span)
-                                    before = f.target_text[:pos][:200]
-                                    after = f.target_text[pos + len(error_span):][:200]
-                                    ui.html(
-                                        f'<span style="font-size:12px;color:#334155;'
-                                        f'white-space:pre-wrap;word-break:break-word;">'
-                                        f'{_html_esc(before)}'
-                                        f'<mark style="background:#fecaca;color:#7f1d1d;'
-                                        f'padding:1px 3px;border-radius:3px;font-weight:700;">'
-                                        f'{_html_esc(error_span)}</mark>'
-                                        f'{_html_esc(after)}</span>'
-                                    ).classes('flex-grow')
-                                else:
-                                    ui.label(f.target_text[:400]).style(
-                                        'font-size:12px;color:#334155;'
-                                        'white-space:pre-wrap;word-break:break-word;flex-grow:1;')
-                                ui.button(icon='content_copy',
-                                    on_click=lambda _, t=f.target_text: _copy_to_clipboard(t)
-                                ).props('flat dense round size=xs').tooltip(
-                                    'Zieltext kopieren'
-                                ).style('color:#94a3b8;flex-shrink:0;')
+        _ui_findings.render_finding_card(ctx, idx, f)
 
     def _push_undo(prev_checked: Dict[str, Any], label: str):
         """Speichert vorherige checked_findings-Map fuer Undo (max. 20)."""

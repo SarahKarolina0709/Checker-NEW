@@ -14,7 +14,14 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
+
+# ---------------------------------------------------------------------------
+# Cache fuer extrahierten Text (Key: Pfad+mtime+Size, Value: Text)
+# Begrenzt durch _EXTRACT_CACHE_MAX (FIFO-Approximation)
+# ---------------------------------------------------------------------------
+_EXTRACT_CACHE: Dict[Tuple[str, int, int], str] = {}
+_EXTRACT_CACHE_MAX = 64
 
 # ---------------------------------------------------------------------------
 # Optional OCR
@@ -97,9 +104,36 @@ def extract_text(path: str) -> str:
 
     Rueckgabe: Plaintext oder eine `[...]`-Fehlermeldung. Wirft nie eine
     Exception nach aussen.
+
+    Cached intern auf (Pfad, mtime, Groesse) - Re-Aufrufe fuer dieselbe
+    unveraenderte Datei sind quasi gratis.
     """
     if not path or not os.path.isfile(path):
         return f'[Datei nicht gefunden: {Path(path).name if path else ""}]'
+    try:
+        st = os.stat(path)
+        cache_key = (path, st.st_mtime_ns, st.st_size)
+    except OSError:
+        cache_key = None
+    if cache_key is not None:
+        cached = _EXTRACT_CACHE.get(cache_key)
+        if cached is not None:
+            return cached
+    result = _extract_text_impl(path)
+    if cache_key is not None and result and not result.startswith('['):
+        # Cache nur erfolgreiche Extraktionen (keine Fehlermeldungen)
+        if len(_EXTRACT_CACHE) >= _EXTRACT_CACHE_MAX:
+            # Einfache LRU-Approximation: aeltesten Eintrag werfen
+            try:
+                _EXTRACT_CACHE.pop(next(iter(_EXTRACT_CACHE)))
+            except StopIteration:
+                pass
+        _EXTRACT_CACHE[cache_key] = result
+    return result
+
+
+def _extract_text_impl(path: str) -> str:
+    """Tatsaechliche Extraktion - ohne Cache."""
     ext = Path(path).suffix.lower()
     if ext in ('.txt', '.py', '.md'):
         try:

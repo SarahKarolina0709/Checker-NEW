@@ -9,13 +9,25 @@ NiceGUI Web-App, Python 3.12. Start: `python nicegui_app/main.py`.
 
 ```
 nicegui_app/
-├── main.py            UI + Routing (~3.200 Z., enthält NiceGUI-spezifischen Code)
+├── main.py            UI + Routing (~4.000 Z., index_page mit ~3.300 Z.)
+├── styles.py          APP_CSS Design-System (rein)
+├── app_settings.py    load_settings() + zentraler settings-Dict (rein)
+├── utils.py           safe_open_folder, fmt_size, html_esc, copy_to_clipboard
 ├── severity.py        Severity-Konstanten + Score-Berechnung (rein, testbar)
 ├── customers.py       Kunden-/Projekt-Verzeichnis-Logik (rein, testbar)
 ├── session.py         Session-Persistierung (rein, testbar)
 ├── exports.py         TXT/Excel/PDF/ZIP (rein, testbar)
-└── text_extraction.py DOCX/PDF/OCR (rein, testbar)
+├── text_extraction.py DOCX/PDF/OCR + extract_text-Cache (rein, testbar)
+├── findings.py        finding_fingerprint (Diff zwischen Analyselaeufen)
+├── page_kalender.py   Route /kalender (registriert via @ui.page beim Import)
+└── page_kunden.py     Route /kunden  (registriert via @ui.page beim Import)
 ```
+
+main.py importiert `page_kalender` + `page_kunden` ganz unten — der
+@ui.page-Dekorator registriert die Route beim Import-Zeitpunkt.
+
+`settings` ist ein Modul-globales Dict in `app_settings.py`. Mutationen
+(Settings-Dialog) sind ueberall sichtbar, da Python Dicts per Referenz teilt.
 
 Backend-Module im Repo-Root: `quality_gui_phase{1,2,3,4}_*.py`,
 `neutral_pairing_service.py`, `neutral_upload_service.py`, `ki_module.py`, etc.
