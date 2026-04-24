@@ -665,6 +665,184 @@ def build_analysis_section(app, parent):
         except Exception:
             pass
 
+    # =====================================================================
+    # KI-Prüfungen (Custom Prompts) - Benutzerdefinierte Fragen an Ollama
+    # =====================================================================
+    ki_header = ctk.CTkLabel(config_content, text=app._t('KI-Prüfungen'), **section_label_cfg)
+    ki_header.pack(anchor='w', pady=(20, 8))
+    
+    ki_container = ctk.CTkFrame(
+        config_content,
+        fg_color=app.get_color('white'),
+        corner_radius=8,
+        border_width=1,
+        border_color=app.get_color('gray_200')
+    )
+    ki_container.pack(fill='x', pady=(0, 20))
+    
+    ki_content = ctk.CTkFrame(ki_container, fg_color=app.get_color('transparent'))
+    ki_content.pack(fill='x', padx=16, pady=12)
+    
+    # Beschreibungstext
+    ki_desc = ctk.CTkLabel(
+        ki_content,
+        text=app._t('Stellen Sie spezifische Fragen, die vor der Analyse geprüft werden:'),
+        font=_font('caption'),
+        text_color=app.get_color('text_secondary'),
+        wraplength=280,
+        justify='left'
+    )
+    ki_desc.pack(anchor='w', pady=(0, 8))
+    
+    # Variable für benutzerdefinierte Prüfung
+    app.var_custom_ki_prompt = getattr(app, 'var_custom_ki_prompt', tk.StringVar(value=''))
+    app.var_custom_ki_enabled = getattr(app, 'var_custom_ki_enabled', tk.BooleanVar(value=False))
+    
+    # Persistierte Werte laden
+    try:
+        if getattr(app, 'settings_service', None):
+            saved_prompt = app.settings_service.get('analysis.ki.custom_prompt', '')
+            saved_enabled = app.settings_service.get('analysis.ki.custom_enabled', False)
+            if saved_prompt:
+                app.var_custom_ki_prompt.set(saved_prompt)
+            app.var_custom_ki_enabled.set(bool(saved_enabled))
+    except Exception:
+        pass
+    
+    # Checkbox zum Aktivieren
+    def _on_toggle_custom_ki():
+        try:
+            if getattr(app, 'settings_service', None):
+                app.settings_service.set('analysis.ki.custom_enabled', bool(app.var_custom_ki_enabled.get()))
+        except Exception:
+            pass
+        # Textfeld-Zustand aktualisieren
+        try:
+            state = 'normal' if app.var_custom_ki_enabled.get() else 'disabled'
+            app.custom_ki_textbox.configure(state=state)
+        except Exception:
+            pass
+    
+    ki_enable_cb = ctk.CTkCheckBox(
+        ki_content,
+        text=app._t('Benutzerdefinierte Prüfung aktivieren'),
+        variable=app.var_custom_ki_enabled,
+        font=_font('body'),
+        text_color=app.get_color('text_primary'),
+        fg_color=app.get_color('primary'),
+        hover_color=app.get_color('primary_hover'),
+        checkbox_height=18,
+        checkbox_width=18,
+        corner_radius=4,
+        command=_on_toggle_custom_ki
+    )
+    ki_enable_cb.pack(anchor='w', pady=(0, 8))
+    
+    # Textfeld für benutzerdefinierte Frage
+    app.custom_ki_textbox = ctk.CTkTextbox(
+        ki_content,
+        height=60,
+        fg_color=app.get_color('white'),
+        text_color=app.get_color('text_primary'),
+        border_width=1,
+        border_color=app.get_color('gray_300'),
+        font=_font('body'),
+        corner_radius=6,
+        wrap='word'
+    )
+    app.custom_ki_textbox.pack(fill='x', pady=(0, 8))
+    
+    # Platzhalter einfügen falls leer
+    if app.var_custom_ki_prompt.get():
+        app.custom_ki_textbox.insert('1.0', app.var_custom_ki_prompt.get())
+    else:
+        app.custom_ki_textbox.insert('1.0', 'z.B. "Prüfe ob alle Produktnamen korrekt beibehalten wurden"')
+        app.custom_ki_textbox.configure(text_color=app.get_color('text_tertiary'))
+    
+    # State je nach Checkbox
+    if not app.var_custom_ki_enabled.get():
+        app.custom_ki_textbox.configure(state='disabled')
+    
+    def _on_ki_focus_in(_e):
+        try:
+            txt = app.custom_ki_textbox.get('1.0', 'end-1c')
+            if txt.startswith('z.B.'):
+                app.custom_ki_textbox.delete('1.0', 'end')
+                app.custom_ki_textbox.configure(text_color=app.get_color('text_primary'))
+        except Exception:
+            pass
+    
+    def _on_ki_focus_out(_e):
+        try:
+            txt = app.custom_ki_textbox.get('1.0', 'end-1c').strip()
+            app.var_custom_ki_prompt.set(txt)
+            # Persistieren
+            if getattr(app, 'settings_service', None):
+                app.settings_service.set('analysis.ki.custom_prompt', txt)
+            if not txt:
+                app.custom_ki_textbox.insert('1.0', 'z.B. "Prüfe ob alle Produktnamen korrekt beibehalten wurden"')
+                app.custom_ki_textbox.configure(text_color=app.get_color('text_tertiary'))
+        except Exception:
+            pass
+    
+    app.custom_ki_textbox.bind('<FocusIn>', _on_ki_focus_in)
+    app.custom_ki_textbox.bind('<FocusOut>', _on_ki_focus_out)
+    
+    # Vordefinierte Prüfungen als Schnellauswahl
+    ki_presets_label = ctk.CTkLabel(
+        ki_content,
+        text=app._t('Schnellauswahl:'),
+        font=_font('caption'),
+        text_color=app.get_color('text_secondary')
+    )
+    ki_presets_label.pack(anchor='w', pady=(4, 4))
+    
+    ki_presets_frame = ctk.CTkFrame(ki_content, fg_color=app.get_color('transparent'))
+    ki_presets_frame.pack(fill='x', pady=(0, 4))
+    
+    # Vordefinierte Prüfungen laden
+    try:
+        from quality_gui_custom_prompts import PREDEFINED_CHECKS
+        presets = list(PREDEFINED_CHECKS.items())[:4]  # Erste 4 anzeigen
+    except Exception:
+        presets = [
+            ('terminology', {'name': 'Terminologie', 'prompt': 'Prüfe Terminologie-Konsistenz'}),
+            ('formality', {'name': 'Anrede', 'prompt': 'Prüfe formelle/informelle Anrede'}),
+            ('anglicisms', {'name': 'Anglizismen', 'prompt': 'Finde unnötige Anglizismen'}),
+        ]
+    
+    def _apply_preset(prompt_text):
+        try:
+            if not app.var_custom_ki_enabled.get():
+                app.var_custom_ki_enabled.set(True)
+                _on_toggle_custom_ki()
+            app.custom_ki_textbox.configure(state='normal')
+            app.custom_ki_textbox.delete('1.0', 'end')
+            app.custom_ki_textbox.insert('1.0', prompt_text)
+            app.custom_ki_textbox.configure(text_color=app.get_color('text_primary'))
+            app.var_custom_ki_prompt.set(prompt_text)
+            if getattr(app, 'settings_service', None):
+                app.settings_service.set('analysis.ki.custom_prompt', prompt_text)
+        except Exception:
+            pass
+    
+    for i, (key, info) in enumerate(presets):
+        name = info.get('name', key) if isinstance(info, dict) else key
+        prompt = info.get('prompt', '') if isinstance(info, dict) else ''
+        btn = ctk.CTkButton(
+            ki_presets_frame,
+            text=name,
+            width=65,
+            height=24,
+            fg_color=app.get_color('gray_100'),
+            hover_color=app.get_color('gray_200'),
+            text_color=app.get_color('text_secondary'),
+            font=ctk.CTkFont('Segoe UI', 10),
+            corner_radius=4,
+            command=lambda p=prompt: _apply_preset(p)
+        )
+        btn.pack(side='left', padx=(0, 4))
+
     # Glossar Label - Konsistent mit anderen Sections
     gloss_header = ctk.CTkLabel(config_content, text=app._t('Glossar'), **section_label_cfg)
     gloss_header.pack(anchor='w', pady=(20, 8))

@@ -2527,9 +2527,7 @@ class ProfessionelleUebersetzungsqualitaetsApp:
     def _init_feature_flags(self):
         self.advanced_features_enabled = True
         self.phase3_enabled = True
-        self.phase4_enabled = True
-        self.phase5_enabled = True
-        self.phase6_enabled = True
+        # Phase 4-6 entfernt (archiviert) – Funktionalität bereits inline implementiert
         self.auto_ocr_enabled = True
         self.auto_ocr_remove_original = False
 
@@ -13949,7 +13947,15 @@ Nach Installation: Programm neu starten.""")
             return info
 
         embed_backend = None
-        use_semantic = bool(getattr(self, 'var_phase3_semantic', None) and self.var_phase3_semantic.get())
+        # Semantische Ähnlichkeit: Standardmäßig aktiviert wenn Config es erlaubt
+        # GUI-Variable kann überschreiben (falls vorhanden)
+        _semantic_var = getattr(self, 'var_phase3_semantic', None)
+        if _semantic_var is not None and hasattr(_semantic_var, 'get'):
+            # GUI-Variable existiert: deren Wert verwenden
+            use_semantic = bool(_semantic_var.get())
+        else:
+            # Keine GUI-Variable: standardmäßig aktivieren (Config entscheidet später)
+            use_semantic = True
         phase1_enabled = bool(_get_setting('analysis.phases.phase1.enabled', True))
         phase2_enabled = bool(_get_setting('analysis.phases.phase2.enabled', True))
         phase3_enabled = bool(_get_setting('analysis.phases.phase3.enabled', True))
@@ -14124,6 +14130,12 @@ Nach Installation: Programm neu starten.""")
         source_lang_code, target_lang_code = _resolve_language_pair(normalized_pairs)
         src_lang_summary = source_lang_code or 'auto'
         tgt_lang_summary = target_lang_code or 'auto'
+        
+        # Erkannte Sprachen an spellcheck_cfg übergeben für bessere Grammatikprüfung
+        if target_lang_code and 'target_language' not in spellcheck_cfg:
+            spellcheck_cfg['target_language'] = target_lang_code
+        if source_lang_code and 'source_language' not in spellcheck_cfg:
+            spellcheck_cfg['source_language'] = source_lang_code
 
         candidate_keys: list[str] = []
         if source_lang_code and target_lang_code:
@@ -14156,44 +14168,10 @@ Nach Installation: Programm neu starten.""")
         length_upper_bound = length_expected_ratio + length_var
         length_lang_label = f"{_language_display(source_lang_code)}->{_language_display(target_lang_code)}"
 
+        # OPTIMIERUNG: use_semantic nur als Flag für Phase 3 - keine doppelte Embedding-Initialisierung hier
         if not phase3_enabled or not semantic_cfg_enabled:
             use_semantic = False
-        if use_semantic and qc_enabled('accuracy'):
-            if semantic_use_ollama_cfg:
-                embed_backend = 'ollama'
-            else:
-                try:
-                    from sentence_transformers import SentenceTransformer  # type: ignore
-                    embed_backend = SentenceTransformer(selected_embed_model)
-                except Exception:
-                    embed_backend = 'ollama'
-
-        def _embed(texts: list[str]):
-            if not texts:
-                return []
-            try:
-                if embed_backend and embed_backend != 'ollama':
-                    return embed_backend.encode(texts)  # type: ignore
-                if embed_backend == 'ollama':
-                    return [[(sum(bytearray(t.encode('utf-8')))%997)/997.0] for t in texts]
-            except Exception:
-                pass
-            return [[0.0] for _ in texts]
-
-        def _cos(a, b):
-            try:
-                import numpy as np  # type: ignore
-                a = np.array(a); b = np.array(b)
-                if a.size != b.size or a.size == 0:
-                    return 0.0
-                return float(a.dot(b)/(max(1e-9, (np.linalg.norm(a)*np.linalg.norm(b)))))
-            except Exception:
-                try:
-                    num = sum(x*y for x,y in zip(a,b))
-                    den = math.sqrt(sum(x*x for x in a))*math.sqrt(sum(y*y for y in b))
-                    return float(num/den) if den else 0.0
-                except Exception:
-                    return 0.0
+        # embed_backend wird nicht mehr hier initialisiert - Phase 3 macht das selbst
 
         sentence_split = re.compile(r'[.!?]+\s+|\n+')
         passive_de = re.compile(r'\b(wird|werden|wurde|wurden|ist|sind|sei|waren)\b[^.?!]{0,60}?\b(ge\w+(?:t|en)|worden)\b', re.IGNORECASE)
@@ -14367,11 +14345,9 @@ Nach Installation: Programm neu starten.""")
                 common = len(src_tokens & trg_tokens)
                 total_union = max(1, len(src_tokens) + len(trg_tokens))
                 sim = round((2*common)/total_union, 4)
-                if use_semantic:
-                    vecs = _embed([src_txt[:1000], trg_txt[:1000]])
-                    if len(vecs) == 2:
-                        emb_sim = _cos(vecs[0], vecs[1])
-                        sim = round((sim + emb_sim)/2, 4)
+                # OPTIMIERUNG: Embedding-Berechnung hier entfernt - 
+                # wird in Phase 3 check_semantic_similarity() gemacht wenn aktiviert
+                # Dies vermeidet doppelte Embedding-Berechnungen
                 acc_sims.append(sim)
 
             if qc_enabled('terminology') and glossary_terms and trg_txt:
@@ -14383,7 +14359,9 @@ Nach Installation: Programm neu starten.""")
                     if term in trg_lower:
                         term_hits += 1
 
-            if trg_txt and (qc_enabled('fluency') or qc_enabled('style') or qc_enabled('grammar')):
+            # OPTIMIERUNG: Stil-Statistiken nur berechnen wenn Phase 3 NICHT aktiv
+            # (Phase 3 check_style/check_readability macht detailliertere Analyse)
+            if trg_txt and (qc_enabled('fluency') or qc_enabled('style') or qc_enabled('grammar')) and not phase3_enabled:
                 sentences = [s.strip() for s in sentence_split.split(trg_txt) if s.strip()]
                 for s in sentences:
                     tokens = s.split()
@@ -14392,6 +14370,13 @@ Nach Installation: Programm neu starten.""")
                     passive_total += 1
                     if passive_de.search(s) or passive_en.search(s) or passive_de_zu.search(s):
                         passive_hits += 1
+            elif trg_txt and phase3_enabled:
+                # Bei aktivierter Phase 3: nur minimale Statistiken für Metriken-Übersicht
+                sentences = [s.strip() for s in sentence_split.split(trg_txt) if s.strip()]
+                for s in sentences:
+                    tokens = s.split()
+                    if tokens:
+                        style_sentence_lengths.append(len(tokens))
 
             pairs.append({
                 'source': src,
@@ -14634,12 +14619,20 @@ Nach Installation: Programm neu starten.""")
                     pass
         if phase3_enabled and run_phase3_checks and pair_segments:
             try:
+                # Konsistenzprüfung aktivieren wenn genug Segmente vorhanden
+                enable_consistency = len(pair_segments) >= 5
+                # OCR-Prüfung aktivieren (erkennt l/1, O/0, rn/m Verwechslungen)
+                enable_ocr = True
+                
                 raw_phase3 = run_phase3_checks(
                     pair_segments,
                     enable_semantic=use_semantic,
+                    enable_consistency=enable_consistency,
+                    enable_ocr_check=enable_ocr,
                     semantic_use_ollama=semantic_use_ollama_cfg,
                     semantic_ollama_model=semantic_ollama_model,
                     semantic_threshold=semantic_threshold,
+                    consistency_min_occurrences=2,
                     spellcheck_config=spellcheck_cfg,
                     pair_infos=pair_details
                 )
@@ -14649,12 +14642,102 @@ Nach Installation: Programm neu starten.""")
                     (getattr(self, 'logger', None) or logger).debug(f"Phase3 Checks Fehler: {phase3_err}")
                 except Exception:
                     pass
+        
+        # =====================================================================
+        # Custom KI-Prüfung (Benutzerdefinierte Fragen an Ollama)
+        # =====================================================================
+        custom_ki_findings: list[dict] = []
+        custom_ki_result = None
+        try:
+            custom_ki_enabled = getattr(self, 'var_custom_ki_enabled', None)
+            custom_ki_prompt_var = getattr(self, 'var_custom_ki_prompt', None)
+            custom_ki_textbox = getattr(self, 'custom_ki_textbox', None)
+            
+            # Prüfen ob aktiviert
+            if (custom_ki_enabled and custom_ki_enabled.get() and 
+                semantic_use_ollama_cfg and pair_segments):
+                
+                # Prompt aus Textbox lesen (aktuellster Wert)
+                prompt_text = ''
+                try:
+                    if custom_ki_textbox:
+                        prompt_text = custom_ki_textbox.get('1.0', 'end-1c').strip()
+                except Exception:
+                    pass
+                
+                # Fallback auf Variable
+                if not prompt_text or prompt_text.startswith('z.B.'):
+                    prompt_text = custom_ki_prompt_var.get() if custom_ki_prompt_var else ''
+                
+                if prompt_text and not prompt_text.startswith('z.B.'):
+                    try:
+                        from quality_gui_custom_prompts import CustomCheckAnalyzer
+                        
+                        # Progress-Event senden
+                        if self.event_bus:
+                            self.event_bus.publish('analysis.progress', {
+                                'phase': 'custom_ki',
+                                'progress': 0.9,
+                                'info': f'KI-Prüfung: {prompt_text[:50]}...'
+                            })
+                        
+                        analyzer = CustomCheckAnalyzer(
+                            model=semantic_ollama_model or 'mistral',
+                            timeout=120
+                        )
+                        
+                        # Analyse durchführen
+                        custom_ki_result = analyzer.analyze(
+                            question=prompt_text,
+                            pairs=pair_segments,
+                            max_pairs=50
+                        )
+                        
+                        # Findings übernehmen
+                        if custom_ki_result and custom_ki_result.findings:
+                            for f in custom_ki_result.findings:
+                                custom_ki_findings.append(_normalize_issue_dict(
+                                    phase='custom_ki',
+                                    code=f.get('rule_id', 'CUSTOM_CHECK'),
+                                    severity=f.get('severity', 'minor'),
+                                    category='custom_ki',
+                                    message=f.get('message', ''),
+                                    source='',
+                                    target=f.get('suggestion', ''),
+                                    meta={
+                                        'custom_prompt': prompt_text,
+                                        'segment_index': f.get('segment_index', 0),
+                                        'checker': 'ollama',
+                                        'ki_answer': custom_ki_result.answer[:500] if custom_ki_result.answer else ''
+                                    }
+                                ))
+                        
+                        # Log
+                        try:
+                            (getattr(self, 'logger', None) or logger).info(
+                                f"Custom KI-Prüfung: {len(custom_ki_findings)} Findings für '{prompt_text[:30]}...'"
+                            )
+                        except Exception:
+                            pass
+                            
+                    except ImportError:
+                        pass
+                    except Exception as ki_err:
+                        try:
+                            (getattr(self, 'logger', None) or logger).debug(f"Custom KI-Prüfung Fehler: {ki_err}")
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+        
         phase_issue_counts = {
             'phase1': len(phase1_issues),
             'phase2': len(phase2_issues),
-            'phase3': len(phase3_issues)
+            'phase3': len(phase3_issues),
+            'custom_ki': len(custom_ki_findings)
         }
         grammar_summary = _collect_grammar_summary(phase3_issues, spellcheck_cfg, phase3_enabled)
+
 
         summary = {
             'pairs': pair_count,
@@ -14968,7 +15051,7 @@ Nach Installation: Programm neu starten.""")
 
             # Phase Findings integrieren (begrenzte Anzahl)
             try:
-                for phase_name, issue_list in (('phase1', phase1_issues), ('phase2', phase2_issues), ('phase3', phase3_issues)):
+                for phase_name, issue_list in (('phase1', phase1_issues), ('phase2', phase2_issues), ('phase3', phase3_issues), ('custom_ki', custom_ki_findings)):
                     for issue in issue_list:
                         findings.append(_normalize_issue_dict(
                             phase=str(issue.get('phase') or phase_name),
@@ -15171,6 +15254,19 @@ Nach Installation: Programm neu starten.""")
                         'description': 'Prüfung von Lesbarkeit, Rechtschreibung und grammatikalischen Strukturen'
                     }
                 
+                # Custom KI-Prüfung (Benutzerdefinierte Fragen)
+                custom_ki_count = phase_issue_counts.get('custom_ki', 0)
+                if custom_ki_count:
+                    custom_prompt_used = ''
+                    if custom_ki_result:
+                        custom_prompt_used = custom_ki_result.question[:50] + '...' if len(custom_ki_result.question) > 50 else custom_ki_result.question
+                    phases['custom_ki'] = {
+                        'name': 'KI-Prüfung',
+                        'issue_total': custom_ki_count,
+                        'description': f'Benutzerdefinierte Prüfung: {custom_prompt_used}' if custom_prompt_used else 'Benutzerdefinierte KI-Prüfung',
+                        'custom_prompt': custom_prompt_used
+                    }
+                
                 # Konsolidierung: Gesamtbewertung und Risiko-Score
                 try:
                     total_f = len(findings)
@@ -15240,13 +15336,17 @@ Nach Installation: Programm neu starten.""")
                 'issues_phase1': phase1_issues,
                 'issues_phase2': phase2_issues,
                 'issues_phase3': phase3_issues,
+                'issues_custom_ki': custom_ki_findings,
                 'phase_issue_counts': phase_issue_counts,
                 'pair_details': pair_details,
+                # Custom KI-Prüfungsergebnis (falls vorhanden)
+                'custom_ki_result': custom_ki_result.to_dict() if custom_ki_result else None,
                 # Phasen-Namen für bessere UI-Darstellung
                 'phase_names': {
                     'phase1': 'Format & Struktur',
                     'phase2': 'Inhalt & Konsistenz',
                     'phase3': 'Semantik & Grammatik',
+                    'custom_ki': 'KI-Prüfung',
                     'consolidation': 'Konsolidierung',
                     'recommendations': 'Empfehlungen'
                 }

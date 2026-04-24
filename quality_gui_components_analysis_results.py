@@ -118,6 +118,207 @@ def _debug(app, msg: str) -> None:
     except Exception:
         pass
 
+
+def _show_ai_correction_popup(app, finding: Dict[str, Any], suggestion, parent_frame) -> None:
+    """Zeigt KI-Korrekturvorschlag in einem Inline-Popup an.
+    
+    Args:
+        app: Hauptanwendung
+        finding: Das Finding-Dict
+        suggestion: CorrectionSuggestion Objekt
+        parent_frame: Parent-Frame für das Popup
+    """
+    import customtkinter as ctk
+    
+    try:
+        # Prüfe ob bereits ein Popup existiert
+        existing = getattr(parent_frame, '_ai_popup', None)
+        if existing:
+            try:
+                existing.destroy()
+            except Exception:
+                pass
+        
+        # Erstelle Popup-Frame
+        popup = ctk.CTkFrame(
+            parent_frame.master,  # Im Row-Container
+            fg_color=app.get_color('info_light'),
+            corner_radius=8,
+            border_width=2,
+            border_color=app.get_color('secondary')
+        )
+        popup.grid(row=7, column=1, sticky='ew', padx=(0, 8), pady=(0, 8))
+        parent_frame._ai_popup = popup
+        
+        # Header mit Schließen-Button
+        header = ctk.CTkFrame(popup, fg_color=app.get_color('transparent'))
+        header.pack(fill='x', padx=8, pady=(8, 4))
+        
+        ctk.CTkLabel(
+            header,
+            text='🤖 KI-Korrekturvorschlag',
+            font=ctk.CTkFont(*app.get_typography('label_bold')),
+            text_color=app.get_color('secondary')
+        ).pack(side='left')
+        
+        # Konfidenz-Badge
+        conf_text = f"{suggestion.confidence:.0%}" if suggestion.confidence else "—"
+        ctk.CTkLabel(
+            header,
+            text=f"Konfidenz: {conf_text}",
+            font=ctk.CTkFont(*app.get_typography('caption')),
+            text_color=app.get_color('text_secondary')
+        ).pack(side='left', padx=(12, 0))
+        
+        # Zeit-Info
+        if suggestion.generation_time > 0:
+            ctk.CTkLabel(
+                header,
+                text=f"({suggestion.generation_time:.1f}s)",
+                font=ctk.CTkFont(*app.get_typography('caption')),
+                text_color=app.get_color('text_secondary')
+            ).pack(side='left', padx=(8, 0))
+        
+        # Cache-Info
+        if suggestion.from_cache:
+            ctk.CTkLabel(
+                header,
+                text="(gecacht)",
+                font=ctk.CTkFont(*app.get_typography('caption')),
+                text_color=app.get_color('info')
+            ).pack(side='left', padx=(4, 0))
+        
+        def _close_popup():
+            try:
+                popup.destroy()
+                parent_frame._ai_popup = None
+            except Exception:
+                pass
+        
+        close_btn = ctk.CTkButton(
+            header,
+            text='✕',
+            width=24,
+            height=24,
+            fg_color=app.get_color('transparent'),
+            hover_color=app.get_color('surface_hover'),
+            text_color=app.get_color('text_secondary'),
+            command=_close_popup
+        )
+        close_btn.pack(side='right')
+        
+        # Korrigierte Übersetzung
+        correction_frame = ctk.CTkFrame(popup, fg_color=app.get_color('surface'), corner_radius=6)
+        correction_frame.pack(fill='x', padx=8, pady=4)
+        
+        ctk.CTkLabel(
+            correction_frame,
+            text='Vorgeschlagene Korrektur:',
+            font=ctk.CTkFont(*app.get_typography('caption')),
+            text_color=app.get_color('text_secondary')
+        ).pack(anchor='w', padx=8, pady=(6, 2))
+        
+        correction_text = ctk.CTkLabel(
+            correction_frame,
+            text=suggestion.corrected_target or '(keine Korrektur)',
+            font=ctk.CTkFont(*app.get_typography('body')),
+            text_color=app.get_color('success'),
+            wraplength=450,
+            anchor='w',
+            justify='left'
+        )
+        correction_text.pack(anchor='w', padx=8, pady=(0, 6))
+        
+        # Erklärung
+        if suggestion.explanation:
+            explain_frame = ctk.CTkFrame(popup, fg_color=app.get_color('transparent'))
+            explain_frame.pack(fill='x', padx=8, pady=4)
+            
+            ctk.CTkLabel(
+                explain_frame,
+                text='Erklärung:',
+                font=ctk.CTkFont(*app.get_typography('caption')),
+                text_color=app.get_color('text_secondary')
+            ).pack(anchor='w')
+            
+            ctk.CTkLabel(
+                explain_frame,
+                text=suggestion.explanation,
+                font=ctk.CTkFont(*app.get_typography('body')),
+                text_color=app.get_color('text_primary'),
+                wraplength=450,
+                anchor='w',
+                justify='left'
+            ).pack(anchor='w', pady=(2, 0))
+        
+        # Action Buttons
+        action_frame = ctk.CTkFrame(popup, fg_color=app.get_color('transparent'))
+        action_frame.pack(fill='x', padx=8, pady=(4, 8))
+        
+        def _copy_correction():
+            try:
+                if getattr(app, 'root', None):
+                    app.root.clipboard_clear()
+                    app.root.clipboard_append(suggestion.corrected_target)
+                _toast(app, 'Korrektur kopiert', 'success')
+            except Exception:
+                pass
+        
+        def _apply_correction():
+            """Wendet die Korrektur an (falls möglich)."""
+            try:
+                if hasattr(app, 'apply_ai_correction'):
+                    success = app.apply_ai_correction(finding, suggestion.corrected_target)
+                    if success:
+                        _toast(app, 'Korrektur angewendet', 'success')
+                        _close_popup()
+                    else:
+                        _toast(app, 'Anwendung fehlgeschlagen', 'error')
+                else:
+                    # Fallback: Nur in Zwischenablage
+                    _copy_correction()
+                    _toast(app, 'Korrektur kopiert (Auto-Apply nicht verfügbar)', 'info')
+            except Exception as e:
+                _toast(app, f'Fehler: {str(e)[:40]}', 'error')
+        
+        ctk.CTkButton(
+            action_frame,
+            text='📋 Kopieren',
+            width=100,
+            height=28,
+            fg_color=app.get_color('primary'),
+            hover_color=app.get_color('primary_hover'),
+            text_color=app.get_color('text_inverse'),
+            font=ctk.CTkFont(*app.get_typography('caption')),
+            command=_copy_correction
+        ).pack(side='left', padx=(0, 8))
+        
+        ctk.CTkButton(
+            action_frame,
+            text='✓ Anwenden',
+            width=100,
+            height=28,
+            fg_color=app.get_color('success'),
+            hover_color=app.get_color('success_hover') if hasattr(app, 'get_color') else app.get_color('success'),
+            text_color=app.get_color('text_inverse'),
+            font=ctk.CTkFont(*app.get_typography('caption')),
+            command=_apply_correction
+        ).pack(side='left')
+        
+        # Modell-Info
+        if suggestion.model:
+            ctk.CTkLabel(
+                action_frame,
+                text=f"Modell: {suggestion.model}",
+                font=ctk.CTkFont(*app.get_typography('caption')),
+                text_color=app.get_color('text_secondary')
+            ).pack(side='right')
+        
+        _toast(app, 'KI-Korrektur erhalten', 'success')
+        
+    except Exception as e:
+        _toast(app, f'Popup-Fehler: {str(e)[:50]}', 'error')
+
 def _extract_score(summary: Dict[str, Any], metrics: Dict[str, Any]) -> Dict[str, Any]:
     """Normalisiert Score (0..1 oder 0..100) und liefert View/Pct.
 
@@ -2304,9 +2505,11 @@ def _render_results_ui(app):
             dir_btn=None
         print("DEBUG: Sort direction control initialized")
 
-        # Gruppierungs-Toggle (Game Changer 1)
+        # Gruppierungs-Toggle (nach Schweregrad)
         group_frame=ctk.CTkFrame(controls, fg_color=app.get_color('transparent'))
         group_frame.pack(side='right', padx=spacing_lg)
+        ctk.CTkLabel(group_frame, text=app._t('Ansicht'), font=ctk.CTkFont(*app.get_typography('caption')),
+                     text_color=app.get_color('text_secondary')).pack(anchor='w')
         state['grouped'] = state.get('grouped', False)
         
         def _toggle_grouping():
@@ -2314,7 +2517,9 @@ def _render_results_ui(app):
             _persist()
             _render_list()
             try:
+                btn_text = app._t('Nach Schwere') if state['grouped'] else app._t('Alle')
                 group_btn.configure(
+                    text=btn_text,
                     fg_color=app.get_color('primary') if state['grouped'] else app.get_color('surface_hover'),
                     text_color=app.get_color('text_inverse') if state['grouped'] else app.get_color('text_primary')
                 )
@@ -2322,17 +2527,18 @@ def _render_results_ui(app):
                 pass
         
         try:
+            initial_text = app._t('Nach Schwere') if state.get('grouped') else app._t('Alle')
             group_btn = ctk.CTkButton(
                 group_frame,
-                text=app._t('Gruppieren'),
-                width=95,
+                text=initial_text,
+                width=100,
                 height=26,
                 fg_color=app.get_color('primary') if state.get('grouped') else app.get_color('surface_hover'),
                 hover_color=app.get_color('primary_hover'),
                 text_color=app.get_color('text_inverse') if state.get('grouped') else app.get_color('text_primary'),
                 command=_toggle_grouping
             )
-            group_btn.pack()
+            group_btn.pack(pady=(2, 0))
         except Exception:
             pass
 
@@ -2405,22 +2611,130 @@ def _render_results_ui(app):
                 subset=_subset(); ts=datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
                 base_dir=getattr(app,'projects_base_path','.') or '.'
                 report_dir=os.path.join(base_dir,'reports'); os.makedirs(report_dir, exist_ok=True)
+                
+                # Statistiken berechnen
+                sev_counts = {'critical': 0, 'major': 0, 'minor': 0, 'info': 0}
+                cat_counts: Dict[str, int] = {}
+                checker_counts: Dict[str, int] = {}
+                for f in subset:
+                    sev = str(f.get('severity', 'info')).lower()
+                    sev_counts[sev] = sev_counts.get(sev, 0) + 1
+                    cat = f.get('category', 'other')
+                    cat_counts[cat] = cat_counts.get(cat, 0) + 1
+                    chk = f.get('checker', 'unknown')
+                    checker_counts[chk] = checker_counts.get(chk, 0) + 1
+                
+                # TXT mit Summary
                 with open(os.path.join(report_dir,f'analysis_findings_{ts}.txt'),'w',encoding='utf-8') as fh:
-                    for f in subset: fh.write(f"[{f.get('severity')}] {(f.get('rule_id') or f.get('rule') or 'rule')}: {(f.get('message') or '')}\n")
-                with open(os.path.join(report_dir,f'analysis_findings_{ts}.json'),'w',encoding='utf-8') as jf: json.dump(subset,jf,ensure_ascii=False,indent=2)
+                    fh.write(f"=== Analyse-Bericht ({ts}) ===\n\n")
+                    fh.write(f"Gesamt: {len(subset)} Befunde\n")
+                    fh.write(f"  Kritisch: {sev_counts['critical']}\n")
+                    fh.write(f"  Schwerwiegend: {sev_counts['major']}\n")
+                    fh.write(f"  Leicht: {sev_counts['minor']}\n\n")
+                    fh.write("Top Kategorien:\n")
+                    for cat, cnt in sorted(cat_counts.items(), key=lambda x: -x[1])[:5]:
+                        fh.write(f"  {cat}: {cnt}\n")
+                    fh.write("\n--- Befunde ---\n\n")
+                    for f in subset:
+                        fh.write(f"[{f.get('severity')}] {(f.get('rule_id') or f.get('rule') or 'rule')}: {(f.get('message') or '')}\n")
+                
+                # JSON mit Statistiken
+                export_data = {
+                    'export_time': ts,
+                    'statistics': {
+                        'total': len(subset),
+                        'by_severity': sev_counts,
+                        'by_category': cat_counts,
+                        'by_checker': checker_counts
+                    },
+                    'findings': subset
+                }
+                with open(os.path.join(report_dir,f'analysis_findings_{ts}.json'),'w',encoding='utf-8') as jf:
+                    json.dump(export_data, jf, ensure_ascii=False, indent=2)
+                
+                # CSV mit erweiterten Spalten
                 with open(os.path.join(report_dir,f'analysis_findings_{ts}.csv'),'w',encoding='utf-8',newline='') as cf:
-                    w=csv.writer(cf, delimiter=';'); w.writerow(['severity','rule','checker','message'])
-                    for f in subset: w.writerow([f.get('severity'), (f.get('rule_id') or f.get('rule')), f.get('checker'), (f.get('message') or '').replace('\n',' ')])
-                _toast(app, app._t('Export created'),'success')
-            except Exception: pass
+                    w=csv.writer(cf, delimiter=';')
+                    w.writerow(['severity','rule','category','checker','phase','message','source','target'])
+                    for f in subset:
+                        w.writerow([
+                            f.get('severity'),
+                            (f.get('rule_id') or f.get('rule')),
+                            f.get('category', ''),
+                            f.get('checker', ''),
+                            f.get('phase', ''),
+                            (f.get('message') or '').replace('\n',' '),
+                            (f.get('source') or f.get('source_text') or '')[:100],
+                            (f.get('target') or f.get('target_text') or '')[:100]
+                        ])
+                
+                _toast(app, app._t('Export erstellt: {count} Befunde').format(count=len(subset)), 'success')
+            except Exception as e:
+                _toast(app, f'Export Fehler: {str(e)[:50]}', 'error')
+        
+        def _export_pdf():
+            """Exportiert Findings als PDF-Report mit Grafiken."""
+            try:
+                from quality_gui_pdf_report import generate_pdf_report, is_pdf_available
+                
+                available, info = is_pdf_available()
+                if not available:
+                    _toast(app, f'PDF nicht verfügbar: {info}', 'warning')
+                    return
+                
+                import os, datetime
+                subset = _subset()
+                if not subset:
+                    _toast(app, 'Keine Befunde zum Exportieren', 'info')
+                    return
+                
+                ts = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+                base_dir = getattr(app, 'projects_base_path', '.') or '.'
+                report_dir = os.path.join(base_dir, 'reports')
+                os.makedirs(report_dir, exist_ok=True)
+                
+                output_path = os.path.join(report_dir, f'quality_report_{ts}.pdf')
+                
+                # Analyse-Daten für Report sammeln
+                analysis_info = {
+                    'summary': data.get('summary', {}) if isinstance(data, dict) else {},
+                    'metrics': data.get('metrics', {}) if isinstance(data, dict) else {},
+                }
+                
+                success = generate_pdf_report(
+                    subset,
+                    output_path,
+                    analysis_data=analysis_info,
+                    title=f"Qualitäts-Report ({ts[:8]})"
+                )
+                
+                if success:
+                    _toast(app, f'PDF erstellt: {len(subset)} Befunde', 'success')
+                    # Optional: PDF öffnen
+                    try:
+                        import subprocess
+                        subprocess.Popen(['explorer', output_path], shell=True)
+                    except Exception:
+                        pass
+                else:
+                    _toast(app, 'PDF-Erstellung fehlgeschlagen', 'error')
+                    
+            except ImportError:
+                _toast(app, 'PDF-Modul nicht verfügbar', 'warning')
+            except Exception as e:
+                _toast(app, f'PDF Fehler: {str(e)[:50]}', 'error')
+        
         try:
             ctk.CTkButton(actions,text=app._t('Copy'),width=70,height=26,fg_color=app.get_color('primary'),hover_color=app.get_color('primary_hover'),text_color=app.get_color('text_inverse'),command=_copy_all).pack(side='left', padx=4)
             ctk.CTkButton(actions,text=app._t('Export'),width=80,height=26,fg_color=app.get_color('secondary'),hover_color=app.get_color('secondary_hover'),text_color=app.get_color('text_inverse'),command=_export).pack(side='left', padx=4)
+            ctk.CTkButton(actions,text=app._t('PDF'),width=60,height=26,fg_color=app.get_color('success'),hover_color=app.get_color('success_hover') if hasattr(app,'get_color') else app.get_color('success'),text_color=app.get_color('text_inverse'),command=_export_pdf).pack(side='left', padx=4)
             ctk.CTkButton(actions,text=app._t('Kritisch'),width=80,height=26,fg_color=app.get_color('error'),hover_color=app.get_color('error_hover') if hasattr(app,'get_color') else app.get_color('error'),text_color=app.get_color('text_inverse'),command=_copy_critical).pack(side='left', padx=4)
         except Exception: pass
         print("DEBUG: Action buttons configured")
 
-        # Scrollbare Container-Variante für zuverlässige Darstellung
+        # ============================================================
+        # STATISTIK-SUMMARY: Übersichtliche Zusammenfassung der Befunde
+        # ============================================================
         summary_frame = ctk.CTkFrame(
             container,
             fg_color=app.get_color('surface_hover'),
@@ -2429,19 +2743,64 @@ def _render_results_ui(app):
             border_color=app.get_color('surface_border')
         )
         summary_frame.pack(fill='x', padx=spacing_sm, pady=(spacing_md, spacing_sm))
+        
+        # Linke Seite: Gefilterte Befunde
+        left_summary = ctk.CTkFrame(summary_frame, fg_color=app.get_color('transparent'))
+        left_summary.pack(side='left', fill='x', expand=True, padx=spacing_md, pady=spacing_sm)
+        
         ctk.CTkLabel(
-            summary_frame,
+            left_summary,
             text=app._t('Gefilterte Befunde'),
             font=ctk.CTkFont(*app.get_typography('caption')),
             text_color=app.get_color('text_secondary')
-        ).pack(side='left', padx=(spacing_md, spacing_sm), pady=spacing_sm)
+        ).pack(side='left', padx=(0, spacing_sm))
         summary_value = ctk.CTkLabel(
-            summary_frame,
+            left_summary,
             text='—',
             font=ctk.CTkFont(*app.get_typography('body_bold')),
             text_color=app.get_color('text_primary')
         )
-        summary_value.pack(side='left', padx=(0, spacing_md), pady=spacing_sm)
+        summary_value.pack(side='left', padx=(0, spacing_lg))
+        
+        # Schweregrad-Badges (Critical / Major / Minor)
+        severity_badges_frame = ctk.CTkFrame(left_summary, fg_color=app.get_color('transparent'))
+        severity_badges_frame.pack(side='left', padx=(0, spacing_md))
+        
+        critical_badge = ctk.CTkLabel(
+            severity_badges_frame,
+            text='🔴 0',
+            font=ctk.CTkFont(*app.get_typography('caption')),
+            text_color=app.get_color('error')
+        )
+        critical_badge.pack(side='left', padx=(0, spacing_sm))
+        
+        major_badge = ctk.CTkLabel(
+            severity_badges_frame,
+            text='🟠 0',
+            font=ctk.CTkFont(*app.get_typography('caption')),
+            text_color=app.get_color('warning')
+        )
+        major_badge.pack(side='left', padx=(0, spacing_sm))
+        
+        minor_badge = ctk.CTkLabel(
+            severity_badges_frame,
+            text='🟡 0',
+            font=ctk.CTkFont(*app.get_typography('caption')),
+            text_color=app.get_color('info')
+        )
+        minor_badge.pack(side='left')
+        
+        # Rechte Seite: Top-Kategorien
+        right_summary = ctk.CTkFrame(summary_frame, fg_color=app.get_color('transparent'))
+        right_summary.pack(side='right', padx=spacing_md, pady=spacing_sm)
+        
+        top_categories_label = ctk.CTkLabel(
+            right_summary,
+            text='',
+            font=ctk.CTkFont(*app.get_typography('caption')),
+            text_color=app.get_color('text_secondary')
+        )
+        top_categories_label.pack(side='right')
 
         list_wrap = ctk.CTkScrollableFrame(container, fg_color=app.get_color('transparent'))
         list_wrap.pack(fill='both', expand=True, pady=(spacing_sm, 0))
@@ -3001,6 +3360,71 @@ def _render_results_ui(app):
                 command=_navigate_to_segment
             )
             nav_btn.pack(side='left', padx=(0, spacing_sm))
+            
+            # 🤖 KI-Korrektur Button (Ollama)
+            def _request_ai_correction(finding=f, nav_row_ref=nav_row):
+                """Fragt Ollama nach einem Korrekturvorschlag."""
+                try:
+                    from quality_gui_ollama_suggestions import (
+                        get_suggestion_async, 
+                        check_ollama_connection,
+                        CorrectionSuggestion
+                    )
+                    
+                    # Prüfe Ollama-Verbindung
+                    available, info = check_ollama_connection(timeout=2.0)
+                    if not available:
+                        _toast(app, f'Ollama nicht erreichbar: {info}', 'warning')
+                        return
+                    
+                    _toast(app, 'KI-Korrektur wird generiert...', 'info')
+                    
+                    # Modell aus Settings holen
+                    model = 'mistral'
+                    try:
+                        if hasattr(app, 'settings_service'):
+                            model = app.settings_service.get('analysis.phase3.semantic.ollama_model', 'mistral') or 'mistral'
+                    except Exception:
+                        pass
+                    
+                    def _on_suggestion(suggestion: CorrectionSuggestion):
+                        """Callback wenn Korrektur fertig ist."""
+                        try:
+                            if suggestion.error:
+                                _toast(app, f'KI-Fehler: {suggestion.error}', 'error')
+                                return
+                            
+                            if not suggestion.corrected_target:
+                                _toast(app, 'Keine Korrektur generiert', 'warning')
+                                return
+                            
+                            # Zeige Korrektur in einem Popup/Frame
+                            _show_ai_correction_popup(
+                                app, finding, suggestion, nav_row_ref
+                            )
+                        except Exception as e:
+                            _toast(app, f'Anzeigefehler: {str(e)[:50]}', 'error')
+                    
+                    # Async Anfrage starten
+                    get_suggestion_async(finding, _on_suggestion, model=model)
+                    
+                except ImportError:
+                    _toast(app, 'KI-Modul nicht verfügbar', 'warning')
+                except Exception as e:
+                    _toast(app, f'KI-Fehler: {str(e)[:50]}', 'error')
+            
+            ai_btn = ctk.CTkButton(
+                nav_row,
+                text='🤖 KI-Korrektur',
+                width=120,
+                height=26,
+                fg_color=app.get_color('secondary'),
+                hover_color=app.get_color('secondary_hover'),
+                text_color=app.get_color('text_inverse'),
+                font=ctk.CTkFont(*app.get_typography('caption')),
+                command=_request_ai_correction
+            )
+            ai_btn.pack(side='left', padx=(0, spacing_sm))
 
             copy_payload = _format_text(f)
 
@@ -3043,6 +3467,8 @@ def _render_results_ui(app):
             nonlocal current_subset
             current_subset = _subset()
             visible = len(current_subset)
+            
+            # Statistik-Summary aktualisieren
             try:
                 summary_value.configure(
                     text=app._t('{visible} von {total} Befunden sichtbar').format(
@@ -3050,6 +3476,29 @@ def _render_results_ui(app):
                         total=len(findings)
                     )
                 )
+                
+                # Schweregrad-Zählung für aktuelle Ansicht
+                sev_counts = {'critical': 0, 'major': 0, 'minor': 0}
+                cat_counts: Dict[str, int] = {}
+                for f in current_subset:
+                    sev = str(f.get('severity', '')).lower()
+                    if sev in sev_counts:
+                        sev_counts[sev] += 1
+                    cat = f.get('category', 'other')
+                    cat_counts[cat] = cat_counts.get(cat, 0) + 1
+                
+                # Badges aktualisieren
+                critical_badge.configure(text=f"🔴 {sev_counts['critical']}")
+                major_badge.configure(text=f"🟠 {sev_counts['major']}")
+                minor_badge.configure(text=f"🟡 {sev_counts['minor']}")
+                
+                # Top 3 Kategorien anzeigen
+                if cat_counts:
+                    top_cats = sorted(cat_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+                    cat_text = ' | '.join([f"{cat}: {cnt}" for cat, cnt in top_cats])
+                    top_categories_label.configure(text=cat_text)
+                else:
+                    top_categories_label.configure(text='')
             except Exception:
                 pass
             if not current_subset:
@@ -3093,99 +3542,139 @@ def _render_results_ui(app):
             _update_counts()
             list_wrap.update_idletasks()
 
-        # Game Changer 1: Gruppierte Darstellung
-        group_states = {}  # {category: {'expanded': bool, 'frame': ctk.CTkFrame}}
+        # Game Changer 1: Gruppierte Darstellung nach Schweregrad
+        group_states = {}  # {severity: {'expanded': bool}}
         
         def _render_grouped(subset):
-            """Rendert Findings gruppiert nach Kategorie."""
+            """Rendert Findings gruppiert nach Schweregrad (Critical → Major → Minor)."""
             from collections import defaultdict
             
-            # Gruppiere nach Kategorie
+            # Gruppiere nach Schweregrad
             groups = defaultdict(list)
             for finding in subset:
-                cat = finding.get('category', 'other')
-                groups[cat].append(finding)
+                sev = str(finding.get('severity', 'info')).lower()
+                groups[sev].append(finding)
             
-            # Kategorie-Labels
-            cat_labels = {
-                'placeholders': 'Platzhalter',
-                'references': 'Verweise',
-                'whitespace': 'Leerzeichen',
-                'structure': 'Struktur',
-                'html': 'HTML',
-                'terminology': 'Terminologie',
-                'security': 'Sicherheit',
-                'completeness': 'Vollständigkeit',
-                'formatting': 'Formatierung',
-                'typography': 'Typografie',
-                'consistency': 'Konsistenz',
-                'other': 'Sonstige'
+            # Schweregrad-Labels und Farben
+            severity_info = {
+                'critical': {
+                    'label': 'Kritisch',
+                    'icon': '🔴',
+                    'color': 'error',
+                    'bg_color': 'error_light',
+                    'order': 0
+                },
+                'major': {
+                    'label': 'Schwerwiegend',
+                    'icon': '🟠',
+                    'color': 'warning',
+                    'bg_color': 'warning_light',
+                    'order': 1
+                },
+                'minor': {
+                    'label': 'Leicht',
+                    'icon': '🟡',
+                    'color': 'info',
+                    'bg_color': 'info_light',
+                    'order': 2
+                },
+                'info': {
+                    'label': 'Hinweis',
+                    'icon': 'ℹ️',
+                    'color': 'info',
+                    'bg_color': 'surface_hover',
+                    'order': 3
+                }
             }
             
-            # Sortiere Gruppen nach Anzahl (absteigend)
-            sorted_groups = sorted(groups.items(), key=lambda x: len(x[1]), reverse=True)
+            # Sortiere Gruppen nach Schweregrad-Reihenfolge (kritisch zuerst)
+            sorted_groups = sorted(
+                groups.items(), 
+                key=lambda x: severity_info.get(x[0], {'order': 99})['order']
+            )
             
             row_counter = 0
             global_idx = 0
             
-            for cat, cat_findings in sorted_groups:
-                cat_label = cat_labels.get(cat, cat.title())
-                cat_count = len(cat_findings)
+            for sev, sev_findings in sorted_groups:
+                info = severity_info.get(sev, severity_info['info'])
+                sev_label = info['label']
+                sev_icon = info['icon']
+                sev_color = info['color']
+                sev_bg_color = info['bg_color']
+                sev_count = len(sev_findings)
                 
-                # Gruppenkopf
+                # Gruppenkopf mit Schweregrad-Farbe
                 group_container = ctk.CTkFrame(
                     list_wrap,
-                    fg_color=app.get_color('surface_hover'),
+                    fg_color=app.get_color(sev_bg_color),
                     corner_radius=_safe_radius(app, 'radius_md', 8),
-                    border_width=1,
-                    border_color=app.get_color('surface_border')
+                    border_width=2,
+                    border_color=app.get_color(sev_color)
                 )
                 group_container.grid(row=row_counter, column=0, sticky='ew', padx=spacing_sm, pady=(spacing_md, 0))
                 row_counter += 1
                 
                 # State für diese Gruppe
-                is_expanded = group_states.get(cat, {}).get('expanded', True)
+                is_expanded = group_states.get(sev, {}).get('expanded', True)
                 
-                # Header mit Expand/Collapse
+                # Header mit Expand/Collapse und farbigem Icon
                 header = ctk.CTkFrame(group_container, fg_color=app.get_color('transparent'))
                 header.pack(fill='x', padx=spacing_md, pady=spacing_sm)
                 
                 toggle_symbol = '▼' if is_expanded else '▶'
                 header_label = ctk.CTkLabel(
                     header,
-                    text=f"{toggle_symbol} {cat_label} ({cat_count})",
-                    font=ctk.CTkFont(*app.get_typography('label_bold')),
-                    text_color=app.get_color('text_primary'),
+                    text=f"{toggle_symbol} {sev_icon} {sev_label} ({sev_count})",
+                    font=ctk.CTkFont(*app.get_typography('heading_sm')),
+                    text_color=app.get_color(sev_color),
                     anchor='w'
                 )
                 header_label.pack(side='left', fill='x', expand=True)
                 
+                # Collapse All / Expand All Button
+                collapse_btn = ctk.CTkButton(
+                    header,
+                    text='−' if is_expanded else '+',
+                    width=28,
+                    height=28,
+                    fg_color=app.get_color('surface'),
+                    hover_color=app.get_color('surface_hover'),
+                    text_color=app.get_color(sev_color),
+                    font=ctk.CTkFont(size=16, weight='bold'),
+                    command=lambda s=sev: _toggle_group(s)
+                )
+                collapse_btn.pack(side='right', padx=(spacing_sm, 0))
+                
                 # Content-Container
                 content = ctk.CTkFrame(group_container, fg_color=app.get_color('transparent'))
                 
-                def _toggle_group(cat=cat, content=content, header_label=header_label, cat_label=cat_label, cat_count=cat_count):
-                    current = group_states.get(cat, {}).get('expanded', True)
-                    group_states[cat] = {'expanded': not current}
+                def _toggle_group(sev_key=sev, content_frame=content, h_label=header_label, 
+                                  s_label=sev_label, s_icon=sev_icon, s_count=sev_count, btn=collapse_btn):
+                    current = group_states.get(sev_key, {}).get('expanded', True)
+                    group_states[sev_key] = {'expanded': not current}
                     
-                    if group_states[cat]['expanded']:
-                        content.pack(fill='x', padx=spacing_sm, pady=(0, spacing_sm))
-                        header_label.configure(text=f"▼ {cat_label} ({cat_count})")
+                    if group_states[sev_key]['expanded']:
+                        content_frame.pack(fill='x', padx=spacing_sm, pady=(0, spacing_sm))
+                        h_label.configure(text=f"▼ {s_icon} {s_label} ({s_count})")
+                        btn.configure(text='−')
                     else:
-                        content.pack_forget()
-                        header_label.configure(text=f"▶ {cat_label} ({cat_count})")
+                        content_frame.pack_forget()
+                        h_label.configure(text=f"▶ {s_icon} {s_label} ({s_count})")
+                        btn.configure(text='+')
                 
-                header.bind('<Button-1>', lambda e, cat=cat: _toggle_group(cat))
-                header_label.bind('<Button-1>', lambda e, cat=cat: _toggle_group(cat))
+                header.bind('<Button-1>', lambda e, s=sev: _toggle_group(s))
+                header_label.bind('<Button-1>', lambda e, s=sev: _toggle_group(s))
                 
                 # Findings in dieser Gruppe
                 if is_expanded:
                     content.pack(fill='x', padx=spacing_sm, pady=(0, spacing_sm))
                     
-                    for finding in cat_findings:
+                    for finding in sev_findings:
                         _create_row(content, global_idx, finding, in_group=True)
                         global_idx += 1
                 else:
-                    global_idx += len(cat_findings)
+                    global_idx += len(sev_findings)
 
         # Keyboard navigation
         def _move_selection(delta):

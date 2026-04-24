@@ -1,5 +1,7 @@
 """quality_gui_phase4_checkers – finale Migration (ursprünglich qa_phase4_checkers).
 Konsolidierung & Risiko-Bewertung Phase 4.
+
+ARCHIVIERT am 2026-01-22 - Funktionalität bereits inline in Pipeline implementiert.
 """
 from __future__ import annotations
 from typing import List, Dict, Any
@@ -64,7 +66,6 @@ def _map_category(cat: str) -> str:
 	return alias if alias else (cat_norm.capitalize() if cat_norm else 'Sonstiges')
 
 QUICK_FIX_HINTS: Dict[str,str] = {
-	# Whitespace & Invisible
 	'WS_DOUBLE_SPACE':     "Doppelte Leerzeichen zu einem reduzieren.",
 	'WS_TRAILING':         "Trailing Whitespace entfernen.",
 	'WS_LEADING':          "Führende Leerzeichen entfernen.",
@@ -98,7 +99,7 @@ QUICK_FIX_HINTS: Dict[str,str] = {
 	'DUPLICATE_INCONSISTENT': "Duplikat auf erste Übersetzung angleichen.",
 	'PUNCT_MISSING_END':   "Satzendzeichen ergänzen.",
 	'PUNCT_DOUBLE':        "Doppelte Satzzeichen reduzieren.",
-	'QUOTE_PLAIN':         "Typografische Anführungszeichen („…“) nutzen.",
+	'QUOTE_PLAIN':         "Typografische Anführungszeichen („…") nutzen.",
 	'QUOTE_MIX':           "Einheitlichen Anführungsstil wählen.",
 	'S_CASE_INCONSISTENT': "Satzanfang groß schreiben.",
 	'NUMBER_MISSING':      "Zahlen aus Quelle übernehmen.",
@@ -125,7 +126,6 @@ def consolidate_issues(*issue_lists: List[QAIssue]) -> Dict[str, Any]:
 	for it in issues:
 		src = getattr(it, 'source_text', getattr(it, 'source', '')) or ''
 		tgt = getattr(it, 'target_text', getattr(it, 'target', '')) or ''
-		# message bewusst weggelassen, um nahezu identische Funde zusammenzuführen
 		key = (it.code, _map_category(it.category), src[:60], tgt[:60])
 		if key in seen:
 			continue
@@ -168,7 +168,6 @@ def consolidate_issues(*issue_lists: List[QAIssue]) -> Dict[str, Any]:
 	risk_score = min(1.0, round(0.5*base + 0.5*min(1.0, gw_avg),4))
 	primary_focus = None
 	if group_counts:
-		# deterministischer Tiebreaker: count, Gruppen-Gewicht, Name
 		primary_focus = max(
 			group_counts.items(),
 			key=lambda kv: (kv[1], GROUP_WEIGHTS.get(kv[0], 1.0), kv[0])

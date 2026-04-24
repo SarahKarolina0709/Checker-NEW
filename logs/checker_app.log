@@ -2320,3 +2320,4 @@ TypeError: export_multi() got an unexpected keyword argument 'on_event'
 2026-01-22 11:40:40,867 - quality_gui - INFO - Starte GUI-Ereignisschleife
 2026-01-22 11:40:40,867 - quality_gui - INFO - {"event": "app.ui_loop_started", "ts": 1769078440.8676531, "session": "ba86a3ee77b0"}
 2026-01-22 11:40:42,105 - quality_gui - INFO - Sanity Widget-Normalisierung abgeschlossen (0 angepasst)
+2026-01-22 11:45:29,401 - quality_gui - INFO - {"event": "app.ui_loop_ended", "ts": 1769078729.4015703, "session": "edcdd69fb6f6"}

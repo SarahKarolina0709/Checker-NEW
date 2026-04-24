@@ -80,7 +80,7 @@ class UploadService:
                         project_copied = True
                 except Exception as ce:
                     if self.logger:
-                        self.logger.error(f"Fehler beim Kopieren in Projektstruktur: {ce}")
+                        self.logger.error("Fehler beim Kopieren in Projektstruktur: %s", ce)
                     result.meta['copy_error'] = str(ce)
             result.meta['project_copied'] = project_copied
             if result.meta.get('cancelled'):
@@ -96,7 +96,7 @@ class UploadService:
         except Exception as e:
             self._publish('upload.failed', {'kind': kind, 'error': str(e)})
             if self.logger:
-                self.logger.error(f"Upload fehlgeschlagen ({kind}): {e}")
+                self.logger.error("Upload fehlgeschlagen (%s): %s", kind, e)
             result.meta['error'] = str(e)
         return result.to_dict()
 
@@ -123,14 +123,24 @@ class UploadService:
                     cancelled = True
                     break
                 filename = os.path.basename(path)
-                lower = filename.lower()
-                is_translation = any(k in lower for k in [
+                # Stem ohne Extension fuer regex-Matching
+                stem = os.path.splitext(filename)[0].lower()
+                # Token-Match: Wortgrenzen verhindern False-Positives
+                # (z.B. 'trans' soll NICHT in 'transparent', 'transfer', 'transaction' matchen)
+                def _has_token(text: str, tokens: List[str]) -> bool:
+                    import re as _re
+                    for tok in tokens:
+                        if _re.search(r'(?:^|[\W_])' + _re.escape(tok) + r'(?:$|[\W_])', text):
+                            return True
+                    return False
+                is_translation = _has_token(stem, [
                     'translation', 'translated', 'trans', 'target',
-                    'übersetzung', 'übersetzt', 'ziel', 'target_language'
+                    'uebersetzung', 'übersetzung', 'übersetzt', 'uebersetzt',
+                    'ziel', 'tgt',
                 ])
-                is_source = any(k in lower for k in [
-                    'source', 'original', 'src', 'quelle',
-                    'source_language', 'ursprung'
+                is_source = _has_token(stem, [
+                    'source', 'original', 'src', 'quelle', 'ursprung',
+                    'orig', 'source_language',
                 ])
                 if is_translation:
                     if path in existing_translation or path in translation_added:
@@ -157,7 +167,7 @@ class UploadService:
                         pass
         except Exception as e:
             if self.logger:
-                self.logger.error(f"Batch Upload Fehler: {e}")
+                self.logger.error("Batch Upload Fehler: %s", e)
             self._publish('upload.failed', {'kind': 'batch', 'error': str(e)})
         if cancelled:
             self._publish('upload.cancelled', {

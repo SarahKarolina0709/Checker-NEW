@@ -84,28 +84,99 @@ class GrammarChecker:
         # Detektierte Sprache für Run (Hunspell Guard)
         self._detected_lang_for_run = None
 
-    # -------- Sprache erkennen (leicht) --------
+    # -------- Sprache erkennen (erweitert für mehr Sprachen) --------
+    # Mapping von langdetect-Codes zu LanguageTool-Codes
+    LANG_TO_LT_CODE = {
+        'de': 'de-DE', 'en': 'en-US', 'fr': 'fr', 'es': 'es',
+        'it': 'it', 'pt': 'pt-PT', 'nl': 'nl', 'pl': 'pl-PL',
+        'ru': 'ru-RU', 'uk': 'uk-UA', 'cs': 'cs-CZ', 'sk': 'sk-SK',
+        'ro': 'ro-RO', 'ca': 'ca-ES', 'gl': 'gl-ES', 'ast': 'ast-ES',
+        'ja': 'ja-JP', 'zh': 'zh-CN', 'ar': 'ar', 'fa': 'fa',
+        'el': 'el-GR', 'da': 'da-DK', 'sv': 'sv', 'nb': 'nb', 'nn': 'nn-NO',
+        'be': 'be-BY', 'sl': 'sl-SI', 'tl': 'tl-PH', 'ta': 'ta-IN',
+        'br': 'br-FR', 'km': 'km-KH', 'eo': 'eo', 'ga': 'ga-IE',
+    }
+    
+    # Unterstützte Sprachen für Heuristiken
+    SUPPORTED_LANGUAGES = {'de', 'en', 'fr', 'es', 'it', 'pt', 'nl', 'pl', 'ru'}
+    
     def _detect_language(self, segments: List[str]) -> str:
+        """Erkennt die Sprache automatisch - unterstützt mehr Sprachen als nur DE/EN."""
         try:
-            _ld = _import_optional('langdetect')  # type: ignore
+            _ld = _import_optional('langdetect')
             if _ld:
-                sample = "\n".join(segments)[:4000]
+                sample = "\n".join(segments)[:6000]
                 try:
-                    lang = _ld.detect(sample)  # type: ignore
-                    if isinstance(lang, str) and lang.startswith(('de','en')):
-                        return 'de' if lang.startswith('de') else 'en'
+                    # Reproduzierbare Ergebnisse
+                    if hasattr(_ld, 'DetectorFactory'):
+                        _ld.DetectorFactory.seed = 0
+                    lang = _ld.detect(sample)
+                    if isinstance(lang, str):
+                        # Hauptsprache extrahieren (z.B. 'zh-cn' -> 'zh')
+                        base_lang = lang.split('-')[0].lower()
+                        if base_lang in self.SUPPORTED_LANGUAGES or base_lang in self.LANG_TO_LT_CODE:
+                            return base_lang
                 except Exception:
                     pass
         except Exception:
             pass
+        
+        # Fallback: Erweiterte Heuristik für mehrere Sprachen
+        return self._heuristic_language_detection(segments)
+    
+    def _heuristic_language_detection(self, segments: List[str]) -> str:
+        """Fallback-Heuristik für Spracherkennung wenn langdetect nicht verfügbar."""
         try:
-            text = " ".join(segments)[:5000]
+            text = " ".join(segments)[:8000].lower()
             if not text:
                 return 'de'
-            uml = sum(text.lower().count(c) for c in 'äöüß')
-            common_de = sum(1 for w in re.findall(r"[A-Za-zÄÖÜäöüß]{4,}", text.lower()) if w in {'und','oder','aber','nicht','ist','wir','haben','sein'})
-            score_de = uml*2 + common_de
-            return 'de' if score_de >= 3 else 'en'
+            
+            # Sprachindikatoren mit Gewichtung
+            indicators = {
+                'de': {
+                    'chars': 'äöüß', 'weight': 3,
+                    'words': {'und', 'der', 'die', 'das', 'ist', 'für', 'mit', 'nicht', 'werden', 'haben', 'wird', 'sind', 'nach', 'über', 'auch', 'kann', 'einer', 'diese', 'diesem'}
+                },
+                'en': {
+                    'chars': '', 'weight': 0,
+                    'words': {'the', 'and', 'is', 'for', 'with', 'are', 'this', 'that', 'have', 'from', 'will', 'not', 'been', 'which', 'can', 'would', 'their', 'there', 'about'}
+                },
+                'fr': {
+                    'chars': 'éèêëàâùûôîïç', 'weight': 2,
+                    'words': {'le', 'la', 'les', 'un', 'une', 'des', 'est', 'pour', 'dans', 'que', 'qui', 'sur', 'avec', 'cette', 'sont', 'nous', 'vous', 'être', 'avoir', "c'est", "n'est"}
+                },
+                'es': {
+                    'chars': 'ñáéíóú¿¡', 'weight': 3,
+                    'words': {'el', 'la', 'los', 'las', 'una', 'del', 'que', 'es', 'para', 'con', 'por', 'como', 'más', 'pero', 'sus', 'entre', 'desde', 'hasta', 'sobre'}
+                },
+                'it': {
+                    'chars': 'àèéìòù', 'weight': 2,
+                    'words': {'il', 'la', 'le', 'una', 'della', 'che', 'per', 'con', 'non', 'sono', 'come', 'questo', 'questa', 'più', 'anche', 'loro', 'essere', 'stato', 'tutti'}
+                },
+                'pt': {
+                    'chars': 'ãõçáéíóúâêô', 'weight': 2,
+                    'words': {'o', 'a', 'os', 'as', 'um', 'uma', 'de', 'do', 'da', 'que', 'para', 'com', 'não', 'por', 'como', 'mais', 'seu', 'sua', 'são', 'está', 'foi'}
+                },
+                'nl': {
+                    'chars': '', 'weight': 0,
+                    'words': {'de', 'het', 'een', 'van', 'en', 'is', 'op', 'te', 'dat', 'voor', 'met', 'zijn', 'niet', 'aan', 'er', 'ook', 'maar', 'bij', 'naar', 'worden'}
+                },
+            }
+            
+            scores = {}
+            for lang, data in indicators.items():
+                score = 0
+                # Sonderzeichen werten
+                if data['chars']:
+                    score += sum(text.count(c) for c in data['chars']) * data['weight']
+                # Wörter zählen
+                for word in data['words']:
+                    if f' {word} ' in f' {text} ':
+                        score += 2
+                scores[lang] = score
+            
+            best_lang = max(scores, key=scores.get)
+            return best_lang if scores[best_lang] >= 4 else 'de'
         except Exception:
             return 'de'
 
@@ -218,16 +289,50 @@ class GrammarChecker:
         return out
 
     # -------- LanguageTool --------
+    def _get_lt_code(self, language: str) -> str:
+        """Konvertiert erkannte Sprache zu LanguageTool-Code mit erweiterten Sprachen."""
+        lang_lower = language.lower().split('-')[0] if language else 'de'
+        # Direkt aus Mapping holen oder Fallback
+        if lang_lower in self.LANG_TO_LT_CODE:
+            return self.LANG_TO_LT_CODE[lang_lower]
+        # Legacy-Fallbacks
+        if lang_lower.startswith('de'):
+            return 'de-DE'
+        if lang_lower.startswith('en'):
+            return 'en-US'
+        if lang_lower.startswith('fr'):
+            return 'fr'
+        if lang_lower.startswith('es'):
+            return 'es'
+        if lang_lower.startswith('it'):
+            return 'it'
+        if lang_lower.startswith('pt'):
+            return 'pt-PT'
+        if lang_lower.startswith('nl'):
+            return 'nl'
+        if lang_lower.startswith('pl'):
+            return 'pl-PL'
+        if lang_lower.startswith('ru'):
+            return 'ru-RU'
+        # Default zu Deutsch
+        return 'de-DE'
+    
     def _languagetool_pass(self, segments: List[str], language: str) -> List[Dict[str, Any]]:
         out: List[Dict[str, Any]] = []
         if not self.enable_languagetool or _language_tool is None:
             return out
         try:
-            code = 'de-DE' if language.lower().startswith('de') else 'en-US'
+            code = self._get_lt_code(language)
             # Neu-Initialisierung bei Sprachwechsel oder erstmaliger Nutzung
             if self._lt_tool is None or self._lt_code != code:
-                self._lt_tool = _language_tool.LanguageTool(code)  # type: ignore
-                self._lt_code = code
+                try:
+                    self._lt_tool = _language_tool.LanguageTool(code)  # type: ignore
+                    self._lt_code = code
+                except Exception as e:
+                    # Sprache nicht unterstützt - Fallback zu Englisch
+                    if self._lt_tool is None:
+                        self._lt_tool = _language_tool.LanguageTool('en-US')  # type: ignore
+                        self._lt_code = 'en-US'
             use_batch = len(segments) >= self.batch_lt_min_segments
             if not use_batch:
                 # Einzelprüfung (bestehendes Verhalten)
