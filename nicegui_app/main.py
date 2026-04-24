@@ -822,6 +822,7 @@ def index_page():
         'save_indicator': None, 'done_counter': None, 'history_chart': None,
         'category_heatmap': None, 'search_input': None, 'glossary_count_label': None,
         'per_file_heatmap': None, 'undo_btn': None, 'hide_done_toggle': None,
+        'diff_badge': None,
     }
     phase_flags = {'phase1': True, 'phase2': True, 'phase3': True, 'phase4': False}
     ollama_model = {'v': ''}
@@ -1550,6 +1551,26 @@ def index_page():
         except OSError as exc:
             _logger.debug('Snapshot konnte nicht geschrieben werden: %s', exc)
 
+    def _finding_fingerprint(fd_or_obj) -> str:
+        """Stabiler Hash zum Wiedererkennen identischer Findings ueber Re-Analysen.
+
+        Akzeptiert sowohl QAIssue-Objekte als auch dicts (aus s['findings']).
+        """
+        if isinstance(fd_or_obj, dict):
+            d = fd_or_obj
+            code = d.get('code', '')
+            seg = d.get('segment_index', -1)
+            sf = d.get('source_file', '') or ''
+            tf = d.get('target_file', '') or ''
+            msg = (d.get('message', '') or '')[:80]
+        else:
+            code = getattr(fd_or_obj, 'code', '')
+            seg = getattr(fd_or_obj, 'segment_index', -1)
+            sf = getattr(fd_or_obj, 'source_file', '') or ''
+            tf = getattr(fd_or_obj, 'target_file', '') or ''
+            msg = (getattr(fd_or_obj, 'message', '') or '')[:80]
+        return f'{code}|{seg}|{os.path.basename(sf)}|{os.path.basename(tf)}|{msg}'
+
     async def _start_analysis():
         if s.get('analysis_running'):
             ui.notify('Analyse laeuft bereits', type='warning')
@@ -1562,6 +1583,9 @@ def index_page():
             _snapshot_previous_findings()
         except Exception as exc:
             _logger.debug('Findings-Snapshot fehlgeschlagen: %s', exc)
+        # Fingerprints des vorherigen Laufs fuer Diff merken
+        prev_fps = {_finding_fingerprint(fd) for fd in (s.get('findings', []) or [])}
+        s['_prev_fingerprints'] = list(prev_fps)
         s['analysis_running'] = True
         s['findings'] = []
         s['checked_findings'] = {}
@@ -1651,6 +1675,22 @@ def index_page():
                 pass
         s['findings'] = [_finding_to_dict(f) for f in all_results]
         s['current_score'] = compute_score(all_results)
+        # Diff zur vorherigen Analyse berechnen
+        try:
+            prev_fps = set(s.get('_prev_fingerprints', []) or [])
+            new_fps = [_finding_fingerprint(f) for f in all_results]
+            new_indices = [i for i, fp in enumerate(new_fps) if fp not in prev_fps]
+            gone = sum(1 for fp in prev_fps if fp not in set(new_fps))
+            s['analysis_diff'] = {
+                'has_prev': bool(prev_fps),
+                'new_idx': new_indices,
+                'new_count': len(new_indices),
+                'gone_count': gone,
+                'prev_total': len(prev_fps),
+            }
+        except Exception as exc:
+            _logger.debug('Diff-Berechnung fehlgeschlagen: %s', exc)
+            s['analysis_diff'] = {}
         s['analysis_running'] = False
         if refs['progress_bar']:
             refs['progress_bar'].value = 1.0
@@ -1860,6 +1900,29 @@ def index_page():
                 )
             else:
                 refs['history_chart'].set_content('')
+        # Diff-Badge: 'X neu seit letzter Analyse, Y behoben'
+        if refs.get('diff_badge'):
+            diff = s.get('analysis_diff', {}) or {}
+            if diff.get('has_prev') and (diff.get('new_count', 0) or diff.get('gone_count', 0)):
+                new_n = int(diff.get('new_count', 0))
+                gone_n = int(diff.get('gone_count', 0))
+                parts = []
+                if new_n:
+                    parts.append(
+                        f'<span style="color:#dc2626;font-weight:700;">↑ {new_n} neu</span>'
+                    )
+                if gone_n:
+                    parts.append(
+                        f'<span style="color:#16a34a;font-weight:700;">↓ {gone_n} behoben</span>'
+                    )
+                refs['diff_badge'].set_content(
+                    '<div style="font-size:11px;color:#6b7280;'
+                    'background:#f8fafc;padding:4px 8px;border-radius:6px;'
+                    'border:1px solid #e2e8f0;display:inline-block;">'
+                    'Vergleich zur letzten Analyse: ' + ' · '.join(parts) + '</div>'
+                )
+            else:
+                refs['diff_badge'].set_content('')
         # Kategorien-Heatmap (Top-6, mit Severity-Anteilen)
         if refs.get('category_heatmap'):
             cont = refs['category_heatmap']
@@ -2287,6 +2350,12 @@ def index_page():
                             'background:transparent;color:#6b7280;border:1px solid #d1d5db;border-radius:20px;')
                     ui.badge(f.code).style(
                         'background:transparent;color:#6b7280;border:1px solid #d1d5db;border-radius:20px;')
+                    # NEU-Badge wenn dieses Finding seit letzter Analyse hinzukam
+                    diff = s.get('analysis_diff', {}) or {}
+                    if diff.get('has_prev') and idx in set(diff.get('new_idx', []) or []):
+                        ui.badge('NEU').style(
+                            'background:#dc2626;color:white;border-radius:20px;'
+                            'font-weight:700;font-size:10px;')
                     ui.element('div').classes('flex-grow')
                     cb = ui.checkbox('Geprueft',
                         value=s.get('checked_findings', {}).get(str(idx), False),
@@ -3465,6 +3534,8 @@ def index_page():
             refs['summary_card'] = ui.card().classes('w-full').props('flat bordered')
             refs['summary_card'].visible = False
             with refs['summary_card'].style('padding:12px 16px;'):
+                # Diff-Badge zur vorherigen Analyse
+                refs['diff_badge'] = ui.html('').style('margin-bottom:6px;')
                 with ui.row().classes('w-full items-center justify-around'):
                     for sev_clr, sev_name, ref_key in [
                         ('#dc2626', 'Kritisch', 'critical_count'),
