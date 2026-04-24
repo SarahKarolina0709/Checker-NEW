@@ -2082,68 +2082,7 @@ def index_page():
         # Linke Liste neu rendern (Selection-Highlight aktualisieren)
         _render_findings_list()
 
-    def _render_findings_list():
-        container = refs['findings_container']
-        if not container:
-            return
-        container.clear()
-        current_score = s.get('current_score', -1)
-        filtered = _filtered_findings()
-        split_mode = s.get('view_mode', 'normal') == 'split'
-        refs['detail_panel'] = None  # reset for this render
-        with container:
-            if current_score < 0:
-                _render_welcome()
-                return
-            if not filtered:
-                ui.label('Keine Findings in diesem Filter').style(
-                    'font-size:12px;color:#9ca3af;padding:16px 0;text-align:center;')
-                return
-            if split_mode:
-                # Split: linke Liste (feste Breite) + rechtes Detail-Panel
-                with ui.row().classes('w-full gap-0 items-start').style('min-height:300px;'):
-                    list_col = ui.column().classes('gap-0').style(
-                        'width:340px;min-width:300px;flex-shrink:0;'
-                        'overflow-y:auto;max-height:calc(100vh - 420px);'
-                        'border-right:1px solid #e5e7eb;padding-right:8px;'
-                    )
-                    detail_col = ui.column().classes('flex-grow gap-2').style(
-                        'padding-left:12px;overflow-y:auto;'
-                        'max-height:calc(100vh - 420px);'
-                    )
-                    refs['detail_panel'] = detail_col
-                    with list_col:
-                        _render_split_list(filtered)
-                    with detail_col:
-                        _render_detail_panel()
-            else:
-                # Normal-/Kompakt-Modus: Gruppen-Header zwischen Severity-Bloecken
-                _SEV_ORDER = [('Kritisch', '#dc2626'), ('Wichtig', '#ea580c'), ('Hinweis', '#6b7280')]
-                _sev_counts = {lbl: sum(1 for _, f in filtered if severity_label(f.severity) == lbl)
-                               for lbl, _ in _SEV_ORDER}
-                _last_sev_group = None
-                _show_sev_headers = s.get('sort_mode', 'default') in ('default', 'severity')
-                for real_idx, f in filtered:
-                    sev_lbl = severity_label(f.severity)
-                    if _show_sev_headers and sev_lbl != _last_sev_group and _sev_counts.get(sev_lbl, 0) > 0:
-                        _last_sev_group = sev_lbl
-                        clr = next((c for l, c in _SEV_ORDER if l == sev_lbl), '#9ca3af')
-                        cnt = _sev_counts[sev_lbl]
-                        with ui.row().classes('w-full items-center gap-2').style(
-                            'padding:6px 4px 4px;margin-top:4px;'
-                        ):
-                            ui.element('div').style(
-                                f'height:2px;width:12px;border-radius:2px;'
-                                f'background:{clr};flex-shrink:0;'
-                            )
-                            ui.label(f'{sev_lbl}  ({cnt})').style(
-                                f'font-size:11px;font-weight:700;color:{clr};'
-                                f'text-transform:uppercase;letter-spacing:0.8px;'
-                            )
-                            ui.element('div').style(
-                                f'flex-grow:1;height:1px;background:{clr};opacity:.2;'
-                            )
-                    _render_finding_card(real_idx, f)
+    def _render_welcome():
         customer = s.get('active_customer', '')
         src_files = s.get('source_files', [])
         tgt_files = s.get('translation_files', [])
@@ -2393,6 +2332,68 @@ def index_page():
                                     ui.label(f'+{len(customers_on_day)-3} weitere').style(
                                         'font-size:12px;color:#9ca3af;')
 
+    def _render_findings_list():
+        container = refs['findings_container']
+        if not container:
+            return
+        container.clear()
+        current_score = s.get('current_score', -1)
+        filtered = _filtered_findings()
+        split_mode = s.get('view_mode', 'normal') == 'split'
+        refs['detail_panel'] = None  # reset for this render
+        with container:
+            if current_score < 0:
+                _render_welcome()
+                return
+            if not filtered:
+                ui.label('Keine Findings in diesem Filter').style(
+                    'font-size:12px;color:#9ca3af;padding:16px 0;text-align:center;')
+                return
+            if split_mode:
+                # Split: linke Liste (feste Breite) + rechtes Detail-Panel
+                with ui.row().classes('w-full gap-0 items-start').style('min-height:300px;'):
+                    list_col = ui.column().classes('gap-0').style(
+                        'width:340px;min-width:300px;flex-shrink:0;'
+                        'overflow-y:auto;max-height:calc(100vh - 420px);'
+                        'border-right:1px solid #e5e7eb;padding-right:8px;'
+                    )
+                    detail_col = ui.column().classes('flex-grow gap-2').style(
+                        'padding-left:12px;overflow-y:auto;'
+                        'max-height:calc(100vh - 420px);'
+                    )
+                    refs['detail_panel'] = detail_col
+                    with list_col:
+                        _render_split_list(filtered)
+                    with detail_col:
+                        _render_detail_panel()
+            else:
+                # Normal-/Kompakt-Modus: Gruppen-Header zwischen Severity-Bloecken
+                _SEV_ORDER = [('Kritisch', '#dc2626'), ('Wichtig', '#ea580c'), ('Hinweis', '#6b7280')]
+                _sev_counts = {lbl: sum(1 for _, f in filtered if severity_label(f.severity) == lbl)
+                               for lbl, _ in _SEV_ORDER}
+                _last_sev_group = None
+                _show_sev_headers = s.get('sort_mode', 'default') in ('default', 'severity')
+                for real_idx, f in filtered:
+                    sev_lbl = severity_label(f.severity)
+                    if _show_sev_headers and sev_lbl != _last_sev_group and _sev_counts.get(sev_lbl, 0) > 0:
+                        _last_sev_group = sev_lbl
+                        clr = next((c for l, c in _SEV_ORDER if l == sev_lbl), '#9ca3af')
+                        cnt = _sev_counts[sev_lbl]
+                        with ui.row().classes('w-full items-center gap-2').style(
+                            'padding:6px 4px 4px;margin-top:4px;'
+                        ):
+                            ui.element('div').style(
+                                f'height:2px;width:12px;border-radius:2px;'
+                                f'background:{clr};flex-shrink:0;'
+                            )
+                            ui.label(f'{sev_lbl}  ({cnt})').style(
+                                f'font-size:11px;font-weight:700;color:{clr};'
+                                f'text-transform:uppercase;letter-spacing:0.8px;'
+                            )
+                            ui.element('div').style(
+                                f'flex-grow:1;height:1px;background:{clr};opacity:.2;'
+                            )
+                    _render_finding_card(real_idx, f)
     def _render_finding_card(idx: int, f: QAIssue):
         ctx = SimpleNamespace(
             s=s, refs=refs, selected_idx=selected_idx,
