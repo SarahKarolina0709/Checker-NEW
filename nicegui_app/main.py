@@ -1943,6 +1943,14 @@ def index_page():
                 return
         except Exception:
             pass
+        # Esc → Analyse abbrechen (nur waehrend laufender Analyse)
+        try:
+            if e.key == 'Escape' and e.action.keydown and not e.action.repeat:
+                if s.get('analysis_running'):
+                    _request_cancel()
+                    return
+        except Exception:
+            pass
         filtered = _filtered_findings()
         if not filtered:
             return
@@ -3037,6 +3045,27 @@ def index_page():
             refs['preview_area'].visible = False
 
     # Beim Seitenaufruf: Vorhandenen State wiederherstellen
+    # Footer mit Tastatur-Quick-Reference (sticky am Bildschirm-Boden)
+    with ui.footer().classes('items-center justify-center').style(
+        'background:rgba(15,39,68,0.95);color:#cbd5e1;padding:4px 16px;'
+        'font-size:11px;min-height:24px;'
+    ):
+        with ui.row().classes('items-center gap-3 flex-wrap justify-center'):
+            for keys, desc in [
+                ('Strg+Enter', 'Start'),
+                ('Esc', 'Abbruch'),
+                ('j/k', 'Naechstes/Voriges'),
+                ('x', 'Erledigt'),
+                ('1-3', 'Filter'),
+                ('?', 'Hilfe'),
+            ]:
+                with ui.row().classes('items-center gap-1'):
+                    ui.label(keys).style(
+                        'font-family:monospace;font-weight:700;color:white;'
+                        'background:rgba(255,255,255,0.12);padding:1px 6px;border-radius:3px;'
+                        'font-size:10px;')
+                    ui.label(desc).style('color:#cbd5e1;font-size:11px;')
+
     _refresh_file_list()
     _refresh_pairing_display()
     _refresh_results_area()

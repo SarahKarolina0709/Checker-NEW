@@ -253,13 +253,13 @@ def show_keyboard_help() -> None:
             'font-size:18px;font-weight:700;color:#0f2744;margin-bottom:8px;')
         shortcuts = [
             ('Strg + Eingabe', 'Analyse starten'),
+            ('Esc', 'Analyse abbrechen / Hilfe schliessen'),
             ('Strg + Z', 'Letzte Erledigt-Aktion rueckgaengig'),
             ('j  /  Pfeil ab', 'Naechstes Finding'),
             ('k  /  Pfeil auf', 'Vorheriges Finding'),
             ('x  /  Leertaste', 'Aktuelles Finding als erledigt markieren'),
             ('1 / 2 / 3 / 0', 'Filter Kritisch / Wichtig / Hinweis / Alle'),
             ('?', 'Diese Hilfe anzeigen'),
-            ('Esc', 'Hilfe schliessen'),
         ]
         for keys, desc in shortcuts:
             with ui.row().classes('w-full items-center gap-3').style(
@@ -427,12 +427,19 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
     """
     s = ctx.s
     refs = ctx.refs
+    search_state = {'q': ''}
     with ui.dialog() as dlg, ui.card().style('width:640px;max-width:90vw;'):
         ui.label('Glossar bearbeiten').style(
             'font-size:16px;font-weight:700;color:#1f2937;')
         ui.label(
             'Manuelle Begriffe werden zusätzlich zum geladenen Glossar geprüft.'
         ).style('font-size:12px;color:#6b7280;margin-bottom:8px;')
+
+        with ui.row().classes('w-full items-center gap-2').style('margin-bottom:6px;'):
+            search_input = ui.input(placeholder='Begriffe suchen...').props(
+                'dense outlined clearable').classes('flex-1')
+            count_lbl = ui.label('').style('font-size:11px;color:#6b7280;')
+
         list_container = ui.column().classes('w-full gap-1').style(
             'max-height:50vh;overflow-y:auto;border:1px solid #e2e8f0;'
             'border-radius:6px;padding:8px;background:#f8fafc;'
@@ -450,9 +457,19 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
         def _redraw():
             list_container.clear()
             cur = dict(s.get('manual_glossary_terms', {}) or {})
+            q = (search_state['q'] or '').strip().lower()
+            if q:
+                cur = {k: v for k, v in cur.items()
+                       if q in k.lower() or q in str(v).lower()}
+            total = len(s.get('manual_glossary_terms', {}) or {})
+            if q:
+                count_lbl.set_text(f'{len(cur)} / {total}')
+            else:
+                count_lbl.set_text(f'{total} Begriffe')
             with list_container:
                 if not cur:
-                    ui.label('Noch keine Begriffe.').style(
+                    msg = 'Keine Treffer.' if q else 'Noch keine Begriffe.'
+                    ui.label(msg).style(
                         'font-size:12px;color:#9ca3af;padding:12px;text-align:center;')
                     return
                 for src_term in sorted(cur.keys(), key=str.lower):
@@ -484,6 +501,12 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
                             'flat dense round size=sm').style('color:#16a34a;').tooltip('Speichern')
                         ui.button(icon='delete', on_click=_del_row).props(
                             'flat dense round size=sm').style('color:#dc2626;').tooltip('Löschen')
+
+        def _on_search(e):
+            search_state['q'] = getattr(e, 'value', '') or ''
+            _redraw()
+
+        search_input.on('update:model-value', _on_search)
 
         _redraw()
 
