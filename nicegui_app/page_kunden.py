@@ -25,7 +25,7 @@ def kunden_page():
         'background:linear-gradient(135deg,#0a1628 0%,#0f2744 40%,#1a365d 100%);min-height:56px;'
     ):
         with ui.row().classes('w-full items-center gap-4'):
-            ui.icon('business', size='md').style('color:#d4af37')
+            ui.icon('business', size='md').style('color:var(--accent)')
             ui.label('Kunden-Manager').style('font-size:14px;font-weight:700;color:white;')
             ui.element('div').classes('flex-grow')
             ui.button('Zurück zur Analyse', icon='arrow_back',
@@ -70,7 +70,7 @@ def kunden_page():
                                     'background:linear-gradient(135deg,#0f2744,#1a365d);'
                                     'display:flex;align-items:center;justify-content:center;'
                                 ):
-                                    ui.label(initial).style('color:#d4af37;font-size:14px;font-weight:700;')
+                                    ui.label(initial).style('color:var(--accent);font-size:14px;font-weight:700;')
                                 with ui.column().classes('gap-0 flex-grow'):
                                     ui.label(_customers_mod.display_name(cust)).style('font-size:13px;font-weight:600;')
                                     parts = []
@@ -79,10 +79,10 @@ def kunden_page():
                                     if info.get('branche'):
                                         parts.append(info['branche'])
                                     ui.label(' · '.join(parts) if parts else 'Kein Projekt').style(
-                                        'font-size:12px;color:#6b7280;')
+                                        'font-size:12px;color:var(--text-muted);')
                     if not filtered:
                         ui.label('Keine Kunden gefunden').style(
-                            'font-size:12px;color:#9ca3af;padding:16px 0;text-align:center;')
+                            'font-size:12px;color:var(--text-light);padding:16px 0;text-align:center;')
 
             search_inp.on('update:model-value', lambda e: _filter_list(
                 getattr(e, 'value', getattr(e, 'args', ''))))
@@ -94,9 +94,9 @@ def kunden_page():
             project_detail = ui.column().classes('w-full gap-4')
             with project_detail:
                 with ui.column().classes('w-full items-center').style('padding:64px 0;gap:16px;'):
-                    ui.icon('business', size='3rem').style('color:#d1d5db')
-                    ui.label('Kunde auswählen').style('font-size:14px;font-weight:600;color:#6b7280;')
-                    ui.label('Klicken Sie links auf einen Kunden').style('font-size:12px;color:#9ca3af;')
+                    ui.icon('business', size='3rem').style('color:var(--text-light)')
+                    ui.label('Kunde auswählen').style('font-size:14px;font-weight:600;color:var(--text-muted);')
+                    ui.label('Klicken Sie links auf einen Kunden').style('font-size:12px;color:var(--text-light);')
 
     def _show_customer(customer_name: str):
         selected['name'] = customer_name
@@ -112,10 +112,10 @@ def kunden_page():
                     'display:flex;align-items:center;justify-content:center;'
                 ):
                     initial = customer_name[0].upper() if customer_name else '?'
-                    ui.label(initial).style('color:#d4af37;font-size:16px;font-weight:800;')
+                    ui.label(initial).style('color:var(--accent);font-size:16px;font-weight:800;')
                 with ui.column().classes('gap-0'):
                     ui.label(customer_name).classes('t-title')
-                    ui.label(f'{len(projects)} Projekte').style('font-size:12px;color:#6b7280;')
+                    ui.label(f'{len(projects)} Projekte').style('font-size:12px;color:var(--text-muted);')
                 ui.element('div').classes('flex-grow')
                 ui.button('Neues Projekt', icon='add',
                     on_click=lambda: _new_project(customer_name)).props(
@@ -125,7 +125,7 @@ def kunden_page():
                     on_click=lambda: safe_open_folder(cpath)).props('flat no-caps')
             ui.separator()
             if not projects:
-                ui.label('Noch keine Projekte').style('font-size:12px;color:#9ca3af;padding:32px 0;text-align:center;')
+                ui.label('Noch keine Projekte').style('font-size:12px;color:var(--text-light);padding:32px 0;text-align:center;')
             else:
                 for proj in projects:
                     proj_path = _customers_mod.get_project_path(base, customer_name, proj)
@@ -139,7 +139,7 @@ def kunden_page():
                     n_tgt = _customers_mod.count_files_in_folder(tgt_folder) if tgt_folder else 0
                     with ui.card().classes('w-full').props('flat bordered'):
                         with ui.row().classes('w-full items-center gap-4').style('padding:12px;'):
-                            ui.icon('folder', size='sm').style('color:#d4af37')
+                            ui.icon('folder', size='sm').style('color:var(--accent)')
                             with ui.column().classes('gap-0 flex-grow'):
                                 ui.label(proj).style('font-size:14px;font-weight:600;')
                                 parts = []
@@ -148,7 +148,7 @@ def kunden_page():
                                 if n_tgt:
                                     parts.append(f'{n_tgt} Uebers.')
                                 parts.append(f'{total_files} Dateien')
-                                ui.label(' · '.join(parts)).style('font-size:12px;color:#6b7280;')
+                                ui.label(' · '.join(parts)).style('font-size:12px;color:var(--text-muted);')
                             if n_src and n_tgt:
                                 ui.button('Analyse', icon='play_arrow',
                                     on_click=lambda _, c=customer_name, p=proj: ui.navigate.to(
@@ -156,7 +156,7 @@ def kunden_page():
                                     'dense no-caps unelevated size=sm').style('background:#0f2744;color:white;')
                             ui.button(icon='folder_open',
                                 on_click=lambda _, p=proj_path: safe_open_folder(p)).props(
-                                'flat dense round size=sm').style('color:#9ca3af')
+                                'flat dense round size=sm').style('color:var(--text-light)')
                         with ui.expansion('Dateien anzeigen', icon='account_tree').props(
                             'dense header-class="text-xs text-gray-500 font-semibold"'
                         ).classes('w-full'):
@@ -178,7 +178,7 @@ def kunden_page():
                                         if os.path.isdir(folder_path):
                                             ui.button(icon='folder_open',
                                                 on_click=lambda _, p=folder_path: safe_open_folder(p)).props(
-                                                'flat dense round size=xs').style('color:#9ca3af')
+                                                'flat dense round size=xs').style('color:var(--text-light)')
                                     if files:
                                         icon_map = {'.pdf': 'picture_as_pdf', '.docx': 'description',
                                             '.doc': 'description', '.txt': 'text_snippet',
@@ -190,9 +190,9 @@ def kunden_page():
                                             sz = f'{fsize/1024:.0f} KB' if fsize < 1024*1024 else f'{fsize/1024/1024:.1f} MB'
                                             ext = os.path.splitext(fname)[1].lower()
                                             with ui.row().classes('w-full items-center gap-1').style('padding:2px 0 2px 24px;'):
-                                                ui.icon(icon_map.get(ext, 'insert_drive_file'), size='xs').style('color:#9ca3af')
-                                                ui.label(fname).style('font-size:12px;color:#1f2937;flex-grow:1;')
-                                                ui.label(sz).style('font-size:12px;color:#9ca3af;')
+                                                ui.icon(icon_map.get(ext, 'insert_drive_file'), size='xs').style('color:var(--text-light)')
+                                                ui.label(fname).style('font-size:12px;color:var(--text);flex-grow:1;')
+                                                ui.label(sz).style('font-size:12px;color:var(--text-light);')
 
     def _new_project(customer_name: str):
         with ui.dialog() as dlg, ui.card().style('width:380px;'):

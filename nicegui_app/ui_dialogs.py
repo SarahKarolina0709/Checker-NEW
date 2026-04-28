@@ -27,7 +27,7 @@ def open_settings_dialog() -> None:
     with ui.dialog() as dlg, ui.card().style('width:500px;'):
         ui.label('Einstellungen').classes('t-title')
         with ui.column().classes('w-full gap-4'):
-            ui.label('Projektordner').style('font-size:13px;font-weight:600;color:#1f2937;')
+            ui.label('Projektordner').style('font-size:13px;font-weight:600;color:var(--text);')
             with ui.row().classes('w-full items-end gap-2'):
                 base_input = ui.input('Pfad zum Projektordner',
                     value=settings.get('projects_base_path', '')).classes('flex-grow').props('outlined dense')
@@ -37,7 +37,7 @@ def open_settings_dialog() -> None:
                         ui.label('Ordner w\u00e4hlen').style('font-size:14px;font-weight:700;')
                         current = {'path': base_input.value or str(Path.home())}
                         path_label = ui.label(current['path']).style(
-                            'font-size:12px;color:#6b7280;word-break:break-all;')
+                            'font-size:12px;color:var(--text-muted);word-break:break-all;')
                         folder_list = ui.column().classes('w-full gap-0').style(
                             'max-height:250px;overflow-y:auto;')
 
@@ -50,8 +50,8 @@ def open_settings_dialog() -> None:
                                     with ui.row().classes('w-full items-center cursor-pointer gap-2').style(
                                         'padding:6px 8px;border-radius:4px;'
                                     ).on('click', lambda: _nav(parent)):
-                                        ui.icon('arrow_upward', size='xs').style('color:#6b7280;')
-                                        ui.label('..').style('font-size:12px;color:#6b7280;')
+                                        ui.icon('arrow_upward', size='xs').style('color:var(--text-muted);')
+                                        ui.label('..').style('font-size:12px;color:var(--text-muted);')
                                 try:
                                     dirs = sorted([d for d in os.listdir(p)
                                         if os.path.isdir(os.path.join(p, d)) and not d.startswith('.')])
@@ -59,8 +59,8 @@ def open_settings_dialog() -> None:
                                         with ui.row().classes('w-full items-center cursor-pointer gap-2').style(
                                             'padding:6px 8px;border-radius:4px;'
                                         ).on('click', lambda _, dd=d: _nav(os.path.join(current['path'], dd))):
-                                            ui.icon('folder', size='xs').style('color:#d4af37;')
-                                            ui.label(d).style('font-size:12px;color:#1f2937;')
+                                            ui.icon('folder', size='xs').style('color:var(--accent);')
+                                            ui.label(d).style('font-size:12px;color:var(--text);')
                                 except PermissionError:
                                     ui.label('Zugriff verweigert').style('font-size:12px;color:#ef4444;')
 
@@ -82,7 +82,7 @@ def open_settings_dialog() -> None:
                 ui.button(icon='folder_open', on_click=_browse_folder).props(
                     'flat dense round color=primary')
             ui.label(f'Aktuell: {settings.get("projects_base_path", "nicht gesetzt")}').style(
-                'font-size:12px;color:#9ca3af;word-break:break-all;margin-top:-4px;')
+                'font-size:12px;color:var(--text-light);word-break:break-all;margin-top:-4px;')
             ui.separator()
             lang_src = ui.select(LANGUAGES, value=settings.get('src_lang', 'Auto-Erkennung'),
                 label='Standard-Quellsprache').classes('w-full')
@@ -91,12 +91,12 @@ def open_settings_dialog() -> None:
             depth_sel = ui.select(['Schnell', 'Mittel', 'Umfangreich'],
                 value=settings.get('depth', 'Mittel'), label='Pr\u00fcftiefe').classes('w-full')
             ui.separator()
-            ui.label('Normzeilen-Berechnung').style('font-size:13px;font-weight:600;color:#1f2937;')
+            ui.label('Normzeilen-Berechnung').style('font-size:13px;font-weight:600;color:var(--text);')
             with ui.row().classes('w-full items-center gap-2'):
                 norm_input = ui.number(label='Anschl\u00e4ge pro Normzeile',
                     value=settings.get('chars_per_norm_line', 36),
                     min=30, max=100, step=1).classes('w-40').props('dense outlined')
-                ui.label('(Standard: 36)').style('font-size:12px;color:#9ca3af;')
+                ui.label('(Standard: 36)').style('font-size:12px;color:var(--text-light);')
             with ui.row().classes('w-full justify-end gap-2').style('margin-top:8px;'):
                 ui.button('Abbrechen', on_click=dlg.close).props('flat no-caps')
 
@@ -140,11 +140,11 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
     unmatched_tgt = list(s.get('unmatched_tgt', []))
     with ui.dialog() as dlg, ui.card().style('width:640px;max-width:90vw;padding:24px;'):
         with ui.row().classes('w-full items-center gap-3').style('margin-bottom:16px;'):
-            ui.icon('link', size='md').style('color:#0f2744;')
+            ui.icon('link', size='md').style('color:var(--primary);')
             with ui.column().classes('gap-0'):
-                ui.label('Dateipaarung').style('font-size:16px;font-weight:700;color:#0f2744;')
+                ui.label('Dateipaarung').style('font-size:16px;font-weight:700;color:var(--primary);')
                 ui.label('Zuordnung anpassen oder ungepaarte Dateien verbinden').style(
-                    'font-size:12px;color:#6b7280;')
+                    'font-size:12px;color:var(--text-muted);')
 
         pair_list = ui.column().classes('w-full gap-2')
 
@@ -153,22 +153,22 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
             with pair_list:
                 if pairs:
                     ui.label(f'{len(pairs)} Paar{"e" if len(pairs) != 1 else ""}').style(
-                        'font-size:12px;font-weight:600;color:#16a34a;margin-bottom:4px;')
+                        'font-size:12px;font-weight:600;color:var(--success);margin-bottom:4px;')
                 for i, p in enumerate(pairs):
                     with ui.element('div').style(
                         'width:100%;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;'
                         'border-radius:8px;display:flex;align-items:center;gap:12px;'
                     ):
-                        ui.icon('check_circle', size='sm').style('color:#16a34a;flex-shrink:0;')
+                        ui.icon('check_circle', size='sm').style('color:var(--success);flex-shrink:0;')
                         with ui.column().classes('flex-grow gap-0 min-w-0'):
                             with ui.row().classes('items-center gap-2'):
-                                ui.icon('description', size='xs').style('color:#0f2744;')
+                                ui.icon('description', size='xs').style('color:var(--primary);')
                                 ui.label(os.path.basename(p.get('source', ''))).style(
-                                    'font-size:13px;font-weight:600;color:#0f2744;')
+                                    'font-size:13px;font-weight:600;color:var(--primary);')
                             with ui.row().classes('items-center gap-2'):
-                                ui.icon('translate', size='xs').style('color:#16a34a;')
+                                ui.icon('translate', size='xs').style('color:var(--success);')
                                 ui.label(os.path.basename(p.get('translation', ''))).style(
-                                    'font-size:13px;font-weight:500;color:#16a34a;')
+                                    'font-size:13px;font-weight:500;color:var(--success);')
 
                         def _unpair(idx=i):
                             pair = pairs.pop(idx)
@@ -176,7 +176,7 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
                             unmatched_tgt.append(pair['translation'])
                             _render()
                         ui.button(icon='link_off', on_click=_unpair).props(
-                            'flat dense round').style('color:#9ca3af;')
+                            'flat dense round').style('color:var(--text-light);')
 
                 if unmatched_src or unmatched_tgt:
                     ui.element('div').style('width:100%;height:1px;background:#e2e8f0;margin:8px 0;')
@@ -189,9 +189,9 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
                         'width:100%;padding:10px 14px;background:#fff7ed;border:1px solid #fed7aa;'
                         'border-radius:8px;display:flex;align-items:center;gap:12px;'
                     ):
-                        ui.icon('description', size='sm').style('color:#0f2744;flex-shrink:0;')
+                        ui.icon('description', size='sm').style('color:var(--primary);flex-shrink:0;')
                         ui.label(os.path.basename(fp)).style(
-                            'font-size:13px;font-weight:500;color:#1f2937;flex-grow:1;')
+                            'font-size:13px;font-weight:500;color:var(--text);flex-grow:1;')
                         if unmatched_tgt:
                             tgt_options = {os.path.basename(t): t for t in unmatched_tgt}
                             default_val = list(tgt_options.keys())[0] if len(tgt_options) == 1 else None
@@ -224,8 +224,8 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
                         'width:100%;padding:10px 14px;background:#fff7ed;border:1px solid #fed7aa;'
                         'border-radius:8px;display:flex;align-items:center;gap:8px;'
                     ):
-                        ui.icon('translate', size='sm').style('color:#16a34a;')
-                        ui.label(os.path.basename(fp)).style('font-size:13px;color:#1f2937;')
+                        ui.icon('translate', size='sm').style('color:var(--success);')
+                        ui.label(os.path.basename(fp)).style('font-size:13px;color:var(--text);')
 
         _render()
 
@@ -250,7 +250,7 @@ def show_keyboard_help() -> None:
     """Tastatur-Kuerzel-Dialog."""
     with ui.dialog() as dlg, ui.card().style('width:480px;'):
         ui.label('Tastatur-Kuerzel').style(
-            'font-size:18px;font-weight:700;color:#0f2744;margin-bottom:8px;')
+            'font-size:18px;font-weight:700;color:var(--primary);margin-bottom:8px;')
         shortcuts = [
             ('Strg + Eingabe', 'Analyse starten'),
             ('Esc', 'Analyse abbrechen / Hilfe schliessen'),
@@ -267,9 +267,9 @@ def show_keyboard_help() -> None:
             ):
                 ui.label(keys).style(
                     'font-family:monospace;font-size:12px;font-weight:700;'
-                    'color:#0f2744;background:#f1f5f9;padding:3px 8px;'
+                    'color:var(--primary);background:#f1f5f9;padding:3px 8px;'
                     'border-radius:4px;min-width:140px;')
-                ui.label(desc).style('font-size:13px;color:#4b5563;')
+                ui.label(desc).style('font-size:13px;color:var(--text-muted);')
         ui.button('Schliessen', on_click=dlg.close).props(
             'flat dense no-caps').style('margin-top:12px;')
     dlg.open()
@@ -284,7 +284,7 @@ def show_archive_confirm(ctx: SimpleNamespace, customer: str, parent_dlg) -> Non
     with ui.dialog() as cdlg, ui.card().style('width:360px;'):
         ui.label(f'Kunde "{customer}" archivieren?').classes('t-heading')
         ui.label('Der Kundenordner wird nach _archiv/ verschoben.').style(
-            'font-size:12px;color:#6b7280;')
+            'font-size:12px;color:var(--text-muted);')
         with ui.row().classes('w-full justify-end gap-2').style('margin-top:12px;'):
             ui.button('Abbrechen', on_click=cdlg.close).props('flat no-caps')
 
@@ -430,15 +430,15 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
     search_state = {'q': ''}
     with ui.dialog() as dlg, ui.card().style('width:640px;max-width:90vw;'):
         ui.label('Glossar bearbeiten').style(
-            'font-size:16px;font-weight:700;color:#1f2937;')
+            'font-size:16px;font-weight:700;color:var(--text);')
         ui.label(
             'Manuelle Begriffe werden zusätzlich zum geladenen Glossar geprüft.'
-        ).style('font-size:12px;color:#6b7280;margin-bottom:8px;')
+        ).style('font-size:12px;color:var(--text-muted);margin-bottom:8px;')
 
         with ui.row().classes('w-full items-center gap-2').style('margin-bottom:6px;'):
             search_input = ui.input(placeholder='Begriffe suchen...').props(
                 'dense outlined clearable').classes('flex-1')
-            count_lbl = ui.label('').style('font-size:11px;color:#6b7280;')
+            count_lbl = ui.label('').style('font-size:11px;color:var(--text-muted);')
 
         list_container = ui.column().classes('w-full gap-1').style(
             'max-height:50vh;overflow-y:auto;border:1px solid #e2e8f0;'
@@ -470,7 +470,7 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
                 if not cur:
                     msg = 'Keine Treffer.' if q else 'Noch keine Begriffe.'
                     ui.label(msg).style(
-                        'font-size:12px;color:#9ca3af;padding:12px;text-align:center;')
+                        'font-size:12px;color:var(--text-light);padding:12px;text-align:center;')
                     return
                 for src_term in sorted(cur.keys(), key=str.lower):
                     tgt_term = cur[src_term]
@@ -479,7 +479,7 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
                         'border-radius:4px;padding:4px 8px;'
                     ):
                         si = ui.input(value=src_term).props('dense outlined').classes('flex-1')
-                        ui.icon('arrow_forward', size='xs').style('color:#d4af37;')
+                        ui.icon('arrow_forward', size='xs').style('color:var(--accent);')
                         ti = ui.input(value=tgt_term).props('dense outlined').classes('flex-1')
 
                         def _save_row(orig=src_term, si_in=si, ti_in=ti):
@@ -498,9 +498,9 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
                             _redraw()
 
                         ui.button(icon='save', on_click=_save_row).props(
-                            'flat dense round size=sm').style('color:#16a34a;').tooltip('Speichern')
+                            'flat dense round size=sm').style('color:var(--success);').tooltip('Speichern')
                         ui.button(icon='delete', on_click=_del_row).props(
-                            'flat dense round size=sm').style('color:#dc2626;').tooltip('Löschen')
+                            'flat dense round size=sm').style('color:var(--error);').tooltip('Löschen')
 
         def _on_search(e):
             search_state['q'] = getattr(e, 'value', '') or ''
@@ -512,10 +512,10 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
 
         ui.separator().style('margin:8px 0;')
         ui.label('Neuen Begriff hinzufügen').style(
-            'font-size:12px;font-weight:700;color:#1f2937;')
+            'font-size:12px;font-weight:700;color:var(--text);')
         with ui.row().classes('w-full items-center gap-2'):
             new_src = ui.input(placeholder='Quelle').props('dense outlined').classes('flex-1')
-            ui.icon('arrow_forward', size='xs').style('color:#d4af37;')
+            ui.icon('arrow_forward', size='xs').style('color:var(--accent);')
             new_tgt = ui.input(placeholder='Übersetzung').props('dense outlined').classes('flex-1')
 
             def _add_new():

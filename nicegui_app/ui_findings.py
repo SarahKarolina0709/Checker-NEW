@@ -61,23 +61,23 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                      (s.update({'search_text': sf}),
                       refs.get('search_input') and refs['search_input'].set_value(sf),
                       ctx.refresh_results())):
-                    ui.icon('description', size='xs').style('color:#6b7280;')
+                    ui.icon('description', size='xs').style('color:var(--text-muted);')
                     if src_f:
                         ui.label(os.path.basename(src_f)).style(
-                            'color:#0f2744;font-weight:600;')
+                            'color:var(--primary);font-weight:600;')
                     if src_f and tgt_f:
-                        ui.icon('arrow_forward', size='xs').style('color:#d4af37;')
+                        ui.icon('arrow_forward', size='xs').style('color:var(--accent);')
                     if tgt_f:
                         ui.label(os.path.basename(tgt_f)).style(
-                            'color:#16a34a;font-weight:600;')
+                            'color:var(--success);font-weight:600;')
             with ui.row().classes('w-full items-center gap-2 flex-wrap'):
                 ui.badge(sev_lbl).style(
                     f'background:transparent;color:{sev_clr};border:1px solid {sev_clr};border-radius:20px;')
                 if phase_lbl and not compact:
                     ui.badge(phase_lbl).style(
-                        'background:transparent;color:#6b7280;border:1px solid #d1d5db;border-radius:20px;')
+                        'background:transparent;color:var(--text-muted);border:1px solid #d1d5db;border-radius:20px;')
                 ui.badge(f.code).style(
-                    'background:transparent;color:#6b7280;border:1px solid #d1d5db;border-radius:20px;')
+                    'background:transparent;color:var(--text-muted);border:1px solid #d1d5db;border-radius:20px;')
                 diff = s.get('analysis_diff', {}) or {}
                 if diff.get('has_prev') and idx in set(diff.get('new_idx', []) or []):
                     ui.badge('NEU').style(
@@ -93,7 +93,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
             msg_text = (f.message[:120] + '…' if compact and len(f.message) > 120
                         else f.message)
             ui.label(msg_text).style(
-                f'font-size:{msg_fs};color:#1f2937;line-height:1.4;font-weight:500;')
+                f'font-size:{msg_fs};color:var(--text);line-height:1.4;font-weight:500;')
             if compact:
                 return
             meta = getattr(f, 'meta', {}) or {}
@@ -103,10 +103,10 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                     'background:#ecfdf5;border-left:3px solid #16a34a;'
                     'padding:8px 10px;border-radius:6px;margin-top:6px;'
                 ):
-                    ui.icon('lightbulb', size='sm').style('color:#16a34a;flex-shrink:0;margin-top:1px;')
+                    ui.icon('lightbulb', size='sm').style('color:var(--success);flex-shrink:0;margin-top:1px;')
                     with ui.column().classes('gap-0 flex-grow').style('min-width:0;'):
                         ui.label('Vorschlag').style(
-                            'font-size:11px;font-weight:700;color:#16a34a;'
+                            'font-size:11px;font-weight:700;color:var(--success);'
                             'text-transform:uppercase;letter-spacing:0.5px;')
                         ui.label(suggestion[:500]).style(
                             'font-size:12px;color:#064e3b;'
@@ -115,7 +115,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                         on_click=lambda _, t=suggestion: copy_to_clipboard(t)
                     ).props('flat dense round size=xs').tooltip(
                         'Vorschlag kopieren'
-                    ).style('color:#16a34a;flex-shrink:0;')
+                    ).style('color:var(--success);flex-shrink:0;')
             if f.source_text or f.target_text:
                 error_span = (meta.get('error_text') or '').strip()
                 with ui.column().classes('w-full gap-1').style('margin-top:6px;'):
@@ -125,7 +125,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                             'border-left:2px solid #0f2744;'
                         ):
                             ui.label('SRC').style(
-                                'font-size:11px;font-weight:700;color:#0f2744;'
+                                'font-size:11px;font-weight:700;color:var(--primary);'
                                 'min-width:30px;padding-top:1px;')
                             ui.label(f.source_text[:400]).style(
                                 'font-size:12px;color:#334155;'
@@ -141,7 +141,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                             'border-left:2px solid #d97706;'
                         ):
                             ui.label('ZIEL').style(
-                                'font-size:11px;font-weight:700;color:#d97706;'
+                                'font-size:11px;font-weight:700;color:var(--warning);'
                                 'min-width:30px;padding-top:1px;')
                             if error_span and error_span in f.target_text:
                                 pos = f.target_text.find(error_span)
@@ -203,14 +203,14 @@ def render_split_list(ctx: SimpleNamespace, filtered) -> None:
         ).on('click', lambda _, i=real_idx: ctx.select_finding(i)):
             with ui.column().classes('gap-0 flex-grow').style('min-width:0;'):
                 ui.label(f.message[:80] + ('…' if len(f.message) > 80 else '')).style(
-                    'font-size:11px;color:#1f2937;line-height:1.35;font-weight:500;')
+                    'font-size:11px;color:var(--text);line-height:1.35;font-weight:500;')
                 ui.badge(f.code).style(
-                    'background:transparent;color:#9ca3af;border:none;'
+                    'background:transparent;color:var(--text-light);border:none;'
                     'font-size:11px;padding:0;')
         checked = s.get('checked_findings', {}).get(str(real_idx), False)
         if checked:
             ui.icon('check_circle', size='xs').style(
-                'color:#16a34a;position:absolute;right:6px;top:6px;')
+                'color:var(--success);position:absolute;right:6px;top:6px;')
 
 
 def render_detail_panel(ctx: SimpleNamespace) -> None:
@@ -224,10 +224,10 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
     idx = selected_idx['v']
     if idx < 0:
         with ui.column().classes('w-full items-center justify-center').style('padding:32px;'):
-            ui.icon('touch_app', size='3rem').style('color:#d1d5db;')
-            ui.label('Finding auswählen').style('font-size:14px;color:#9ca3af;margin-top:8px;')
+            ui.icon('touch_app', size='3rem').style('color:var(--text-light);')
+            ui.label('Finding auswählen').style('font-size:14px;color:var(--text-light);margin-top:8px;')
             ui.label('Klicke links auf ein Finding für Details').style(
-                'font-size:12px;color:#d1d5db;')
+                'font-size:12px;color:var(--text-light);')
         return
     findings = s.get('findings', [])
     if idx >= len(findings):
@@ -244,9 +244,9 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
             f'background:{sev_clr};color:white;border-radius:20px;font-size:12px;')
         if phase_lbl:
             ui.badge(phase_lbl).style(
-                'background:transparent;color:#6b7280;border:1px solid #d1d5db;border-radius:20px;')
+                'background:transparent;color:var(--text-muted);border:1px solid #d1d5db;border-radius:20px;')
         ui.badge(f.code).style(
-            'background:transparent;color:#6b7280;border:1px solid #d1d5db;border-radius:20px;')
+            'background:transparent;color:var(--text-muted);border:1px solid #d1d5db;border-radius:20px;')
         diff = s.get('analysis_diff', {}) or {}
         if diff.get('has_prev') and idx in set(diff.get('new_idx', []) or []):
             ui.badge('NEU').style(
@@ -262,35 +262,35 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
         with ui.row().classes('items-center gap-1').style(
             'padding:4px 8px;background:#f1f5f9;border-radius:4px;margin-bottom:8px;'
         ):
-            ui.icon('description', size='xs').style('color:#6b7280;')
+            ui.icon('description', size='xs').style('color:var(--text-muted);')
             if src_f:
                 ui.label(os.path.basename(src_f)).style(
-                    'font-size:11px;color:#0f2744;font-weight:600;')
+                    'font-size:11px;color:var(--primary);font-weight:600;')
             if src_f and tgt_f:
-                ui.icon('arrow_forward', size='xs').style('color:#d4af37;')
+                ui.icon('arrow_forward', size='xs').style('color:var(--accent);')
             if tgt_f:
                 ui.label(os.path.basename(tgt_f)).style(
-                    'font-size:11px;color:#16a34a;font-weight:600;')
+                    'font-size:11px;color:var(--success);font-weight:600;')
     ui.label(f.message).style(
-        'font-size:14px;color:#1f2937;line-height:1.5;font-weight:500;margin-bottom:8px;')
+        'font-size:14px;color:var(--text);line-height:1.5;font-weight:500;margin-bottom:8px;')
     if suggestion:
         with ui.row().classes('w-full items-start gap-2').style(
             'background:#ecfdf5;border-left:3px solid #16a34a;'
             'padding:8px 10px;border-radius:6px;margin-bottom:8px;'
         ):
-            ui.icon('lightbulb', size='sm').style('color:#16a34a;flex-shrink:0;')
+            ui.icon('lightbulb', size='sm').style('color:var(--success);flex-shrink:0;')
             with ui.column().classes('gap-0 flex-grow').style('min-width:0;'):
                 ui.label('Vorschlag').style(
-                    'font-size:11px;font-weight:700;color:#16a34a;'
+                    'font-size:11px;font-weight:700;color:var(--success);'
                     'text-transform:uppercase;letter-spacing:0.5px;')
                 ui.label(suggestion).style(
                     'font-size:13px;color:#064e3b;white-space:pre-wrap;word-break:break-word;')
             ui.button(icon='content_copy',
                 on_click=lambda _, t=suggestion: copy_to_clipboard(t)
-            ).props('flat dense round size=xs').tooltip('Vorschlag kopieren').style('color:#16a34a;')
+            ).props('flat dense round size=xs').tooltip('Vorschlag kopieren').style('color:var(--success);')
     if f.source_text:
         with ui.column().classes('w-full gap-0').style('margin-bottom:6px;'):
-            ui.label('Quelltext').style('font-size:11px;font-weight:700;color:#0f2744;'
+            ui.label('Quelltext').style('font-size:11px;font-weight:700;color:var(--primary);'
                 'text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;')
             with ui.row().classes('w-full items-start gap-1').style(
                 'background:#f8fafc;padding:8px;border-radius:6px;border-left:3px solid #0f2744;'
@@ -302,7 +302,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
                 ).props('flat dense round size=xs').style('color:#94a3b8;flex-shrink:0;')
     if f.target_text:
         with ui.column().classes('w-full gap-0'):
-            ui.label('Zieltext').style('font-size:11px;font-weight:700;color:#d97706;'
+            ui.label('Zieltext').style('font-size:11px;font-weight:700;color:var(--warning);'
                 'text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;')
             with ui.row().classes('w-full items-start gap-1').style(
                 'background:#fef3c7;padding:8px;border-radius:6px;border-left:3px solid #d97706;'
@@ -351,7 +351,7 @@ def render_findings_list(ctx: SimpleNamespace) -> None:
             return
         if not filtered:
             ui.label('Keine Findings in diesem Filter').style(
-                'font-size:12px;color:#9ca3af;padding:16px 0;text-align:center;')
+                'font-size:12px;color:var(--text-light);padding:16px 0;text-align:center;')
             return
         if split_mode:
             with ui.row().classes('w-full gap-0 items-start').style('min-height:300px;'):
@@ -417,65 +417,65 @@ def render_welcome(ctx: SimpleNamespace) -> None:
     if has_files:
         # --- Zustand 3: Dateien geladen -> Textvorschau ---
         with ui.column().classes('w-full gap-4'):
-            ui.label('Textvorschau').style('font-size:16px;font-weight:700;color:#1f2937;')
+            ui.label('Textvorschau').style('font-size:16px;font-weight:700;color:var(--text);')
             with ui.row().classes('w-full gap-4').style('min-height:200px;'):
                 with ui.card().classes('flex-1').props('flat bordered').style('padding:12px;'):
                     ui.label('Ausgangstext').style(
-                        'font-size:12px;font-weight:700;color:#0f2744;text-transform:uppercase;letter-spacing:1px;')
+                        'font-size:12px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:1px;')
                     if src_files:
                         for fp in src_files[:3]:
-                            ui.label(os.path.basename(fp)).style('font-size:12px;font-weight:600;color:#1f2937;')
+                            ui.label(os.path.basename(fp)).style('font-size:12px;font-weight:600;color:var(--text);')
                             try:
                                 text = extract_text(fp)[:500] if os.path.exists(fp) else ''
                                 if text:
                                     ui.label(text).style(
-                                        'font-size:12px;color:#6b7280;white-space:pre-wrap;'
+                                        'font-size:12px;color:var(--text-muted);white-space:pre-wrap;'
                                         'max-height:150px;overflow:hidden;line-height:1.5;')
                             except Exception:
-                                ui.label('Vorschau nicht verfügbar').style('font-size:12px;color:#d1d5db;')
+                                ui.label('Vorschau nicht verfügbar').style('font-size:12px;color:var(--text-light);')
                             ui.separator().style('margin:4px 0;')
                     else:
-                        ui.label('Keine Ausgangstexte').style('font-size:12px;color:#9ca3af;')
+                        ui.label('Keine Ausgangstexte').style('font-size:12px;color:var(--text-light);')
 
                 with ui.card().classes('flex-1').props('flat bordered').style('padding:12px;'):
                     ui.label('Übersetzung').style(
-                        'font-size:12px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:1px;')
+                        'font-size:12px;font-weight:700;color:var(--success);text-transform:uppercase;letter-spacing:1px;')
                     if tgt_files:
                         for fp in tgt_files[:3]:
-                            ui.label(os.path.basename(fp)).style('font-size:12px;font-weight:600;color:#1f2937;')
+                            ui.label(os.path.basename(fp)).style('font-size:12px;font-weight:600;color:var(--text);')
                             try:
                                 text = extract_text(fp)[:500] if os.path.exists(fp) else ''
                                 if text:
                                     ui.label(text).style(
-                                        'font-size:12px;color:#6b7280;white-space:pre-wrap;'
+                                        'font-size:12px;color:var(--text-muted);white-space:pre-wrap;'
                                         'max-height:150px;overflow:hidden;line-height:1.5;')
                             except Exception:
-                                ui.label('Vorschau nicht verfügbar').style('font-size:12px;color:#d1d5db;')
+                                ui.label('Vorschau nicht verfügbar').style('font-size:12px;color:var(--text-light);')
                             ui.separator().style('margin:4px 0;')
                     else:
-                        ui.label('Keine Übersetzungen').style('font-size:12px;color:#9ca3af;')
+                        ui.label('Keine Übersetzungen').style('font-size:12px;color:var(--text-light);')
 
             pairs = s.get('paired_results', [])
             if pairs:
                 with ui.card().classes('w-full').props('flat bordered').style('padding:12px;'):
                     ui.label(f'{len(pairs)} {"Paar" if len(pairs) == 1 else "Paare"} erkannt').style(
-                        'font-size:13px;font-weight:600;color:#0f2744;')
+                        'font-size:13px;font-weight:600;color:var(--primary);')
                     for p in pairs[:5]:
                         src_name = os.path.basename(p.get('source', ''))
                         tgt_name = os.path.basename(p.get('translation', ''))
                         with ui.row().classes('w-full items-center gap-2').style('padding:4px 0;'):
-                            ui.icon('description', size='xs').style('color:#6b7280;')
-                            ui.label(src_name).style('font-size:12px;color:#1f2937;')
-                            ui.icon('arrow_forward', size='xs').style('color:#d4af37;')
-                            ui.label(tgt_name).style('font-size:12px;color:#1f2937;')
+                            ui.icon('description', size='xs').style('color:var(--text-muted);')
+                            ui.label(src_name).style('font-size:12px;color:var(--text);')
+                            ui.icon('arrow_forward', size='xs').style('color:var(--accent);')
+                            ui.label(tgt_name).style('font-size:12px;color:var(--text);')
 
     elif customer:
         # --- Zustand 2: Kunde gewaehlt, keine Dateien ---
         info = ctx.load_customer_info(customer)
         projects = ctx.list_projects(customer)
         with ui.column().classes('w-full items-center').style('padding:32px 0;gap:16px;'):
-            ui.icon('business' if info.get('typ') == 'firma' else 'person', size='3rem').style('color:#d4af37;')
-            ui.label(ctx.display_name(customer)).style('font-size:18px;font-weight:700;color:#1f2937;')
+            ui.icon('business' if info.get('typ') == 'firma' else 'person', size='3rem').style('color:var(--accent);')
+            ui.label(ctx.display_name(customer)).style('font-size:18px;font-weight:700;color:var(--text);')
             proj_path = s.get('active_project_path', '')
             if proj_path:
                 proj_name = os.path.basename(proj_path)
@@ -491,33 +491,33 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                     pass
                 with ui.row().classes('items-center gap-2').style(
                     'background:#eff6ff;padding:6px 16px;border-radius:20px;margin-top:4px;'):
-                    ui.icon('folder_open', size='xs').style('color:#0f2744;')
-                    ui.label(f'Projekt: {display}').style('font-size:13px;font-weight:600;color:#0f2744;')
+                    ui.icon('folder_open', size='xs').style('color:var(--primary);')
+                    ui.label(f'Projekt: {display}').style('font-size:13px;font-weight:600;color:var(--primary);')
             if info.get('email') or info.get('telefon'):
                 with ui.row().classes('gap-4').style('margin-top:4px;'):
                     if info.get('email'):
                         with ui.row().classes('items-center gap-1'):
-                            ui.icon('email', size='xs').style('color:#9ca3af;')
-                            ui.label(info['email']).style('font-size:12px;color:#6b7280;')
+                            ui.icon('email', size='xs').style('color:var(--text-light);')
+                            ui.label(info['email']).style('font-size:12px;color:var(--text-muted);')
                     if info.get('telefon'):
                         with ui.row().classes('items-center gap-1'):
-                            ui.icon('phone', size='xs').style('color:#9ca3af;')
-                            ui.label(info['telefon']).style('font-size:12px;color:#6b7280;')
+                            ui.icon('phone', size='xs').style('color:var(--text-light);')
+                            ui.label(info['telefon']).style('font-size:12px;color:var(--text-muted);')
             with ui.row().classes('gap-6').style('margin-top:8px;'):
                 with ui.column().classes('items-center'):
-                    ui.label(str(len(projects))).style('font-size:24px;font-weight:800;color:#0f2744;')
-                    ui.label('Projekte').style('font-size:12px;color:#9ca3af;')
+                    ui.label(str(len(projects))).style('font-size:24px;font-weight:800;color:var(--primary);')
+                    ui.label('Projekte').style('font-size:12px;color:var(--text-light);')
                 n_src = len(s.get('source_files', []))
                 n_tgt = len(s.get('translation_files', []))
                 with ui.column().classes('items-center'):
-                    ui.label(str(n_src)).style('font-size:24px;font-weight:800;color:#0f2744;')
-                    ui.label('Ausgangstexte').style('font-size:12px;color:#9ca3af;')
+                    ui.label(str(n_src)).style('font-size:24px;font-weight:800;color:var(--primary);')
+                    ui.label('Ausgangstexte').style('font-size:12px;color:var(--text-light);')
                 with ui.column().classes('items-center'):
-                    ui.label(str(n_tgt)).style('font-size:24px;font-weight:800;color:#16a34a;')
-                    ui.label('Übersetzungen').style('font-size:12px;color:#9ca3af;')
+                    ui.label(str(n_tgt)).style('font-size:24px;font-weight:800;color:var(--success);')
+                    ui.label('Übersetzungen').style('font-size:12px;color:var(--text-light);')
             if not proj_path:
                 ui.label('Wählen Sie ein Projekt und laden Sie Dateien hoch').style(
-                    'font-size:12px;color:#9ca3af;margin-top:12px;')
+                    'font-size:12px;color:var(--text-light);margin-top:12px;')
             elif proj_path and os.path.isdir(proj_path):
                 src_dir = ctx.find_source_folder(proj_path)
                 tgt_dir = ctx.find_translation_folder(proj_path)
@@ -530,47 +530,47 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                             with ui.row().classes('items-center gap-2').style('margin-bottom:8px;'):
                                 ui.element('div').style('width:4px;height:16px;border-radius:2px;background:#0f2744;')
                                 ui.label(f'Ausgangstexte ({len(src_files_list)})').style(
-                                    'font-size:13px;font-weight:700;color:#0f2744;')
+                                    'font-size:13px;font-weight:700;color:var(--primary);')
                             if src_files_list:
                                 for fp in src_files_list:
                                     fname = os.path.basename(fp)
                                     fsize = os.path.getsize(fp) if os.path.exists(fp) else 0
                                     with ui.row().classes('w-full items-center gap-2').style(
                                         'padding:4px 0;border-bottom:1px solid #f1f5f9;'):
-                                        ui.icon('description', size='xs').style('color:#6b7280;')
+                                        ui.icon('description', size='xs').style('color:var(--text-muted);')
                                         ui.label(fname).style(
-                                            'font-size:12px;color:#1f2937;flex-grow:1;'
+                                            'font-size:12px;color:var(--text);flex-grow:1;'
                                             'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
-                                        ui.label(f'{fsize/1024:.0f} KB').style('font-size:12px;color:#9ca3af;')
+                                        ui.label(f'{fsize/1024:.0f} KB').style('font-size:12px;color:var(--text-light);')
                             else:
-                                ui.label('Keine Dateien').style('font-size:12px;color:#d1d5db;')
+                                ui.label('Keine Dateien').style('font-size:12px;color:var(--text-light);')
 
                         with ui.card().classes('flex-1').props('flat bordered').style('padding:12px;'):
                             with ui.row().classes('items-center gap-2').style('margin-bottom:8px;'):
                                 ui.element('div').style('width:4px;height:16px;border-radius:2px;background:#16a34a;')
                                 ui.label(f'Übersetzungen ({len(tgt_files_list)})').style(
-                                    'font-size:13px;font-weight:700;color:#16a34a;')
+                                    'font-size:13px;font-weight:700;color:var(--success);')
                             if tgt_files_list:
                                 for fp in tgt_files_list:
                                     fname = os.path.basename(fp)
                                     fsize = os.path.getsize(fp) if os.path.exists(fp) else 0
                                     with ui.row().classes('w-full items-center gap-2').style(
                                         'padding:4px 0;border-bottom:1px solid #f1f5f9;'):
-                                        ui.icon('translate', size='xs').style('color:#6b7280;')
+                                        ui.icon('translate', size='xs').style('color:var(--text-muted);')
                                         ui.label(fname).style(
-                                            'font-size:12px;color:#1f2937;flex-grow:1;'
+                                            'font-size:12px;color:var(--text);flex-grow:1;'
                                             'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
-                                        ui.label(f'{fsize/1024:.0f} KB').style('font-size:12px;color:#9ca3af;')
+                                        ui.label(f'{fsize/1024:.0f} KB').style('font-size:12px;color:var(--text-light);')
                             else:
-                                ui.label('Keine Dateien').style('font-size:12px;color:#d1d5db;')
+                                ui.label('Keine Dateien').style('font-size:12px;color:var(--text-light);')
                 else:
                     ui.label('Projekt ist leer — laden Sie Dateien über die Ordner links hoch').style(
-                        'font-size:12px;color:#9ca3af;margin-top:12px;')
+                        'font-size:12px;color:var(--text-light);margin-top:12px;')
 
             if len(projects) > 1:
                 with ui.card().classes('w-full').props('flat bordered').style('padding:12px;margin-top:12px;'):
                     ui.label(f'Alle Projekte von {ctx.display_name(customer)}').style(
-                        'font-size:13px;font-weight:700;color:#1f2937;margin-bottom:8px;')
+                        'font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;')
                     for proj in projects[:8]:
                         pp = ctx.get_project_path(customer, proj) or os.path.join(ctx.get_customer_path(customer), proj)
                         n_s = ctx.count_files_in_folder(ctx.find_source_folder(pp) or '')
@@ -593,27 +593,27 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                             ui.icon('folder', size='xs').style(
                                 f'color:{"#0f2744" if is_active else "#d4af37"};')
                             ui.label(display).style(
-                                f'font-size:12px;{"font-weight:700;color:#0f2744;" if is_active else "color:#1f2937;"}flex-grow:1;')
+                                f'font-size:12px;{"font-weight:700;color:var(--primary);" if is_active else "color:var(--text);"}flex-grow:1;')
                             if n_s or n_t:
-                                ui.label(f'{n_s}Q · {n_t}Ü').style('font-size:12px;color:#6b7280;')
+                                ui.label(f'{n_s}Q · {n_t}Ü').style('font-size:12px;color:var(--text-muted);')
 
     else:
         # --- Zustand 1: Kein Kunde -> Welcome + Mini-Kalender ---
         with ui.column().classes('w-full items-center').style('padding:32px 0;gap:20px;'):
-            ui.icon('translate', size='3rem').style('color:#d1d5db')
-            ui.label('Übersetzungsqualität prüfen').classes('t-title').style('color:#1f2937;')
+            ui.icon('translate', size='3rem').style('color:var(--text-light)')
+            ui.label('Übersetzungsqualität prüfen').classes('t-title').style('color:var(--text);')
             with ui.column().style('gap:8px;margin-top:4px;'):
                 for num, text in [('1', 'Kunde wählen (links)'),
                                    ('2', 'Ausgangstext + Übersetzung hochladen'),
                                    ('3', 'Analyse starten')]:
                     with ui.row().classes('items-center gap-2'):
                         ui.badge(num).style('background:#0f2744;color:white;border-radius:20px;')
-                        ui.label(text).style('font-size:13px;color:#6b7280;')
+                        ui.label(text).style('font-size:13px;color:var(--text-muted);')
 
         all_dates = ctx.scan_project_dates()
         if all_dates:
             with ui.card().classes('w-full').props('flat bordered').style('padding:16px;margin-top:8px;'):
-                ui.label('Letzte Projekte').style('font-size:14px;font-weight:700;color:#1f2937;margin-bottom:12px;')
+                ui.label('Letzte Projekte').style('font-size:14px;font-weight:700;color:var(--text);margin-bottom:12px;')
                 sorted_dates = sorted(all_dates.keys(), reverse=True)[:10]
                 for day_str in sorted_dates:
                     customers_on_day = all_dates[day_str]
@@ -624,7 +624,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                     with ui.row().classes('w-full items-start gap-3').style(
                         'padding:6px 0;border-bottom:1px solid #f1f5f9;'):
                         with ui.element('div').style('min-width:70px;text-align:center;'):
-                            ui.label(display_date).style('font-size:12px;font-weight:700;color:#0f2744;')
+                            ui.label(display_date).style('font-size:12px;font-weight:700;color:var(--primary);')
                         with ui.column().classes('gap-1 flex-grow'):
                             for cust in customers_on_day[:3]:
                                 with ui.row().classes('items-center gap-2 cursor-pointer').on(
@@ -633,10 +633,10 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                                         'width:24px;height:24px;border-radius:6px;'
                                         'background:linear-gradient(135deg,#0f2744,#1a365d);'
                                         'display:flex;align-items:center;justify-content:center;'
-                                        'font-size:12px;font-weight:700;color:#d4af37;'
+                                        'font-size:12px;font-weight:700;color:var(--accent);'
                                     )
                                     ui.label(ctx.display_name(cust)).style(
-                                        'font-size:12px;color:#1f2937;cursor:pointer;')
+                                        'font-size:12px;color:var(--text);cursor:pointer;')
                             if len(customers_on_day) > 3:
                                 ui.label(f'+{len(customers_on_day)-3} weitere').style(
-                                    'font-size:12px;color:#9ca3af;')
+                                    'font-size:12px;color:var(--text-light);')

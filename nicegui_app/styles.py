@@ -86,7 +86,8 @@ body{font-family:'DM Sans','Segoe UI',system-ui,sans-serif!important;
 
 /* Dark mode */
 body.body--dark{--surface:#0f172a;--surface-alt:#1e293b;--surface-border:#334155;
-    --text:#e2e8f0;--text-muted:#94a3b8;--text-light:#64748b}
+    --text:#e2e8f0;--text-muted:#94a3b8;--text-light:#64748b;
+    --primary:#0a1628;--accent:#d4af37}
 body.body--dark .score-inner{background:var(--surface)}
 body.body--dark .q-card{border-color:var(--surface-border)!important;background:var(--surface-alt)!important}
 body.body--dark [style*="background:white"],
@@ -95,14 +96,23 @@ body.body--dark [style*="background:#ffffff"]{background:var(--surface-alt)!impo
 body.body--dark [style*="background:#f8fafc"],
 body.body--dark [style*="background:#f1f5f9"],
 body.body--dark [style*="background:#eff6ff"]{background:#1e293b!important}
-body.body--dark [style*="color:#1f2937"],
-body.body--dark [style*="color:#0f2744"]{color:var(--text)!important}
-body.body--dark [style*="color:#6b7280"],
-body.body--dark [style*="color:#4b5563"]{color:var(--text-muted)!important}
-body.body--dark [style*="color:#9ca3af"],
-body.body--dark [style*="color:#d1d5db"]{color:var(--text-light)!important}
 body.body--dark [style*="border-bottom:1px solid #f1f5f9"],
 body.body--dark [style*="border:1px solid #e2e8f0"]{border-color:var(--surface-border)!important}
+/* Finding-Karten im Dark Mode */
+body.body--dark [style*="border-top:1px solid #e5e7eb"],
+body.body--dark [style*="border-right:1px solid #e5e7eb"],
+body.body--dark [style*="border-bottom:1px solid #e5e7eb"]{border-color:#334155!important}
+body.body--dark [style*="background:#fef3c7"]{background:#2d2006!important}
+body.body--dark [style*="color:#334155"]{color:#cbd5e1!important}
+body.body--dark [style*="color:#064e3b"]{color:#6ee7b7!important}
+body.body--dark [style*="background:#ecfdf5"]{background:#052e16!important}
+body.body--dark [style*="background:#eff6ff"]{background:#0c1a2e!important}
+body.body--dark [style*="background:#f0f9ff"]{background:#0c1827!important}
+/* Sidebar + Header bleiben dunkel */
+body.body--dark [style*="background:#0f2744"],
+body.body--dark [style*="background:linear-gradient(135deg,#0f2744"]{background:#0a1628!important}
+/* Severity-Gruppenheader */
+body.body--dark [style*="background:#1e293b"]{background:#1e293b!important}
 /* Finding-Karten im Dark Mode */
 body.body--dark [style*="border-top:1px solid #e5e7eb"],
 body.body--dark [style*="border-right:1px solid #e5e7eb"],

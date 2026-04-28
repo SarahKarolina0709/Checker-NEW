@@ -47,7 +47,7 @@ def kalender_page():
         with detail_container:
             ui.label(f'Projekte am {day_str}').classes('t-title').style('margin-bottom:12px;')
             if not customers:
-                ui.label('Keine Projekte an diesem Tag').style('font-size:12px;color:#9ca3af;padding:24px 0;')
+                ui.label('Keine Projekte an diesem Tag').style('font-size:12px;color:var(--text-light);padding:24px 0;')
                 return
             base = settings.get('projects_base_path', '')
             for cust in customers:
@@ -64,7 +64,7 @@ def kalender_page():
                 n_tgt = _customers_mod.count_files_in_folder(_customers_mod.find_translation_folder(proj_path)) if proj_path else 0
                 with ui.card().classes('w-full').props('flat bordered').style('margin-bottom:8px;padding:12px;'):
                     with ui.row().classes('items-center gap-2'):
-                        ui.icon('business', size='sm').style('color:#0f2744')
+                        ui.icon('business', size='sm').style('color:var(--primary)')
                         ui.label(_customers_mod.display_name(cust)).style('font-size:13px;font-weight:600;')
                     with ui.row().classes('gap-4').style('margin-left:28px;'):
                         ui.label(f'{n_src} Ausgangstexte').style(
@@ -74,11 +74,11 @@ def kalender_page():
                     with ui.row().classes('gap-2').style('margin-left:28px;margin-top:4px;'):
                         ui.button('Analyse starten', icon='play_arrow',
                             on_click=lambda _, c=cust, d=day_str: ui.navigate.to(f'/?kunde={c}&auftrag={d}')
-                        ).props('flat dense no-caps size=sm').style('color:#0f2744;font-size:12px;')
+                        ).props('flat dense no-caps size=sm').style('color:var(--primary);font-size:12px;')
                         if os.path.isdir(proj_path):
                             ui.button('Ordner öffnen', icon='folder_open',
                                 on_click=lambda _, p=proj_path: safe_open_folder(p)
-                            ).props('flat dense no-caps size=sm').style('color:#6b7280;font-size:12px;')
+                            ).props('flat dense no-caps size=sm').style('color:var(--text-muted);font-size:12px;')
 
     def _render_calendar():
         nonlocal cal_container
@@ -92,12 +92,12 @@ def kalender_page():
             with ui.row().classes('w-full items-center justify-center gap-4').style('margin-bottom:16px;'):
                 ui.button(icon='chevron_left', on_click=lambda: _nav_month(-1)).props('flat round')
                 ui.label(f'{month_name} {y}').style(
-                    'font-size:16px;font-weight:700;color:#1f2937;min-width:200px;text-align:center;')
+                    'font-size:16px;font-weight:700;color:var(--text);min-width:200px;text-align:center;')
                 ui.button(icon='chevron_right', on_click=lambda: _nav_month(1)).props('flat round')
             with ui.row().classes('w-full gap-0'):
                 for wd in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']:
                     ui.label(wd).style(
-                        'width:14.28%;text-align:center;font-size:12px;font-weight:700;color:#6b7280;padding:4px 0;')
+                        'width:14.28%;text-align:center;font-size:12px;font-weight:700;color:var(--text-muted);padding:4px 0;')
             cal = _calendar_mod.Calendar(firstweekday=0)
             for week in cal.monthdayscalendar(y, m):
                 with ui.row().classes('w-full gap-0'):
@@ -132,14 +132,14 @@ def kalender_page():
                                             'font-size:12px;color:#4f46e5;overflow:hidden;'
                                             'text-overflow:ellipsis;white-space:nowrap;line-height:1.2;')
                                     if count > 2:
-                                        ui.label(f'+{count-2} weitere').style('font-size:12px;color:#9ca3af;')
+                                        ui.label(f'+{count-2} weitere').style('font-size:12px;color:var(--text-light);')
 
     ui.add_head_html(APP_CSS)
     with ui.header().classes('items-center px-6 py-0').style(
         'background:linear-gradient(135deg,#0a1628 0%,#0f2744 40%,#1a365d 100%);min-height:56px;'
     ):
         with ui.row().classes('w-full items-center gap-4'):
-            ui.icon('calendar_month', size='md').style('color:#d4af37')
+            ui.icon('calendar_month', size='md').style('color:var(--accent)')
             ui.label('Kalender-Ansicht').style('font-size:14px;font-weight:700;color:white;')
             ui.element('div').classes('flex-grow')
             ui.button('Zurück zur Analyse', icon='arrow_back',
@@ -154,5 +154,5 @@ def kalender_page():
             detail_container = ui.column().classes('w-full')
             with detail_container:
                 ui.label('Klicken Sie auf einen Tag um Projekte zu sehen').style(
-                    'font-size:12px;color:#9ca3af;')
+                    'font-size:12px;color:var(--text-light);')
     _render_calendar()

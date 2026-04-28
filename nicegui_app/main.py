@@ -757,22 +757,22 @@ def index_page():
                          size='sm').style(f'color:{color}')
                 ui.label(fname).style('font-size:13px;font-weight:500;flex-grow:1;overflow:hidden;'
                                        'text-overflow:ellipsis;white-space:nowrap;')
-                ui.label(fsize).style('font-size:12px;color:#6b7280;')
+                ui.label(fsize).style('font-size:12px;color:var(--text-muted);')
                 ui.button(
                     'Q' if role == 'source' else 'Ü',
                     on_click=lambda _, f=fp, r=role: _toggle_role(f, r),
                 ).props('flat dense round size=xs').style(f'color:{color}')
                 ui.button(icon='close',
                           on_click=lambda _, f=fp, r=role: _remove_file(f, r)
-                ).props('flat dense round size=xs').style('color:#9ca3af')
+                ).props('flat dense round size=xs').style('color:var(--text-light)')
             if stats:
                 with ui.row().classes('gap-4 pl-8'):
                     ui.label(f'{stats["chars"]:,} Zeichen'.replace(',', '.')).style(
-                        'font-size:12px;color:#6b7280;')
+                        'font-size:12px;color:var(--text-muted);')
                     ui.label(f'{stats["words"]:,} Wörter'.replace(',', '.')).style(
-                        'font-size:12px;color:#6b7280;')
+                        'font-size:12px;color:var(--text-muted);')
                     ui.label(f'{stats["norm_lines"]} NZ ({stats["cpl"]} Anschl.)').style(
-                        'font-size:12px;color:#0f2744;font-weight:700;')
+                        'font-size:12px;color:var(--primary);font-weight:700;')
 
     def _refresh_file_list():
         _logger.info(f'_refresh_file_list: src={len(s.get("source_files",[]))}, tgt={len(s.get("translation_files",[]))}')
@@ -793,7 +793,7 @@ def index_page():
                 for fp in files:
                     _render_file_row(fp, role)
                 if not files:
-                    ui.label(empty_msg).style('font-size:12px;color:#9ca3af;padding:4px 0;')
+                    ui.label(empty_msg).style('font-size:12px;color:var(--text-light);padding:4px 0;')
                 else:
                     # Kleiner "+ Weitere" Button statt große Drop-Zone
                     drop_ref = refs.get('src_drop' if role == 'source' else 'tgt_drop')
@@ -802,7 +802,7 @@ def index_page():
                             d.visible = True
                     ui.button('Weitere Dateien', icon='add',
                               on_click=_show_drop).props('flat dense no-caps size=sm').style(
-                        'font-size:12px;color:#9ca3af;margin-top:4px;')
+                        'font-size:12px;color:var(--text-light);margin-top:4px;')
             # Drop-Zone verstecken wenn Dateien vorhanden
             drop_key = 'src_drop' if role == 'source' else 'tgt_drop'
             drop = refs.get(drop_key)
@@ -897,19 +897,19 @@ def index_page():
                 src_name = os.path.basename(p.get('source', ''))
                 tgt_name = os.path.basename(p.get('translation', ''))
                 with ui.row().classes('w-full items-center gap-1').style('padding:2px 0;'):
-                    ui.icon('check_circle', size='xs').style('color:#16a34a')
+                    ui.icon('check_circle', size='xs').style('color:var(--success)')
                     ui.label(src_name).style('font-size:12px;color:#374151;flex-grow:1;'
                                               'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
-                    ui.icon('arrow_forward', size='xs').style('color:#d1d5db')
+                    ui.icon('arrow_forward', size='xs').style('color:var(--text-light)')
                     ui.label(tgt_name).style('font-size:12px;color:#374151;flex-grow:1;'
                                               'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
             if len(pairs) > 5:
-                ui.label(f'+ {len(pairs)-5} weitere Paare').style('font-size:12px;color:#9ca3af;')
+                ui.label(f'+ {len(pairs)-5} weitere Paare').style('font-size:12px;color:var(--text-light);')
             for fp in s.get('unmatched_src', [])[:3] + s.get('unmatched_tgt', [])[:3]:
                 with ui.row().classes('w-full items-center gap-1').style('padding:2px 0;'):
                     ui.icon('help_outline', size='xs').style('color:#ea580c')
                     ui.label(os.path.basename(fp)).style('font-size:12px;color:#ea580c;')
-                    ui.label('kein Partner').style('font-size:12px;color:#9ca3af;')
+                    ui.label('kein Partner').style('font-size:12px;color:var(--text-light);')
             if pairs or s.get('unmatched_src') or s.get('unmatched_tgt'):
                 ui.button('Paarung anpassen', icon='tune',
                           on_click=_show_pairing_dialog).props(
@@ -995,7 +995,7 @@ def index_page():
         with ui.dialog() as dlg, ui.card().style('width:400px;'):
             ui.label(f'Datei zuordnen: {fname}').classes('t-heading')
             ui.label('Die Datei konnte nicht automatisch zugeordnet werden.').style(
-                'font-size:12px;color:#6b7280;')
+                'font-size:12px;color:var(--text-muted);')
             with ui.row().classes('w-full justify-center gap-4').style('margin-top:12px;'):
                 def _assign(role):
                     dest = _copy_to_customer_folder(path, '01_Ausgangstext' if role == 'source' else '02_Übersetzung') if s.get('active_customer') else path
@@ -1085,18 +1085,18 @@ def index_page():
             ):
                 with ui.row().classes('w-full items-center gap-1'):
                     typ = info.get('typ', 'firma')
-                    ui.icon('business' if typ == 'firma' else 'person', size='xs').style('color:#6b7280')
-                    ui.label(customer).style('font-size:12px;font-weight:600;color:#1f2937;flex-grow:1;')
+                    ui.icon('business' if typ == 'firma' else 'person', size='xs').style('color:var(--text-muted)')
+                    ui.label(customer).style('font-size:12px;font-weight:600;color:var(--text);flex-grow:1;')
                     ui.button(icon='star' if is_fav else 'star_border',
                               on_click=lambda: (_toggle_customer_favorite(customer), _refresh_customer_info())
                     ).props('flat dense round size=xs').style(
                         f'color:{"#d4af37" if is_fav else "#d1d5db"}')
                     ui.button(icon='edit',
                               on_click=lambda: _show_edit_customer_dialog(customer)
-                    ).props('flat dense round size=xs').style('color:#9ca3af')
+                    ).props('flat dense round size=xs').style('color:var(--text-light)')
                     ui.button(icon='folder_open',
                               on_click=lambda: _safe_open_folder(_get_customer_path(customer))
-                    ).props('flat dense round size=xs').style('color:#9ca3af')
+                    ).props('flat dense round size=xs').style('color:var(--text-light)')
                 contact = []
                 if info.get('ansprechpartner'):
                     contact.append(info['ansprechpartner'])
@@ -1104,10 +1104,10 @@ def index_page():
                     contact.append(info['email'])
                 if contact:
                     ui.label(' · '.join(contact)).style(
-                        'font-size:12px;color:#9ca3af;padding-left:24px;')
+                        'font-size:12px;color:var(--text-light);padding-left:24px;')
                 with ui.row().classes('gap-4').style('padding-left:24px;margin-top:4px;'):
-                    ui.label(f'{stats["auftraege"]} Aufträge').style('font-size:12px;color:#6b7280;')
-                    ui.label(f'{stats["dateien"]} Dateien').style('font-size:12px;color:#6b7280;')
+                    ui.label(f'{stats["auftraege"]} Aufträge').style('font-size:12px;color:var(--text-muted);')
+                    ui.label(f'{stats["dateien"]} Dateien').style('font-size:12px;color:var(--text-muted);')
                     if stats['avg_score'] >= 0:
                         clr = '#16a34a' if stats['avg_score'] >= 80 else '#ea580c' if stats['avg_score'] >= 50 else '#dc2626'
                         ui.label(f'Durchschnitt {stats["avg_score"]} Punkte').style(
@@ -1550,7 +1550,7 @@ def index_page():
         if refs['score_number']:
             if current_score < 0:
                 refs['score_number'].set_text('--')
-                refs['score_number'].style('color:#d1d5db;')
+                refs['score_number'].style('color:var(--text-light);')
             else:
                 refs['score_number'].set_text(str(current_score))
                 clr = '#16a34a' if current_score >= 80 else '#ea580c' if current_score >= 50 else '#dc2626'
@@ -1607,7 +1607,7 @@ def index_page():
                     f'<svg width="{w}" height="{h}" style="display:block;">'
                     f'<polyline fill="none" stroke="{lc}" stroke-width="1.5" '
                     f'points="{pts}"/></svg>'
-                    f'<div style="font-size:11px;color:#9ca3af;margin-top:2px;">'
+                    f'<div style="font-size:11px;color:var(--text-light);margin-top:2px;">'
                     f'Verlauf · ⌀ {avg:.0f} · {len(hist)} Analysen</div>'
                 )
             else:
@@ -1621,14 +1621,14 @@ def index_page():
                 parts = []
                 if new_n:
                     parts.append(
-                        f'<span style="color:#dc2626;font-weight:700;">↑ {new_n} neu</span>'
+                        f'<span style="color:var(--error);font-weight:700;">↑ {new_n} neu</span>'
                     )
                 if gone_n:
                     parts.append(
-                        f'<span style="color:#16a34a;font-weight:700;">↓ {gone_n} behoben</span>'
+                        f'<span style="color:var(--success);font-weight:700;">↓ {gone_n} behoben</span>'
                     )
                 refs['diff_badge'].set_content(
-                    '<div style="font-size:11px;color:#6b7280;'
+                    '<div style="font-size:11px;color:var(--text-muted);'
                     'background:#f8fafc;padding:4px 8px;border-radius:6px;'
                     'border:1px solid #e2e8f0;display:inline-block;">'
                     'Vergleich zur letzten Analyse: ' + ' · '.join(parts) + '</div>'
@@ -1654,7 +1654,7 @@ def index_page():
             max_total = max((sum(d.values()) for _, d in top), default=1) or 1
             with cont:
                 if not top:
-                    ui.label('—').style('font-size:11px;color:#d1d5db;')
+                    ui.label('—').style('font-size:11px;color:var(--text-light);')
                 for cat, d in top:
                     total = sum(d.values())
                     width_pct = max(8, int(total / max_total * 100))
@@ -1664,7 +1664,7 @@ def index_page():
                                                      refs.get('search_input') and refs['search_input'].set_value(c),
                                                      _refresh_results_area())):
                         ui.label(cat[:38] + ('…' if len(cat) > 38 else '')).style(
-                            'font-size:11px;color:#4b5563;width:160px;flex-shrink:0;'
+                            'font-size:11px;color:var(--text-muted);width:160px;flex-shrink:0;'
                             'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
                         with ui.element('div').style(
                             f'flex-grow:1;height:10px;border-radius:5px;background:#f1f5f9;'
@@ -1685,7 +1685,7 @@ def index_page():
                                 )
                                 seg_left += pct
                         ui.label(str(total)).style(
-                            'font-size:11px;font-weight:700;color:#1f2937;'
+                            'font-size:11px;font-weight:700;color:var(--text);'
                             'width:24px;text-align:right;')
         # Per-File-Heatmap (Score je Datei-Paar)
         if refs.get('per_file_heatmap'):
@@ -1702,7 +1702,7 @@ def index_page():
             with cont:
                 if not file_buckets:
                     ui.label('Keine Datei-Zuordnung').style(
-                        'font-size:11px;color:#d1d5db;')
+                        'font-size:11px;color:var(--text-light);')
                 else:
                     items = []
                     for (sp, tp), flist in file_buckets.items():
@@ -1722,7 +1722,7 @@ def index_page():
                                                         refs.get('search_input') and refs['search_input'].set_value(n),
                                                         _refresh_results_area())):
                             ui.label(nm[:32] + ('…' if len(nm) > 32 else '')).style(
-                                'font-size:11px;color:#4b5563;width:160px;flex-shrink:0;'
+                                'font-size:11px;color:var(--text-muted);width:160px;flex-shrink:0;'
                                 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
                             with ui.element('div').style(
                                 'flex-grow:1;height:10px;border-radius:5px;'
@@ -1736,7 +1736,7 @@ def index_page():
                                 f'font-size:11px;font-weight:700;color:{sclr};'
                                 f'width:30px;text-align:right;')
                             ui.label(f'{len(flist)}').style(
-                                'font-size:11px;color:#9ca3af;width:20px;text-align:right;'
+                                'font-size:11px;color:var(--text-light);width:20px;text-align:right;'
                             ).tooltip(
                                 f'Kritisch: {sev_cnt["Kritisch"]} · '
                                 f'Wichtig: {sev_cnt["Wichtig"]} · '
@@ -1770,7 +1770,7 @@ def index_page():
             if key == af:
                 btn.style('background:#0f2744;color:white;')
             else:
-                btn.style('background:white;color:#4b5563;')
+                btn.style('background:white;color:var(--text-muted);')
         _render_findings_list()
 
     def _render_split_list(filtered):
@@ -2186,7 +2186,7 @@ def index_page():
                 ui.label('Qualitäts-Framework').style(
                     'font-size:14px;font-weight:700;color:#f8fafc;letter-spacing:-.3px;')
                 ui.label('Professional Edition').style(
-                    'font-size:12px;font-weight:600;color:#d4af37;text-transform:uppercase;letter-spacing:1.5px;')
+                    'font-size:12px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;')
             ui.element('div').classes('flex-grow')
             ui.button('Neue Analyse', icon='refresh', on_click=_reset).props(
                 'flat no-caps text-color=white').style('font-size:12px;opacity:.85;')
@@ -2250,19 +2250,19 @@ def index_page():
                                 'background:linear-gradient(135deg,#0f2744,#1a365d);'
                                 'display:flex;align-items:center;justify-content:center;'
                             ):
-                                ui.label(initial).style('color:#d4af37;font-size:14px;font-weight:700;')
+                                ui.label(initial).style('color:var(--accent);font-size:14px;font-weight:700;')
                             with ui.column().classes('gap-0 flex-grow min-w-0'):
-                                ui.label(_display_name(cust)).style('font-size:13px;font-weight:600;color:#1f2937;')
+                                ui.label(_display_name(cust)).style('font-size:13px;font-weight:600;color:var(--text);')
                                 parts = []
                                 if n_proj:
                                     parts.append(f'{n_proj} {"Projekt" if n_proj == 1 else "Projekte"}')
                                 if info.get('branche'):
                                     parts.append(info['branche'])
                                 ui.label(' · '.join(parts) if parts else 'Kein Projekt').style(
-                                    'font-size:12px;color:#6b7280;')
+                                    'font-size:12px;color:var(--text-muted);')
                             if is_active:
                                 ui.button(icon='close', on_click=lambda: _deselect_customer()).props(
-                                    'flat dense round size=xs').style('color:#9ca3af;')
+                                    'flat dense round size=xs').style('color:var(--text-light);')
 
                 def _select_customer(cust: str):
                     _on_customer_selected(cust)
@@ -2304,7 +2304,7 @@ def index_page():
                                 on_click=lambda: (refs['customer_search'].props('autofocus'),
                                                    refs['customer_search'].run_method('focus'))
                             ).props('flat dense no-caps size=sm').style(
-                                'color:#6b7280;font-size:12px;')
+                                'color:var(--text-muted);font-size:12px;')
                             return
 
                         # Filtern
@@ -2329,8 +2329,8 @@ def index_page():
 
                         if not filtered:
                             with ui.row().classes('w-full items-center gap-2').style('padding:12px;'):
-                                ui.icon('search_off', size='xs').style('color:#9ca3af;')
-                                ui.label(f'Kein Kunde gefunden').style('font-size:12px;color:#9ca3af;')
+                                ui.icon('search_off', size='xs').style('color:var(--text-light);')
+                                ui.label(f'Kein Kunde gefunden').style('font-size:12px;color:var(--text-light);')
 
                 # Initial rendern
                 _render_customer_list()
@@ -2341,16 +2341,16 @@ def index_page():
                     with refs['auftrag_container']:
                         if not s.get('active_customer'):
                             ui.label('Kunde wählen um Projekte zu sehen').style(
-                                'font-size:12px;color:#9ca3af;padding:4px 0;')
-                    refs['auftrag_info'] = ui.label('').style('font-size:12px;color:#16a34a;margin-top:4px;')
+                                'font-size:12px;color:var(--text-light);padding:4px 0;')
+                    refs['auftrag_info'] = ui.label('').style('font-size:12px;color:var(--success);margin-top:4px;')
                 refs['auftrag_info'].visible = False
 
                 # -- 3. Dateien & Zuordnung (einheitlicher Block) --
                 with ui.card().classes('w-full').props('flat bordered').style('padding:16px;'):
                     with ui.row().classes('w-full items-center gap-2').style('margin-bottom:12px;'):
-                        ui.icon('folder_open', size='xs').style('color:#0f2744;')
+                        ui.icon('folder_open', size='xs').style('color:var(--primary);')
                         ui.label('Dateien & Zuordnung').style(
-                            'font-size:14px;font-weight:700;color:#1f2937;flex-grow:1;')
+                            'font-size:14px;font-weight:700;color:var(--text);flex-grow:1;')
 
                     # Zuordnungs-Container (wird dynamisch befüllt)
                     refs['project_folders_container'] = ui.column().classes('w-full gap-2')
@@ -2387,7 +2387,7 @@ def index_page():
                     'dense header-class="text-xs font-semibold text-gray-500"'
                 ):
                     ui.label('Dateien direkt prüfen — ohne Kundenzuordnung.').style(
-                        'font-size:12px;color:#9ca3af;padding:4px 0;')
+                        'font-size:12px;color:var(--text-light);padding:4px 0;')
                     # Versteckte Uploads
                     _quick_src = ui.upload(on_upload=_handle_source_upload, auto_upload=True,
                         multiple=True, max_file_size=50_000_000).props(
@@ -2398,10 +2398,10 @@ def index_page():
                     with ui.row().classes('w-full gap-2'):
                         ui.button('Ausgangstext wählen', icon='description',
                             on_click=lambda: _quick_src.run_method('pickFiles')).props(
-                            'outline dense no-caps size=sm').classes('flex-1').style('color:#0f2744;')
+                            'outline dense no-caps size=sm').classes('flex-1').style('color:var(--primary);')
                         ui.button('Übersetzung wählen', icon='translate',
                             on_click=lambda: _quick_tgt.run_method('pickFiles')).props(
-                            'outline dense no-caps size=sm').classes('flex-1').style('color:#16a34a;')
+                            'outline dense no-caps size=sm').classes('flex-1').style('color:var(--success);')
 
                 # -- 6. Settings expansion --
                 with ui.expansion('Glossar · Sprachen · Prüfmodule', icon='tune').classes('w-full').props(
@@ -2410,7 +2410,7 @@ def index_page():
                     ui.label('GLOSSAR').classes('section-label').style('margin-top:8px;')
                     with ui.row().classes('w-full items-center gap-2'):
                         refs['glossary_label'] = ui.label('Kein Glossar').style(
-                            'font-size:12px;color:#9ca3af;flex-grow:1;')
+                            'font-size:12px;color:var(--text-light);flex-grow:1;')
                         _glossary_picker = ui.upload(
                             on_upload=_handle_glossary_upload, auto_upload=True,
                             max_file_size=50_000_000).props('accept=".csv,.xlsx,.json"').style('display:none;')
@@ -2422,7 +2422,7 @@ def index_page():
                     with ui.row().classes('w-full items-center gap-2').style('margin-top:4px;'):
                         refs['glossary_count_label'] = ui.label(
                             f'{len(s.get("manual_glossary_terms", {}))} Begriffe'
-                        ).style('font-size:11px;color:#9ca3af;flex-grow:1;')
+                        ).style('font-size:11px;color:var(--text-light);flex-grow:1;')
                         ui.button('Bearbeiten', icon='edit_note',
                             on_click=lambda: _open_glossary_editor()).props(
                             'flat dense no-caps size=sm')
@@ -2485,7 +2485,7 @@ def index_page():
                     refs['cancel_btn'].tooltip('Analyse abbrechen')
                     refs['cancel_btn'].visible = False
                 refs['path_label'] = ui.label('').style(
-                    'font-size:12px;color:#9ca3af;margin-top:4px;text-align:center;word-break:break-all;')
+                    'font-size:12px;color:var(--text-light);margin-top:4px;text-align:center;word-break:break-all;')
 
             # -- Projekt list refresh function --
             def _refresh_auftrag_list():
@@ -2510,19 +2510,19 @@ def index_page():
                         return
                     with ui.row().classes('w-full items-center justify-between'):
                         ui.label(f'{len(projects)} {"Projekt" if len(projects) == 1 else "Projekte"}').style(
-                            'font-size:13px;font-weight:600;color:#1f2937;')
+                            'font-size:13px;font-weight:600;color:var(--text);')
                         def _new_auftrag():
                             today = datetime.now().strftime('%Y-%m-%d')
                             existing_today = [p for p in _list_projects(customer) if today in p]
                             with ui.dialog() as adlg, ui.card().style('width:440px;'):
-                                ui.label('Neues Projekt').style('font-size:16px;font-weight:700;color:#1f2937;')
+                                ui.label('Neues Projekt').style('font-size:16px;font-weight:700;color:var(--text);')
                                 with ui.row().classes('w-full items-center gap-4').style('margin-top:4px;'):
                                     with ui.row().classes('items-center gap-1'):
-                                        ui.icon('business', size='xs').style('color:#6b7280;')
-                                        ui.label(_display_name(customer)).style('font-size:13px;color:#6b7280;')
+                                        ui.icon('business', size='xs').style('color:var(--text-muted);')
+                                        ui.label(_display_name(customer)).style('font-size:13px;color:var(--text-muted);')
                                     with ui.row().classes('items-center gap-1'):
-                                        ui.icon('today', size='xs').style('color:#6b7280;')
-                                        ui.label(datetime.now().strftime('%d.%m.%Y')).style('font-size:13px;color:#6b7280;')
+                                        ui.icon('today', size='xs').style('color:var(--text-muted);')
+                                        ui.label(datetime.now().strftime('%d.%m.%Y')).style('font-size:13px;color:var(--text-muted);')
                                 desc_input = ui.input(
                                     label='Projektbeschreibung',
                                     placeholder='z.B. Vertrag, AGB, Handbuch...'
@@ -2562,7 +2562,7 @@ def index_page():
                         ui.button('Neues Projekt', icon='add', on_click=_new_auftrag).props(
                             'flat dense no-caps size=sm color=primary')
                     if not projects:
-                        ui.label('Noch keine Projekte').style('font-size:12px;color:#9ca3af;padding:8px 0;')
+                        ui.label('Noch keine Projekte').style('font-size:12px;color:var(--text-light);padding:8px 0;')
                         return
                     with_files = []
                     without_files = []
@@ -2606,13 +2606,13 @@ def index_page():
                                     f'color:{"#0f2744" if is_sel else "#1f2937"};')
                                 src_text = f'{n_src} {"Ausgangstext" if n_src == 1 else "Ausgangstexte"}'
                                 tgt_text = f'{n_tgt} {"Übersetzung" if n_tgt == 1 else "Übersetzungen"}'
-                                ui.label(f'{src_text} · {tgt_text}').style('font-size:12px;color:#6b7280;')
+                                ui.label(f'{src_text} · {tgt_text}').style('font-size:12px;color:var(--text-muted);')
                     if without_files:
                         n_empty = len(without_files)
                         with ui.row().classes('w-full items-center gap-2').style(
                             'padding:4px 0;margin-top:4px;'):
                             ui.label(f'{n_empty} {"Projekt" if n_empty == 1 else "Projekte"} ohne Dateien').style(
-                                'font-size:12px;color:#9ca3af;flex-grow:1;')
+                                'font-size:12px;color:var(--text-light);flex-grow:1;')
                             def _clean_empty():
                                 for _, pp, _, _ in without_files:
                                     try:
@@ -2629,7 +2629,7 @@ def index_page():
                                 ui.notify(f'{n_empty} leere Projekte entfernt', type='positive')
                                 _refresh_auftrag_list()
                             ui.button('Aufräumen', icon='delete_sweep', on_click=_clean_empty).props(
-                                'flat dense no-caps size=xs').style('color:#9ca3af;font-size:12px;')
+                                'flat dense no-caps size=xs').style('color:var(--text-light);font-size:12px;')
                         for proj, proj_path, _, _ in without_files[:5]:
                             display = proj
                             try:
@@ -2640,7 +2640,7 @@ def index_page():
                                 pass
                             ui.button(display, on_click=lambda _, p=proj, pp=proj_path:
                                 _select_auftrag(p, pp, 0, 0)).props(
-                                    'flat dense no-caps size=xs').style('font-size:12px;color:#9ca3af;')
+                                    'flat dense no-caps size=xs').style('font-size:12px;color:var(--text-light);')
 
             def _select_auftrag(proj_name: str, proj_path: str, n_src: int, n_tgt: int):
                 s['active_project_path'] = proj_path
@@ -2820,7 +2820,7 @@ def index_page():
             with ui.column().classes('w-full gap-1'):
                 refs['progress_bar'] = ui.linear_progress(value=0, show_value=False).classes('w-full')
                 refs['progress_bar'].visible = False
-                refs['progress_text'] = ui.label('').style('font-size:12px;color:#6b7280;')
+                refs['progress_text'] = ui.label('').style('font-size:12px;color:var(--text-muted);')
                 refs['progress_text'].visible = False
 
             # Score card
@@ -2838,11 +2838,11 @@ def index_page():
                             'position:absolute;inset:4px;'
                         ):
                             refs['score_number'] = ui.label('--').style(
-                                'font-size:24px;font-weight:800;color:#d1d5db;')
+                                'font-size:24px;font-weight:800;color:var(--text-light);')
                     with ui.column().classes('gap-0 flex-grow'):
-                        ui.label('Qualitäts-Score').classes('t-label').style('color:#1f2937;')
+                        ui.label('Qualitäts-Score').classes('t-label').style('color:var(--text);')
                         refs['score_sublabel'] = ui.label('Noch keine Analyse').style(
-                            'font-size:12px;color:#9ca3af;')
+                            'font-size:12px;color:var(--text-light);')
                         refs['history_chart'] = ui.html('').style(
                             'margin-top:6px;height:24px;')
 
@@ -2912,11 +2912,11 @@ def index_page():
                     def _start_correction_loop():
                         with ui.dialog() as cdlg, ui.card().style('width:480px;'):
                             ui.label('Korrigierte Übersetzung hochladen').style(
-                                'font-size:16px;font-weight:700;color:#1f2937;')
+                                'font-size:16px;font-weight:700;color:var(--text);')
                             ui.label(
                                 'Laden Sie die korrigierte Übersetzung hoch. '
                                 'Die alte Version bleibt erhalten, die neue wird als aktuelle Version genutzt.'
-                            ).style('font-size:12px;color:#6b7280;margin:8px 0;')
+                            ).style('font-size:12px;color:var(--text-muted);margin:8px 0;')
                             correction_upload = ui.upload(
                                 label='Korrigierte Übersetzung hochladen',
                                 on_upload=lambda e: _handle_correction_upload(e, cdlg),
@@ -2975,34 +2975,34 @@ def index_page():
                             on_click=lambda _, k=key: _set_filter(k),
                         ).props('flat dense no-caps size=sm').style(
                             'border-radius:20px;padding:4px 12px;border:1px solid #e2e8f0;'
-                            'background:white;color:#4b5563;')
+                            'background:white;color:var(--text-muted);')
                         btn._base_label = label_text
                         filter_btns[key] = btn
                     # Toggle: Erledigte ausblenden
                     refs['hide_done_toggle'] = ui.switch('Erledigte ausblenden',
                         value=bool(s.get('hide_done', False)),
                         on_change=lambda e: _toggle_hide_done(getattr(e, 'value', False)),
-                    ).props('dense').style('font-size:12px;color:#4b5563;')
+                    ).props('dense').style('font-size:12px;color:var(--text-muted);')
                     # Counter "X von Y erledigt"
                     refs['done_counter'] = ui.label('').style(
-                        'font-size:12px;color:#6b7280;font-weight:600;padding:0 8px;')
+                        'font-size:12px;color:var(--text-muted);font-weight:600;padding:0 8px;')
                     # Bulk-Aktionen: alle sichtbaren erledigen / oeffnen
                     ui.button(icon='done_all',
                         on_click=lambda: _bulk_mark_filtered(True),
                     ).props('flat dense round size=sm').tooltip(
                         'Alle sichtbaren als erledigt markieren'
-                    ).style('color:#16a34a;')
+                    ).style('color:var(--success);')
                     ui.button(icon='remove_done',
                         on_click=lambda: _bulk_mark_filtered(False),
                     ).props('flat dense round size=sm').tooltip(
                         'Alle sichtbaren als offen markieren'
-                    ).style('color:#6b7280;')
+                    ).style('color:var(--text-muted);')
                     # Undo
                     refs['undo_btn'] = ui.button(icon='undo',
                         on_click=lambda: _undo_last(),
                     ).props('flat dense round size=sm').tooltip(
                         'Nichts rueckgaengig zu machen'
-                    ).style('color:#0f2744;')
+                    ).style('color:var(--primary);')
                     refs['undo_btn'].disable()
                     # Sortierung
                     _sort_opts = {
@@ -3025,14 +3025,14 @@ def index_page():
                         on_click=lambda: _toggle_view_mode(),
                     ).props('flat dense round size=sm').tooltip(
                         'Kompakt-Ansicht umschalten'
-                    ).style('color:#6b7280;')
+                    ).style('color:var(--text-muted);')
                     refs['search_input'] = ui.input(placeholder='Findings durchsuchen...',
                         on_change=_on_search_change).props('dense clearable').classes('w-64')
                     ui.button(icon='keyboard',
                         on_click=lambda: _show_keyboard_help(),
                     ).props('flat dense round size=sm').tooltip(
                         'Tastatur-Kuerzel anzeigen (?)'
-                    ).style('color:#6b7280;')
+                    ).style('color:var(--text-muted);')
 
             # Findings container
             refs['findings_container'] = ui.column().classes('w-full gap-0').style(
