@@ -1607,7 +1607,7 @@ def index_page():
                     f'<svg width="{w}" height="{h}" style="display:block;">'
                     f'<polyline fill="none" stroke="{lc}" stroke-width="1.5" '
                     f'points="{pts}"/></svg>'
-                    f'<div style="font-size:10px;color:#9ca3af;margin-top:2px;">'
+                    f'<div style="font-size:11px;color:#9ca3af;margin-top:2px;">'
                     f'Verlauf · ⌀ {avg:.0f} · {len(hist)} Analysen</div>'
                 )
             else:
@@ -1736,7 +1736,7 @@ def index_page():
                                 f'font-size:11px;font-weight:700;color:{sclr};'
                                 f'width:30px;text-align:right;')
                             ui.label(f'{len(flist)}').style(
-                                'font-size:10px;color:#9ca3af;width:20px;text-align:right;'
+                                'font-size:11px;color:#9ca3af;width:20px;text-align:right;'
                             ).tooltip(
                                 f'Kritisch: {sev_cnt["Kritisch"]} · '
                                 f'Wichtig: {sev_cnt["Wichtig"]} · '
@@ -2838,7 +2838,7 @@ def index_page():
                             'position:absolute;inset:4px;'
                         ):
                             refs['score_number'] = ui.label('--').style(
-                                'font-size:32px;font-weight:800;color:#d1d5db;')
+                                'font-size:24px;font-weight:800;color:#d1d5db;')
                     with ui.column().classes('gap-0 flex-grow'):
                         ui.label('Qualitäts-Score').classes('t-label').style('color:#1f2937;')
                         refs['score_sublabel'] = ui.label('Noch keine Analyse').style(
@@ -2860,7 +2860,7 @@ def index_page():
                     ]:
                         with ui.column().classes('items-center gap-0'):
                             refs[ref_key] = ui.label('0').style(
-                                f'font-size:28px;font-weight:800;color:{sev_clr};')
+                                f'font-size:24px;font-weight:800;color:{sev_clr};')
                             ui.label(sev_name).style(
                                 f'font-size:12px;color:{sev_clr};opacity:.7;')
                 ui.separator().style('margin:8px 0 6px;')
@@ -3063,7 +3063,7 @@ def index_page():
                     ui.label(keys).style(
                         'font-family:monospace;font-weight:700;color:white;'
                         'background:rgba(255,255,255,0.12);padding:1px 6px;border-radius:3px;'
-                        'font-size:10px;')
+                        'font-size:11px;')
                     ui.label(desc).style('color:#cbd5e1;font-size:11px;')
 
     _refresh_file_list()

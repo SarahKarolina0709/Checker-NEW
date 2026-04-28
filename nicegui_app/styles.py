@@ -14,9 +14,20 @@ APP_CSS = '''<style>
   --surface:#ffffff;--surface-alt:#f8fafc;--surface-border:#e2e8f0;
   --text:#0f172a;--text-muted:#64748b;--text-light:#94a3b8;
   --radius-sm:6px;--radius-md:10px;--radius-lg:14px;--radius-pill:50px;
+  /* Typography scale (7 Stufen) */
+  --fs-xs:11px;--fs-sm:12px;--fs-md:13px;--fs-lg:14px;
+  --fs-xl:16px;--fs-2xl:18px;--fs-3xl:24px;
+  --lh-tight:1.35;--lh-normal:1.5;--lh-loose:1.65;
+  --fw-regular:400;--fw-medium:500;--fw-semibold:600;--fw-bold:700;
 }
 body{font-family:'DM Sans','Segoe UI',system-ui,sans-serif!important;
-    font-size:13px!important;color:var(--text);background:var(--surface-alt)}
+    font-size:var(--fs-md)!important;line-height:var(--lh-normal);
+    color:var(--text);background:var(--surface-alt);
+    -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+    text-rendering:optimizeLegibility}
+/* Zahlen mit gleicher Breite (Score, Counter, Listen) */
+.tabular-nums,.q-badge,.score-inner{font-variant-numeric:tabular-nums!important;
+    font-feature-settings:"tnum"!important}
 
 /* Typography — clear hierarchy */
 .t-caption{font-size:12px!important;color:var(--text-muted)}
