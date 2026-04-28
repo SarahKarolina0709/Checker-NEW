@@ -750,7 +750,7 @@ def index_page():
         stats = _get_text_stats(fp) if role == 'source' else {}
         color = '#0f2744' if role == 'source' else '#16a34a'
         with ui.column().classes('w-full gap-0').style(
-            'padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:4px;'
+            'padding:8px 12px;background:var(--surface-alt);border:1px solid #e2e8f0;border-radius:6px;margin-bottom:4px;'
         ):
             with ui.row().classes('w-full items-center gap-2'):
                 ui.icon('description' if role == 'source' else 'translate',
@@ -883,7 +883,7 @@ def index_page():
         with container:
             if n_unmatched > 0:
                 with ui.element('div').style(
-                    'width:100%;border-radius:6px;background:#fff7ed;'
+                    'width:100%;border-radius:6px;background:var(--bg-warning-tint);'
                     'border:1px solid #fed7aa;padding:8px 12px;margin-bottom:8px;'
                 ):
                     with ui.row().classes('items-center gap-2'):
@@ -1081,7 +1081,7 @@ def index_page():
         with container:
             with ui.element('div').style(
                 'width:100%;border-radius:6px;border:1px solid #e2e8f0;'
-                'background:#f8fafc;padding:8px;margin-top:4px;'
+                'background:var(--surface-alt);padding:8px;margin-top:4px;'
             ):
                 with ui.row().classes('w-full items-center gap-1'):
                     typ = info.get('typ', 'firma')
@@ -1629,7 +1629,7 @@ def index_page():
                     )
                 refs['diff_badge'].set_content(
                     '<div style="font-size:11px;color:var(--text-muted);'
-                    'background:#f8fafc;padding:4px 8px;border-radius:6px;'
+                    'background:var(--surface-alt);padding:4px 8px;border-radius:6px;'
                     'border:1px solid #e2e8f0;display:inline-block;">'
                     'Vergleich zur letzten Analyse: ' + ' · '.join(parts) + '</div>'
                 )
@@ -1667,7 +1667,7 @@ def index_page():
                             'font-size:11px;color:var(--text-muted);width:160px;flex-shrink:0;'
                             'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
                         with ui.element('div').style(
-                            f'flex-grow:1;height:10px;border-radius:5px;background:#f1f5f9;'
+                            f'flex-grow:1;height:10px;border-radius:5px;background:var(--bg-muted);'
                             f'position:relative;overflow:hidden;'
                         ):
                             seg_left = 0.0
@@ -1726,7 +1726,7 @@ def index_page():
                                 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
                             with ui.element('div').style(
                                 'flex-grow:1;height:10px;border-radius:5px;'
-                                'background:#f1f5f9;position:relative;overflow:hidden;'
+                                'background:var(--bg-muted);position:relative;overflow:hidden;'
                             ):
                                 ui.element('div').style(
                                     f'position:absolute;top:0;bottom:0;left:0;'
@@ -1768,7 +1768,7 @@ def index_page():
             except Exception:
                 pass
             if key == af:
-                btn.style('background:#0f2744;color:white;')
+                btn.style('background:var(--bg-primary);color:white;')
             else:
                 btn.style('background:white;color:var(--text-muted);')
         _render_findings_list()
@@ -2175,49 +2175,67 @@ def index_page():
         'background:linear-gradient(135deg,#0a1628 0%,#0f2744 40%,#1a365d 100%);'
         'min-height:56px;box-shadow:0 2px 12px rgba(0,0,0,.15);'
     ):
-        with ui.row().classes('w-full items-center gap-4'):
-            with ui.element('div').style(
-                'width:36px;height:36px;background:linear-gradient(135deg,#d4af37,#f0d060);'
-                'border-radius:8px;display:flex;align-items:center;justify-content:center;'
-                'font-weight:800;color:#0a1628;font-size:14px;cursor:pointer;'
-            ).on('click', lambda: ui.navigate.to('/')):
-                ui.html('QF')
-            with ui.column().classes('gap-0'):
-                ui.label('Qualitäts-Framework').style(
-                    'font-size:14px;font-weight:700;color:#f8fafc;letter-spacing:-.3px;')
-                ui.label('Professional Edition').style(
-                    'font-size:12px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;')
+        with ui.row().classes('w-full items-center gap-4 flex-nowrap'):
+            # Brand-Block (Logo + Titel)
+            with ui.row().classes('items-center gap-3 flex-nowrap'):
+                with ui.element('div').style(
+                    'width:36px;height:36px;background:linear-gradient(135deg,#d4af37,#f0d060);'
+                    'border-radius:8px;display:flex;align-items:center;justify-content:center;'
+                    'font-weight:800;color:#0a1628;font-size:14px;cursor:pointer;'
+                ).on('click', lambda: ui.navigate.to('/')):
+                    ui.html('QF')
+                with ui.column().classes('gap-0'):
+                    ui.label('Qualitäts-Framework').style(
+                        'font-size:14px;font-weight:700;color:#f8fafc;letter-spacing:-.3px;line-height:1.1;')
+                    ui.label('Professional Edition').style(
+                        'font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:1.5px;line-height:1.1;')
+
+            # Navigation (Mitte-Links als Pill-Group)
+            with ui.row().classes('items-center gap-1 ml-2'):
+                ui.button('Kunden', icon='business',
+                    on_click=lambda: ui.navigate.to('/kunden')).props(
+                    'flat no-caps text-color=white dense').style(
+                    'font-size:12px;opacity:.75;padding:6px 12px;')
+                ui.button('Kalender', icon='calendar_month',
+                    on_click=lambda: ui.navigate.to('/kalender')).props(
+                    'flat no-caps text-color=white dense').style(
+                    'font-size:12px;opacity:.75;padding:6px 12px;')
+
             ui.element('div').classes('flex-grow')
-            ui.button('Neue Analyse', icon='refresh', on_click=_reset).props(
-                'flat no-caps text-color=white').style('font-size:12px;opacity:.85;')
-            ui.button('Kunden', icon='business',
-                on_click=lambda: ui.navigate.to('/kunden')).props(
-                'flat no-caps text-color=white').style('font-size:12px;opacity:.85;')
-            ui.button('Kalender', icon='calendar_month',
-                on_click=lambda: ui.navigate.to('/kalender')).props(
-                'flat no-caps text-color=white').style('font-size:12px;opacity:.85;')
-            ui.button('Einstellungen', icon='settings', on_click=_open_settings).props(
-                'flat no-caps text-color=white').style('font-size:12px;opacity:.85;')
-            with ui.dropdown_button('Export', icon='download').props(
-                'flat no-caps text-color=white').style('font-size:12px;opacity:.85;'):
-                ui.item('TXT-Bericht', on_click=lambda: _do_export('txt'))
-                ui.item('PDF-Bericht', on_click=lambda: _do_export('pdf'))
-                ui.item('Excel-Bericht', on_click=lambda: _do_export('excel'))
-                ui.separator()
-                ui.item('Korrekturpaket (ZIP)', on_click=lambda: _do_export('zip'))
-            ui.separator().props('vertical').classes('mx-1 opacity-30')
+
+            # Save-Indicator (links neben Action-Gruppe, dezent)
             refs['save_indicator'] = ui.label('').classes('save-indicator').style(
                 'font-size:11px;color:white;opacity:0;padding:0 8px;')
-            dark = ui.dark_mode(value=bool(s.get('dark_mode', False)))
-            def _toggle_dark():
-                dark.toggle()
-                s['dark_mode'] = bool(dark.value)
-            ui.button(icon='dark_mode', on_click=_toggle_dark).props(
-                'flat round size=sm text-color=white').style('opacity:.6;').tooltip('Dark Mode umschalten')
+
+            # Aktionen (Primaer/Export rechts)
+            with ui.row().classes('items-center gap-1 flex-nowrap'):
+                ui.button('Neue Analyse', icon='refresh', on_click=_reset).props(
+                    'flat no-caps text-color=white dense').style(
+                    'font-size:12px;opacity:.75;padding:6px 12px;')
+                with ui.dropdown_button('Export', icon='download').props(
+                    'flat no-caps text-color=white dense').style(
+                    'font-size:12px;opacity:.75;padding:6px 12px;'):
+                    ui.item('TXT-Bericht', on_click=lambda: _do_export('txt'))
+                    ui.item('PDF-Bericht', on_click=lambda: _do_export('pdf'))
+                    ui.item('Excel-Bericht', on_click=lambda: _do_export('excel'))
+                    ui.separator()
+                    ui.item('Korrekturpaket (ZIP)', on_click=lambda: _do_export('zip'))
+
+            # Trenner + Icon-Tools (rechts)
+            ui.separator().props('vertical').classes('mx-2 opacity-30')
+            with ui.row().classes('items-center gap-0 flex-nowrap'):
+                ui.button(icon='settings', on_click=_open_settings).props(
+                    'flat round size=sm text-color=white').style('opacity:.6;').tooltip('Einstellungen')
+                dark = ui.dark_mode(value=bool(s.get('dark_mode', False)))
+                def _toggle_dark():
+                    dark.toggle()
+                    s['dark_mode'] = bool(dark.value)
+                ui.button(icon='dark_mode', on_click=_toggle_dark).props(
+                    'flat round size=sm text-color=white').style('opacity:.6;').tooltip('Dark Mode umschalten')
 
     # --- Main content ---
     with ui.row().classes('w-full flex-nowrap items-start gap-0').style(
-        'min-height:calc(100vh - 56px);background:#f8fafc;'
+        'min-height:calc(100vh - 56px);background:var(--surface-alt);'
     ):
         # ============ LEFT PANEL (480px) ============
         with ui.column().classes('w-[480px] min-w-[420px] gap-0 flex-shrink-0').style(
@@ -2242,7 +2260,7 @@ def index_page():
                     initial = cust[0].upper() if cust else '?'
                     n_proj = len(_list_projects(cust))
                     with ui.card().classes('w-full cursor-pointer').props('flat bordered').style(
-                        f'padding:8px 12px;{"background:#eff6ff;border-color:#93c5fd;" if is_active else ""}'
+                        f'padding:8px 12px;{"background:var(--bg-info-soft);border-color:#93c5fd;" if is_active else ""}'
                     ).on('click', lambda _, c=cust: _select_customer(c)):
                         with ui.row().classes('items-center gap-3 w-full'):
                             with ui.element('div').style(
@@ -2364,7 +2382,7 @@ def index_page():
                         ).props('accept=".pdf,.docx,.txt,.doc,.png,.jpg,.jpeg,.tiff,.tif" flat dense color=blue-9'
                         ).classes('flex-1').style(
                             'border:2px dashed #cbd5e1;border-radius:8px;padding:4px;'
-                            'min-height:60px;background:#f8fafc;font-size:11px;')
+                            'min-height:60px;background:var(--surface-alt);font-size:11px;')
                         refs['src_drop'] = src_drop
                         tgt_drop = ui.upload(
                             label='Übersetzung: Klicken oder hier ablegen',
@@ -2373,7 +2391,7 @@ def index_page():
                         ).props('accept=".pdf,.docx,.txt,.doc,.png,.jpg,.jpeg,.tiff,.tif" flat dense color=green-7'
                         ).classes('flex-1').style(
                             'border:2px dashed #bbf7d0;border-radius:8px;padding:4px;'
-                            'min-height:60px;background:#f0fdf4;font-size:11px;')
+                            'min-height:60px;background:var(--bg-success-tint);font-size:11px;')
                         refs['tgt_drop'] = tgt_drop
 
                 # Versteckte Backend-Container
@@ -2529,7 +2547,7 @@ def index_page():
                                 ).classes('w-full').props('outlined dense').style('margin-top:12px;')
                                 if existing_today:
                                     with ui.column().classes('w-full gap-1').style(
-                                        'background:#fef3c7;padding:10px 12px;border-radius:6px;margin-top:8px;'):
+                                        'background:var(--bg-warning-soft);padding:10px 12px;border-radius:6px;margin-top:8px;'):
                                         ui.label(f'Heute existieren bereits {len(existing_today)} Projekt(e):').style(
                                             'font-size:12px;font-weight:600;color:#92400e;')
                                         for ep in existing_today[:3]:
@@ -2556,7 +2574,7 @@ def index_page():
                                         _select_auftrag(proj_name, project_path, 0, 0)
                                         _refresh_auftrag_list()
                                     ui.button('Anlegen', icon='add', on_click=_create).props(
-                                        'no-caps unelevated').style('background:#0f2744;color:white;')
+                                        'no-caps unelevated').style('background:var(--bg-primary);color:white;')
                                 desc_input.on('keydown.enter', _create)
                             adlg.open()
                         ui.button('Neues Projekt', icon='add', on_click=_new_auftrag).props(
@@ -2777,7 +2795,7 @@ def index_page():
                         sn = os.path.basename(p.get('source', ''))
                         tn = os.path.basename(p.get('translation', ''))
                         with ui.row().classes('w-full items-center gap-1').style(
-                            'padding:6px 10px;background:#f0fdf4;border-radius:6px;margin:2px 0;'):
+                            'padding:6px 10px;background:var(--bg-success-tint);border-radius:6px;margin:2px 0;'):
                             ui.icon('check_circle', size='xs').style('color:var(--success);')
                             ui.label(sn).style('font-size:12px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
                             ui.icon('arrow_forward', size='xs').style('color:var(--success);')

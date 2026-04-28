@@ -62,7 +62,7 @@ def kunden_page():
                         n_proj = len(_customers_mod.list_projects(base, cust))
                         is_sel = selected.get('name') == cust
                         with ui.card().classes('w-full cursor-pointer').props('flat bordered').style(
-                            f'padding:8px 12px;{"background:#eff6ff;border-color:#93c5fd;" if is_sel else ""}'
+                            f'padding:8px 12px;{"background:var(--bg-info-soft);border-color:#93c5fd;" if is_sel else ""}'
                         ).on('click', lambda _, c=cust: _show_customer(c)):
                             with ui.row().classes('items-center gap-4 w-full'):
                                 with ui.element('div').style(
@@ -89,7 +89,7 @@ def kunden_page():
             _filter_list()
 
         with ui.column().classes('flex-grow p-6 gap-4').style(
-            'overflow-y:auto;max-height:calc(100vh - 56px);background:#f8fafc;'
+            'overflow-y:auto;max-height:calc(100vh - 56px);background:var(--surface-alt);'
         ):
             project_detail = ui.column().classes('w-full gap-4')
             with project_detail:
@@ -119,7 +119,7 @@ def kunden_page():
                 ui.element('div').classes('flex-grow')
                 ui.button('Neues Projekt', icon='add',
                     on_click=lambda: _new_project(customer_name)).props(
-                    'no-caps unelevated').style('background:#0f2744;color:white;')
+                    'no-caps unelevated').style('background:var(--bg-primary);color:white;')
                 cpath = _customers_mod.get_customer_path(base, customer_name)
                 ui.button('Ordner öffnen', icon='folder_open',
                     on_click=lambda: safe_open_folder(cpath)).props('flat no-caps')
@@ -153,7 +153,7 @@ def kunden_page():
                                 ui.button('Analyse', icon='play_arrow',
                                     on_click=lambda _, c=customer_name, p=proj: ui.navigate.to(
                                         f'/?kunde={c}&auftrag={p}')).props(
-                                    'dense no-caps unelevated size=sm').style('background:#0f2744;color:white;')
+                                    'dense no-caps unelevated size=sm').style('background:var(--bg-primary);color:white;')
                             ui.button(icon='folder_open',
                                 on_click=lambda _, p=proj_path: safe_open_folder(p)).props(
                                 'flat dense round size=sm').style('color:var(--text-light)')
@@ -173,7 +173,7 @@ def kunden_page():
                                             f'color:{"#1f2937" if count else "#9ca3af"};')
                                         if count:
                                             ui.badge(str(count)).style(
-                                                'background:#0f2744;color:white;font-size:12px;border-radius:20px;')
+                                                'background:var(--bg-primary);color:white;font-size:12px;border-radius:20px;')
                                         ui.element('div').classes('flex-grow')
                                         if os.path.isdir(folder_path):
                                             ui.button(icon='folder_open',
@@ -209,5 +209,5 @@ def kunden_page():
                         dlg.close()
                         _show_customer(customer_name)
                 ui.button('Anlegen', on_click=_do).props('no-caps unelevated').style(
-                    'background:#0f2744;color:white;')
+                    'background:var(--bg-primary);color:white;')
         dlg.open()

@@ -77,7 +77,7 @@ def open_settings_dialog() -> None:
                                 base_input.value = current['path']
                                 bdlg.close()
                             ui.button('Ausw\u00e4hlen', on_click=_select).props('no-caps unelevated').style(
-                                'background:#0f2744;color:white;')
+                                'background:var(--bg-primary);color:white;')
                     bdlg.open()
                 ui.button(icon='folder_open', on_click=_browse_folder).props(
                     'flat dense round color=primary')
@@ -125,7 +125,7 @@ def open_settings_dialog() -> None:
                     ui.notify('Einstellungen gespeichert', type='positive')
                     dlg.close()
                 ui.button('Speichern', on_click=_save).props('no-caps unelevated').style(
-                    'background:#0f2744;color:white;')
+                    'background:var(--bg-primary);color:white;')
     dlg.open()
 
 
@@ -156,7 +156,7 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
                         'font-size:12px;font-weight:600;color:var(--success);margin-bottom:4px;')
                 for i, p in enumerate(pairs):
                     with ui.element('div').style(
-                        'width:100%;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;'
+                        'width:100%;padding:10px 14px;background:var(--bg-success-tint);border:1px solid #bbf7d0;'
                         'border-radius:8px;display:flex;align-items:center;gap:12px;'
                     ):
                         ui.icon('check_circle', size='sm').style('color:var(--success);flex-shrink:0;')
@@ -186,7 +186,7 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
                         'font-size:12px;font-weight:600;color:#ea580c;')
                 for j, fp in enumerate(unmatched_src):
                     with ui.element('div').style(
-                        'width:100%;padding:10px 14px;background:#fff7ed;border:1px solid #fed7aa;'
+                        'width:100%;padding:10px 14px;background:var(--bg-warning-tint);border:1px solid #fed7aa;'
                         'border-radius:8px;display:flex;align-items:center;gap:12px;'
                     ):
                         ui.icon('description', size='sm').style('color:var(--primary);flex-shrink:0;')
@@ -221,7 +221,7 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
                         'font-size:12px;font-weight:600;color:#ea580c;margin-top:8px;')
                 for fp in unmatched_tgt:
                     with ui.element('div').style(
-                        'width:100%;padding:10px 14px;background:#fff7ed;border:1px solid #fed7aa;'
+                        'width:100%;padding:10px 14px;background:var(--bg-warning-tint);border:1px solid #fed7aa;'
                         'border-radius:8px;display:flex;align-items:center;gap:8px;'
                     ):
                         ui.icon('translate', size='sm').style('color:var(--success);')
@@ -242,7 +242,7 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
                 dlg.close()
                 ui.notify(f'{len(pairs)} Paare gespeichert', type='positive')
             ui.button('\u00dcbernehmen', icon='check', on_click=_save).props(
-                'no-caps unelevated').style('background:#0f2744;color:white;')
+                'no-caps unelevated').style('background:var(--bg-primary);color:white;')
     dlg.open()
 
 
@@ -267,7 +267,7 @@ def show_keyboard_help() -> None:
             ):
                 ui.label(keys).style(
                     'font-family:monospace;font-size:12px;font-weight:700;'
-                    'color:var(--primary);background:#f1f5f9;padding:3px 8px;'
+                    'color:var(--primary);background:var(--bg-muted);padding:3px 8px;'
                     'border-radius:4px;min-width:140px;')
                 ui.label(desc).style('font-size:13px;color:var(--text-muted);')
         ui.button('Schliessen', on_click=dlg.close).props(
@@ -343,7 +343,7 @@ def show_edit_customer_dialog(ctx: SimpleNamespace, customer: str) -> None:
                     dlg.close()
                     ctx.refresh_customer_info()
                 ui.button('Speichern', icon='save', on_click=_save).props('no-caps unelevated').style(
-                    'background:#0f2744;color:white;')
+                    'background:var(--bg-primary);color:white;')
     dlg.open()
 
 
@@ -387,7 +387,7 @@ def show_new_customer_dialog(ctx: SimpleNamespace) -> None:
                     ui.button('Abbrechen', on_click=dlg.close).props('flat no-caps')
                     ui.button('Firmenkunde anlegen', icon='business',
                               on_click=_save_firma).props('no-caps unelevated').style(
-                        'background:#0f2744;color:white;')
+                        'background:var(--bg-primary);color:white;')
             with ui.tab_panel(tab_privat):
                 with ui.row().classes('w-full gap-2'):
                     p_vorname = ui.input('Vorname').classes('flex-grow').props('dense outlined')
@@ -416,7 +416,7 @@ def show_new_customer_dialog(ctx: SimpleNamespace) -> None:
                     ui.button('Abbrechen', on_click=dlg.close).props('flat no-caps')
                     ui.button('Privatkunde anlegen', icon='person',
                               on_click=_save_privat).props('no-caps unelevated').style(
-                        'background:#0f2744;color:white;')
+                        'background:var(--bg-primary);color:white;')
     dlg.open()
 
 
@@ -442,7 +442,7 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
 
         list_container = ui.column().classes('w-full gap-1').style(
             'max-height:50vh;overflow-y:auto;border:1px solid #e2e8f0;'
-            'border-radius:6px;padding:8px;background:#f8fafc;'
+            'border-radius:6px;padding:8px;background:var(--surface-alt);'
         )
 
         def _commit(new_terms):
@@ -531,7 +531,7 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
                 _redraw()
 
             ui.button(icon='add', on_click=_add_new).props(
-                'unelevated dense round size=sm').style('background:#0f2744;color:white;')
+                'unelevated dense round size=sm').style('background:var(--bg-primary);color:white;')
 
         with ui.row().classes('w-full justify-end gap-2').style('margin-top:8px;'):
             def _export_json():
@@ -547,6 +547,6 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
             ui.button('Als JSON exportieren', icon='download',
                 on_click=_export_json).props('outline dense no-caps size=sm')
             ui.button('Schließen', on_click=dlg.close).props(
-                'unelevated dense no-caps size=sm').style('background:#0f2744;color:white;')
+                'unelevated dense no-caps size=sm').style('background:var(--bg-primary);color:white;')
 
     dlg.open()

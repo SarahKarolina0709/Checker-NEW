@@ -112,7 +112,7 @@ def kalender_page():
                             if count > 0:
                                 bg = 'background:#eef2ff;border-color:#6366f1;'
                             elif is_today:
-                                bg = 'background:#eff6ff;border-color:#3b82f6;'
+                                bg = 'background:var(--bg-info-soft);border-color:#3b82f6;'
                             else:
                                 bg = 'background:white;border-color:#e2e8f0;'
                             with ui.card().style(
@@ -146,7 +146,7 @@ def kalender_page():
                 on_click=lambda: ui.navigate.to('/')).props('flat no-caps text-color=white').style('font-size:12px;')
 
     with ui.row().classes('w-full flex-nowrap items-start gap-4 p-6').style(
-        'min-height:calc(100vh - 56px);background:#f8fafc;'
+        'min-height:calc(100vh - 56px);background:var(--surface-alt);'
     ):
         with ui.column().classes('flex-grow gap-0'):
             cal_container = ui.column().classes('w-full')
