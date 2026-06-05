@@ -3115,15 +3115,6 @@ def index_page():
                 n_t = len(s['translation_files'])
                 ui.notify(f'{n_s} Ausgangstexte, {n_t} Übersetzungen geladen', type='positive')
 
-            # Ordner-Icons
-            _FOLDER_ICONS = {
-                '01_Ausgangstext': ('description', 'var(--role-source)', 'source'),
-                '02_Übersetzung': ('translate', 'var(--success)', 'translation'),
-                '02_Übersetzungen': ('translate', 'var(--success)', 'translation'),
-                '03_Korrektur': ('rate_review', 'var(--warning)', None),
-                '04_Finalisierung_und_Lieferung': ('local_shipping', 'var(--accent)', None),
-            }
-
             def _refresh_project_folders():
                 """Rendert Ordner-Struktur + Zuordnungs-Status."""
                 container = refs.get('project_folders_container')
@@ -3160,6 +3151,8 @@ def index_page():
 
                     _FI = {
                         '01_Ausgangstext': ('description', 'var(--role-source)', 'source'),
+                        '02_Übersetzung': ('translate', 'var(--success)', 'translation'),
+                        '02_Übersetzungen': ('translate', 'var(--success)', 'translation'),
                         '02_Uebersetzung': ('translate', 'var(--success)', 'translation'),
                         '02_Uebersetzungen': ('translate', 'var(--success)', 'translation'),
                         '03_Korrektur': ('rate_review', 'var(--warning)', None),
