@@ -3115,9 +3115,35 @@ def index_page():
                 n_t = len(s['translation_files'])
                 ui.notify(f'{n_s} Ausgangstexte, {n_t} Übersetzungen geladen', type='positive')
 
+            def _unpair(p):
+                """Loest eine einzelne Zuordnung manuell auf (ohne Auto-Pairing,
+                das die Dateien sonst sofort wieder paaren wuerde)."""
+                src = p.get('source', '')
+                tgt = p.get('translation', '')
+                s['paired_results'] = [
+                    q for q in s.get('paired_results', [])
+                    if not (q.get('source') == src and q.get('translation') == tgt)
+                ]
+                if src:
+                    um = list(s.get('unmatched_src', []))
+                    if src not in um:
+                        um.append(src)
+                    s['unmatched_src'] = um
+                if tgt:
+                    um = list(s.get('unmatched_tgt', []))
+                    if tgt not in um:
+                        um.append(tgt)
+                    s['unmatched_tgt'] = um
+                _refresh_pairing_display()
+                _update_start_btn()
+                try:
+                    _refresh_project_folders()
+                except Exception:
+                    pass
+                _refresh_results_area()
+                ui.notify('Zuordnung gelöst', type='info')
+
             def _refresh_project_folders():
-                """Rendert Ordner-Struktur + Zuordnungs-Status."""
-                container = refs.get('project_folders_container')
                 if not container:
                     return
                 container.clear()
