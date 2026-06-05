@@ -155,6 +155,8 @@ body{font-size:var(--fs-md)!important;line-height:var(--lh-normal);
 .file-row:hover .file-del{opacity:1}
 .folder-empty{opacity:.7;transition:opacity .12s ease}
 .folder-empty:hover{opacity:1}
+.folder-empty .folder-up{opacity:0;transition:opacity .12s ease}
+.folder-empty:hover .folder-up{opacity:1}
 /* Count-Badge im Ordner-Header */
 .folder-badge{display:inline-flex;align-items:center;justify-content:center;
     min-width:18px;height:18px;padding:0 6px;border-radius:9px;

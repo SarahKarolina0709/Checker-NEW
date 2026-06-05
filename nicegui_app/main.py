@@ -3109,18 +3109,17 @@ def index_page():
                                         ).props('flat dense no-caps size=xs').style(f'color:{icon_color};margin-top:6px;')
                         else:
                             with ui.row().classes('w-full items-center gap-2 folder-empty').style(
-                                'padding:6px 10px;border-radius:8px;'
-                                'border:1px dashed var(--surface-border);margin:3px 0;'):
+                                'padding:6px 4px;margin:2px 0;'):
                                 ui.icon(icon_name, size='xs').style(f'color:{icon_color};opacity:.45;')
                                 ui.label(f'{clean_name}').style(
                                     'font-size:var(--fs-md);color:var(--text-light);flex-grow:1;')
-                                ui.label('leer').style('font-size:var(--fs-xs);color:var(--text-light);opacity:.7;')
+                                ui.label('leer').style('font-size:var(--fs-xs);color:var(--text-light);opacity:.6;')
                                 if role in ('source', 'translation'):
                                     drop_ref = refs.get('src_picker' if role == 'source' else 'tgt_picker')
                                     if drop_ref:
                                         ui.button(icon='upload',
                                             on_click=lambda _, d=drop_ref: d.run_method('pickFiles')
-                                        ).props('flat dense round size=xs').style(
+                                        ).props('flat dense round size=xs').classes('folder-up').style(
                                             f'color:{icon_color};').tooltip('Datei hochladen')
 
                     if src_files or tgt_files:
