@@ -142,6 +142,11 @@ body{font-size:var(--fs-md)!important;line-height:var(--lh-normal);
 /* Folder expansion — inherit colors */
 .folder-exp .q-icon{color:inherit!important}
 .folder-exp .q-expansion-item__toggle-icon{color:var(--text-light)!important}
+/* Ordner-Header: Icon naeher an den Titel (Quasar-Avatar-Min-Breite zu gross) */
+.folder-exp .q-item__section--avatar{min-width:unset!important;padding-right:10px!important}
+.folder-exp>.q-expansion-item__container>.q-item{padding:6px 4px!important;min-height:unset!important}
+/* Datei-Liste: dezent eingerueckt unter dem Ordner */
+.folder-exp .q-expansion-item__content{padding-left:8px!important}
 
 /* Datei-Zeilen (Projektordner-Ansicht) — Rollen-Akzent + Hover-Reveal */
 .file-row{transition:background .12s ease,border-color .12s ease}
