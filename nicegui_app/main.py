@@ -1094,9 +1094,19 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     'flat dense no-caps size=xs').style('font-size:var(--fs-sm);margin-top:4px;')
 
     def _show_pairing_dialog():
+        def _after_pairing():
+            _refresh_pairing_display()
+            try:
+                _refresh_project_folders()
+            except Exception:
+                pass
+            try:
+                _refresh_results_area()
+            except Exception:
+                pass
         ctx = SimpleNamespace(
             s=s,
-            refresh_pairing_display=_refresh_pairing_display,
+            refresh_pairing_display=_after_pairing,
             update_start_btn=_update_start_btn,
         )
         _ui_dialogs.show_pairing_dialog(ctx)
