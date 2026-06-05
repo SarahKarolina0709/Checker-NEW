@@ -157,22 +157,8 @@ body.body--dark{--surface:#0f172a;--surface-alt:#1e293b;--surface-border:#334155
     --bg-error-soft:#3b0a0a;--bg-error-tint:#260606}
 body.body--dark .score-inner{background:var(--surface)}
 body.body--dark .q-card{border-color:var(--surface-border)!important;background:var(--surface-alt)!important}
-body.body--dark [style*="background:#f8fafc"]{background:#1e293b!important}
-body.body--dark [style*="border-bottom:1px solid #f1f5f9"],
-body.body--dark [style*="border:1px solid #e2e8f0"]{border-color:var(--surface-border)!important}
-/* Finding-Karten */
-body.body--dark [style*="border-top:1px solid #e5e7eb"],
-body.body--dark [style*="border-right:1px solid #e5e7eb"],
-body.body--dark [style*="border-bottom:1px solid #e5e7eb"]{border-color:var(--surface-border)!important}
-body.body--dark [style*="background:#fef3c7"]{background:#2d2006!important}
-body.body--dark [style*="background:#ecfdf5"]{background:#052e16!important}
-body.body--dark [style*="background:#eff6ff"]{background:#0c1a2e!important}
-body.body--dark [style*="background:#f0f9ff"]{background:#0c1827!important}
-/* Sidebar + Header bleiben dunkel */
-body.body--dark [style*="background:#0f2744"],
+/* Brand-/Header-Verlauf bleibt dunkel (einziger noch inline genutzter Hex-BG) */
 body.body--dark [style*="background:linear-gradient(135deg,#0f2744"]{background:#0a1628!important}
-/* Severity-Gruppenheader */
-body.body--dark [style*="background:#1e293b"]{background:#1e293b!important}
 
 /* Save indicator */
 .save-indicator{opacity:0;transition:opacity 300ms ease}
