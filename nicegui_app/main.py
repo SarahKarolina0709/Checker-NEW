@@ -1408,10 +1408,15 @@ def index_page():
             refs['progress_bar'].value = 0
         if refs['progress_text']:
             refs['progress_text'].visible = True
-            refs['progress_text'].set_text('Analyse wird vorbereitet...')
+            refs['progress_text'].set_text('Texte werden gelesen…')
         _refresh_results_area()
-        # Text-Paare VOR dem Thread lesen (app.storage.user geht nur im UI-Thread)
-        text_pairs, file_pairs = _build_text_pairs_with_paths(s.get('paired_results', []))
+        # paired_results im UI-Thread lesen (app.storage.user nur hier zulaessig),
+        # die teure Text-Extraktion (DOCX/PDF/OCR) aber im Executor ausfuehren —
+        # sonst blockiert sie den Eventloop und der Browser zeigt "Connection lost".
+        _pairs_snapshot = list(s.get('paired_results', []))
+        loop = asyncio.get_event_loop()
+        text_pairs, file_pairs = await loop.run_in_executor(
+            None, _build_text_pairs_with_paths, _pairs_snapshot)
         if not text_pairs:
             ui.notify('Keine Textpaare gefunden — Dateien korrekt gepaart?', type='warning')
             s['analysis_running'] = False
@@ -3644,5 +3649,6 @@ if __name__ in {'__main__', '__mp_main__'}:
         dark=False,
         favicon='✅',
         native=False,
+        reconnect_timeout=10.0,
         storage_secret='qf-session-secret-2026',
     )
