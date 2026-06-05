@@ -94,7 +94,7 @@ class TestSaveLoad:
 
     def test_load_corrupt_returns_none(self):
         path = os.path.join(self.tmp, 'session.json')
-        with open(path, 'w') as f:
+        with open(path, 'w', encoding='utf-8') as f:
             f.write('{not valid json')
         assert S.load_session_from_path(path) is None
 
@@ -123,9 +123,9 @@ class TestFindLatest:
         b = os.path.join(self.tmp, 'p2', 'session.json')
         os.makedirs(os.path.dirname(a))
         os.makedirs(os.path.dirname(b))
-        with open(a, 'w') as f: json.dump({'x': 1}, f)
+        with open(a, 'w', encoding='utf-8') as f: json.dump({'x': 1}, f)
         time.sleep(0.05)
-        with open(b, 'w') as f: json.dump({'x': 2}, f)
+        with open(b, 'w', encoding='utf-8') as f: json.dump({'x': 2}, f)
         assert S.find_latest_session(self.tmp) == b
 
     def test_no_session_file(self):
@@ -144,21 +144,21 @@ class TestLoadSession:
             shutil.rmtree(d, ignore_errors=True)
 
     def test_prefers_active_project(self):
-        with open(os.path.join(self.tmp, 'session.json'), 'w') as f:
+        with open(os.path.join(self.tmp, 'session.json'), 'w', encoding='utf-8') as f:
             json.dump({'src': 'project'}, f)
-        with open(os.path.join(self.fb, 'session.json'), 'w') as f:
+        with open(os.path.join(self.fb, 'session.json'), 'w', encoding='utf-8') as f:
             json.dump({'src': 'fallback'}, f)
         assert S.load_session(self.tmp, self.fb, self.base)['src'] == 'project'
 
     def test_uses_fallback_when_project_missing(self):
-        with open(os.path.join(self.fb, 'session.json'), 'w') as f:
+        with open(os.path.join(self.fb, 'session.json'), 'w', encoding='utf-8') as f:
             json.dump({'src': 'fallback'}, f)
         assert S.load_session('', self.fb, self.base)['src'] == 'fallback'
 
     def test_uses_latest_when_others_missing(self):
         sub = os.path.join(self.base, 'p1')
         os.makedirs(sub)
-        with open(os.path.join(sub, 'session.json'), 'w') as f:
+        with open(os.path.join(sub, 'session.json'), 'w', encoding='utf-8') as f:
             json.dump({'src': 'discovered'}, f)
         assert S.load_session('', self.fb, self.base)['src'] == 'discovered'
 

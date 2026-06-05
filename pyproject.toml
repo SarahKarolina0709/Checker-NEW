@@ -1,36 +1,9 @@
-[tool.pytest.ini_options]
-minversion = "7.0"
-testpaths = ["tests"]
-python_files = ["test_*.py", "*_test.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-
-# Add markers for different test types
-markers = [
-    "unit: Unit tests for pure Python logic",
-    "gui: GUI smoke tests",
-    "integration: Integration tests",
-    "performance: Performance benchmark tests",
-    "slow: Tests that take more than 10 seconds",
-    "theme: Theme system tests",
-    "workflow: Workflow system tests",
-    "data: Data validation tests",
-    "load: Load and stress tests",
-    "security: Security-related tests",
-]
-
-# Test discovery patterns
-addopts = [
-    "--strict-markers",
-    "--strict-config",
-    "--verbose",
-    "--tb=short",
-    "--cov=.",
-    "--cov-report=term-missing",
-    "--cov-report=html:htmlcov",
-    "--cov-report=xml",
-    "--timeout=30",
-]
+# NOTE: Die aktive pytest-Konfiguration steht in pytest.ini (hat Vorrang vor
+# pyproject.toml). Hier wird bewusst KEIN [tool.pytest.ini_options]-Block
+# gepflegt, um doppelte/abweichende Konfiguration zu vermeiden. Die zuvor hier
+# definierten Optionen (--cov, --timeout, --strict-config) setzten die nicht
+# installierten Plugins pytest-cov/pytest-timeout voraus und hätten pytest beim
+# Aktivieren zum Absturz gebracht.
 
 # Coverage configuration
 [tool.coverage.run]
@@ -44,11 +17,8 @@ omit = [
     "conftest.py",
     "*/__pycache__/*",
     "*/migrations/*",
-    "validate_viewstack_integration.py",
     "test_*.py",
     "*_test.py",
-    "BACKUP_BEFORE_CLEANUP/*",
-    "run_tests.py",
     ".github/*",
 ]
 
@@ -74,77 +44,55 @@ ignore_errors = true
 directory = "htmlcov"
 
 [tool.ruff]
-# Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
-select = ["E", "F", "W", "C90", "I", "N", "UP", "YTT", "S", "BLE", "FBT", "B", "A", "COM", "C4", "DTZ", "T10", "EM", "EXE", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SIM", "TID", "TCH", "ARG", "PTH", "ERA", "PD", "PGH", "PL", "TRY", "NPY", "RUF"]
-
-# Ignore specific rules that are too strict for GUI development
-ignore = [
-    "E501",    # Line too long (handled by black)
-    "F401",    # Unused import (common in __init__.py files)
-    "F841",    # Local variable assigned but never used (common in GUI callbacks)
-    "C901",    # Function too complex (GUI functions can be complex)
-    "PLR0913", # Too many arguments (GUI constructors often have many args)
-    "PLR0912", # Too many branches (GUI event handlers can be complex)
-    "S101",    # Use of assert (common in tests)
-    "T201",    # Print statements (useful for debugging)
-    "BLE001",  # Blind exception catching (sometimes necessary for GUI)
-    "TRY003",  # Long exception messages (detailed messages are good)
-]
-
-# Allow autofix for all enabled rules (when `--fix`) is provided.
-fixable = ["A", "B", "C", "D", "E", "F", "G", "I", "N", "Q", "S", "T", "W", "ANN", "ARG", "BLE", "COM", "DJ", "DTZ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"]
-unfixable = []
-
-# Exclude a variety of commonly ignored directories.
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".git-rewrite",
-    ".hg",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "venv",
-    "htmlcov",
-    ".pytest_cache",
-]
-
-# Same as Black.
+# Globale Ruff-Einstellungen (Format + Linter teilen sich diese)
 line-length = 120
 indent-width = 4
+target-version = "py312"
 
-# Assume Python 3.8+
-target-version = "py38"
+# Ausgeschlossene Verzeichnisse
+exclude = [
+    ".bzr", ".direnv", ".eggs", ".git", ".git-rewrite", ".hg",
+    ".mypy_cache", ".nox", ".pants.d", ".pytype", ".ruff_cache",
+    ".svn", ".tox", ".venv", "__pypackages__", "_build", "buck-out",
+    "build", "dist", "node_modules", "venv", "htmlcov", ".pytest_cache",
+    "_legacy",
+]
 
-[tool.ruff.mccabe]
-# Unlike Flake8, default to a complexity level of 10.
+[tool.ruff.lint]
+# Aktive Regeln: Standard-Linting + Imports + Builtins + Bugbear + Vereinfachung
+# PD (pandas) + NPY (numpy) absichtlich ausgelassen — nicht in dieser App
+# ARG (unused args) ausgelassen — NiceGUI-Callbacks haben oft ungenutzte Parameter
+select = ["E", "F", "W", "C90", "I", "N", "UP", "YTT", "S", "BLE", "B", "A", "C4", "DTZ", "EM", "ISC", "PIE", "T20", "PT", "Q", "RET", "SIM", "TID", "PTH", "PGH", "PL", "TRY", "RUF"]
+
+ignore = [
+    "E501",    # Line too long — ruff format handhabt das
+    "F401",    # Unused import (kommt in __init__.py vor)
+    "F841",    # Lokale Variable unbenutzt (häufig in GUI-Callbacks)
+    "C901",    # Funktion zu komplex (GUI-Funktionen dürfen komplex sein)
+    "PLR0913", # Zu viele Argumente (NiceGUI-Builder-Aufrufe)
+    "PLR0912", # Zu viele Branches (Event-Handler)
+    "S101",    # assert-Verwendung (in Tests normal)
+    "T201",    # Print-Statements (für Debug-Output)
+    "BLE001",  # Breite Exception-Abfangung (manchmal in GUI nötig)
+    "TRY003",  # Lange Exception-Meldungen (ausführliche Meldungen sind gut)
+    "EM101",   # Exception-Meldung als String-Literal
+    "EM102",   # Exception-Meldung als f-String
+]
+
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.mccabe]
 max-complexity = 15
 
-[tool.ruff.per-file-ignores]
-# Tests can use magic values, assertions, and have complex setups
-"tests/*" = ["PLR2004", "S101", "PLR0913", "PLR0912", "C901"]
-# __init__.py files can have unused imports
-"__init__.py" = ["F401"]
-# GUI files can have long functions and many arguments
-"*_gui.py" = ["PLR0913", "PLR0912", "C901"]
-"*_screen.py" = ["PLR0913", "PLR0912", "C901"]
-"checker_app.py" = ["PLR0913", "PLR0912", "C901"]
+[tool.ruff.lint.per-file-ignores]
+"tests/*"             = ["PLR2004", "S101", "PLR0913", "PLR0912", "C901"]
+"__init__.py"         = ["F401"]
+"*_gui.py"            = ["PLR0913", "PLR0912", "C901"]
+"nicegui_app/main.py" = ["PLR0913", "PLR0912", "C901", "PLR0915"]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false  # GUI code often has complex types
@@ -158,37 +106,32 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 
-# Ignore missing imports for GUI libraries
+# Ignore missing stubs for third-party libraries used by this project
 [[tool.mypy.overrides]]
 module = [
-    "customtkinter",
-    "customtkinter.*",
-    "tkinter",
-    "tkinter.*",
-    "PIL",
-    "PIL.*",
+    "nicegui",
+    "nicegui.*",
+    "pdfplumber",
+    "pdfplumber.*",
+    "fitz",           # PyMuPDF
     "pytesseract",
     "pdf2image",
-    "tkinterdnd2",
-    "tkinterdnd2.*",
+    "pdf2image.*",
+    "PIL",
+    "PIL.*",
+    "language_tool_python",
+    "language_tool_python.*",
+    "openpyxl",
+    "openpyxl.*",
+    "fpdf",
+    "fpdf.*",
+    "thefuzz",
+    "thefuzz.*",
 ]
 ignore_missing_imports = true
 
-[tool.black]
-line-length = 120
-target-version = ['py38', 'py39', 'py310', 'py311']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-  | htmlcov
-)/
-'''
+[tool.ruff.format]
+# ruff format ersetzt black vollständig
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

@@ -267,3 +267,65 @@ class TestArchive:
 
     def test_archive_no_base(self):
         assert C.archive_customer('', 'Kunde') is False
+
+
+# ---------------------------------------------------------------------------
+# normalize_search + filter_customers
+# ---------------------------------------------------------------------------
+class TestNormalizeSearch:
+    def test_lowercase_trim(self):
+        assert C.normalize_search('  Acme GmbH  ') == 'acme gmbh'
+
+    def test_umlauts(self):
+        assert C.normalize_search('Müller') == 'mueller'
+        assert C.normalize_search('Öko Größe') == 'oeko groesse'
+
+    def test_underscore_to_space(self):
+        assert C.normalize_search('Finnland_GmbH') == 'finnland gmbh'
+
+    def test_collapse_whitespace(self):
+        assert C.normalize_search('a   b') == 'a b'
+
+    def test_empty(self):
+        assert C.normalize_search('') == ''
+        assert C.normalize_search(None) == ''
+
+
+class TestFilterCustomers:
+    def test_empty_query_returns_all_cleaned(self):
+        names = ['Acme', 'Bravo_GmbH']
+        assert C.filter_customers(names, '') == ['Acme', 'Bravo_GmbH']
+
+    def test_skips_internal_folders(self):
+        names = ['Acme', '_intern', '.hidden', '12345', 'Bravo']
+        assert C.filter_customers(names, '') == ['Acme', 'Bravo']
+
+    def test_substring_match(self):
+        names = ['Alpha', 'Beta', 'Gamma']
+        assert C.filter_customers(names, 'amm') == ['Gamma']
+
+    def test_umlaut_tolerant(self):
+        names = ['Müller', 'Meier']
+        assert C.filter_customers(names, 'mueller') == ['Müller']
+        assert C.filter_customers(names, 'müller') == ['Müller']
+
+    def test_underscore_vs_space(self):
+        # Ordnername hat _, User sucht mit Leerzeichen (Anzeigename)
+        names = ['Finnland_GmbH']
+        assert C.filter_customers(names, 'Finnland GmbH') == ['Finnland_GmbH']
+        assert C.filter_customers(names, 'finnland gmbh') == ['Finnland_GmbH']
+
+    def test_startswith_priority(self):
+        names = ['XAlpha', 'AlphaCorp']
+        # 'alpha' kommt in beiden vor; AlphaCorp startet damit -> zuerst
+        assert C.filter_customers(names, 'alpha') == ['AlphaCorp', 'XAlpha']
+
+    def test_limit(self):
+        names = [f'Kunde{i}' for i in range(20)]
+        assert len(C.filter_customers(names, '', limit=15)) == 15
+
+    def test_no_match_returns_empty(self):
+        assert C.filter_customers(['Acme'], 'zzz') == []
+
+    def test_ignores_empty_names(self):
+        assert C.filter_customers(['', 'Acme', None], '') == ['Acme']

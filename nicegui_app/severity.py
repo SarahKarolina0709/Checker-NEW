@@ -72,6 +72,42 @@ def is_hint_only(finding: Any) -> bool:
     return bool(meta.get('hint_only'))
 
 
+# Aliases für ui_findings.py (legacy-Kompatibilität)
+severity_label = label
+severity_color = color
+
+_PHASE_CODE_PREFIXES: dict[str, tuple[str, ...]] = {
+    'Phase 1': (
+        'URL_', 'EMAIL_', 'WS_', 'ZERO_WIDTH', 'BRACKET_', 'QUOTE_',
+        'BOUNDARY_', 'SOFT_HYPHEN_', 'CONTROL_',
+    ),
+    'Phase 2': (
+        'NUMBER_', 'NUM_', 'UNIT_', 'HTML_', 'PRONOUN_', 'DUPLICATE_',
+        'S_CASE_', 'PUNCT_', 'SECURITY_', 'TERM_', 'TERMINOLOGY_',
+        'COMPANY_', 'GLOSSARY_', 'NAME_',
+    ),
+    'Phase 3': (
+        'STYLE_', 'RISK_', 'READABILITY_', 'READ_', 'SEMANTIC_',
+        'GRAMMAR_', 'PASSIVE_',
+    ),
+    'Phase 4': (
+        'KI_', 'OLLAMA_', 'CONSISTENCY_',
+    ),
+}
+
+
+def phase_from_code(code: str) -> str:
+    """Bestimmt den Phase-Label anhand des Finding-Codes."""
+    if not code:
+        return ''
+    if code.startswith('P') and len(code) > 1 and code[1].isdigit():
+        return f'Phase {code[1]}'
+    for phase_label, prefixes in _PHASE_CODE_PREFIXES.items():
+        if any(code.startswith(p) for p in prefixes):
+            return phase_label
+    return ''
+
+
 def compute_score(issues: Iterable[Any]) -> int:
     """Berechnet einen Score 0..100 aus einer Liste Findings.
 

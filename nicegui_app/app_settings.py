@@ -16,6 +16,7 @@ def load_settings() -> Dict[str, Any]:
     defaults: Dict[str, Any] = {
         'project_path': '',
         'projects_base_path': str(Path(__file__).parent.parent / 'Checker_Projekte'),
+        'glossaries_path': str(Path(__file__).parent.parent / 'glossaries'),
         'src_lang': 'Auto-Erkennung',
         'tgt_lang': 'Auto-Erkennung',
         'depth': 'Mittel',
@@ -28,6 +29,7 @@ def load_settings() -> Dict[str, Any]:
                 cfg = json.load(f)
             for src_key, dst_key in [
                 ('projects_base_path', 'projects_base_path'),
+                ('glossaries_path', 'glossaries_path'),
                 ('default_src_lang', 'src_lang'),
                 ('default_tgt_lang', 'tgt_lang'),
                 ('depth', 'depth'),
@@ -39,6 +41,25 @@ def load_settings() -> Dict[str, Any]:
     except Exception:
         pass
     return defaults
+
+
+def save_settings(cfg_path: Path, s: Dict[str, Any]) -> None:
+    """Speichert alle relevanten Settings persistent in checker_config.json."""
+    try:
+        existing: Dict[str, Any] = {}
+        if cfg_path.exists():
+            with open(cfg_path, 'r', encoding='utf-8') as f:
+                existing = json.load(f)
+        existing['projects_base_path'] = s.get('projects_base_path', '')
+        existing['glossaries_path'] = s.get('glossaries_path', '')
+        existing['default_src_lang'] = s.get('src_lang', 'Auto-Erkennung')
+        existing['default_tgt_lang'] = s.get('tgt_lang', 'Auto-Erkennung')
+        existing['depth'] = s.get('depth', 'Mittel')
+        existing['chars_per_norm_line'] = int(s.get('chars_per_norm_line', 36))
+        with open(cfg_path, 'w', encoding='utf-8') as f:
+            json.dump(existing, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
 
 
 settings: Dict[str, Any] = load_settings()

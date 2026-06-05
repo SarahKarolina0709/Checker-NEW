@@ -119,7 +119,8 @@ class TestExcel:
         wb = openpyxl.load_workbook(path)
         rows = list(wb.active.iter_rows(values_only=True))
         assert rows[1][4] == 'hithere'  # message
-        assert rows[1][5] == 'ab'       # source
+        assert rows[1][5] == -1         # segment_index (default)
+        assert rows[1][6] == 'ab'       # source
 
 
 # ---------------------------------------------------------------------------
@@ -164,8 +165,8 @@ class TestZipPackage:
         self.tgt1 = os.path.join(self.tmp, 'tgt', 'a.txt')
         os.makedirs(os.path.dirname(self.src1))
         os.makedirs(os.path.dirname(self.tgt1))
-        open(self.src1, 'w').write('S')
-        open(self.tgt1, 'w').write('T')
+        open(self.src1, 'w', encoding='utf-8').write('S')
+        open(self.tgt1, 'w', encoding='utf-8').write('T')
 
     def teardown_method(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -186,7 +187,7 @@ class TestZipPackage:
         # Zweite source-Datei mit gleichem Basename in anderem Ordner
         other = os.path.join(self.tmp, 'src2', 'a.txt')
         os.makedirs(os.path.dirname(other))
-        open(other, 'w').write('S2')
+        open(other, 'w', encoding='utf-8').write('S2')
         out = E.export_correction_package(
             _findings(), 70, [self.src1, other], [], self.tmp,
         )

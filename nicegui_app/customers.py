@@ -78,6 +78,57 @@ def display_name(folder_name: str) -> str:
     return (folder_name or '').replace('_', ' ')
 
 
+# Umlaut-Normalisierung fuer tolerante Suche (ä=ae, ö=oe, ü=ue, ß=ss)
+_UMLAUT_MAP = {'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss'}
+_WS_RE = re.compile(r'\s+')
+
+
+def normalize_search(text: str) -> str:
+    """Normalisiert einen String fuer den Kunden-Suchvergleich.
+
+    - Kleinbuchstaben, getrimmt
+    - Umlaute aufgeloest (ä->ae, ö->oe, ü->ue, ß->ss)
+    - Unterstrich = Leerzeichen (Ordnername 'Finnland_GmbH' vs.
+      Anzeigename 'Finnland GmbH')
+    - Mehrfach-Whitespace zusammengefasst
+    """
+    t = (text or '').lower().strip()
+    for k, v in _UMLAUT_MAP.items():
+        t = t.replace(k, v)
+    t = t.replace('_', ' ')
+    return _WS_RE.sub(' ', t)
+
+
+def filter_customers(names: List[str], query: str = '',
+                     limit: int | None = None) -> List[str]:
+    """Filtert eine Kundenliste nach einem Suchbegriff.
+
+    - Ueberspringt interne Ordner (rein numerisch oder '_'/'.'-Prefix).
+    - Umlaut- und Unterstrich/Leerzeichen-tolerant (siehe normalize_search).
+    - Bei aktiver Suche: startswith-Treffer zuerst, dann enthaltene Treffer;
+      jeweils alphabetisch stabil (Input-Reihenfolge bleibt erhalten).
+    - `limit` begrenzt optional die Anzahl der Ergebnisse.
+    """
+    cleaned = [n for n in names
+               if n and not n.isdigit() and not n.startswith(('_', '.'))]
+    q = normalize_search(query)
+    if not q:
+        result = cleaned
+    else:
+        starts: List[str] = []
+        contains: List[str] = []
+        for n in cleaned:
+            nn = normalize_search(n)
+            if nn.startswith(q):
+                starts.append(n)
+            elif q in nn:
+                contains.append(n)
+        result = starts + contains
+    if limit is not None:
+        result = result[:limit]
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Pfad-Resolution (alte/neue Struktur)
 # ---------------------------------------------------------------------------

@@ -45,6 +45,16 @@ class TestExtractLang:
         # 'envelope' enthaelt 'en' aber nicht als Sprach-Code-Token
         assert _extract_lang_from_name('envelope.txt') is None
 
+    def test_prefix_uppercase(self):
+        # Bug-Fix: DE_vertrag.docx → 'de'
+        assert _extract_lang_from_name('DE_vertrag.docx') == 'de'
+
+    def test_prefix_lowercase(self):
+        assert _extract_lang_from_name('en_contract.docx') == 'en'
+
+    def test_prefix_dash(self):
+        assert _extract_lang_from_name('fr-rapport.pdf') == 'fr'
+
 
 # ---------------------------------------------------------------------------
 # Normalisierung — Bug 55 Regression (suffix-removal frisst Wort-interne Vorkommen)
@@ -55,6 +65,10 @@ class TestNormalize:
 
     def test_strips_lang_code(self):
         assert self.ps._normalize('vertrag_de.docx') == 'vertrag'
+
+    def test_strips_lang_code_prefix(self):
+        # Bug-Fix: DE_vertrag.docx → 'vertrag'
+        assert self.ps._normalize('DE_vertrag.docx') == 'vertrag'
 
     def test_strips_known_suffix(self):
         assert self.ps._normalize('doc_translation.docx') == 'doc'
@@ -129,6 +143,17 @@ class TestPair:
             ['/tgt/vertrag_en.docx'],
         )
         assert len(pairs) == 1
+        assert pairs[0].source_lang == 'de'
+        assert pairs[0].translation_lang == 'en'
+
+    def test_lang_prefix_pair(self):
+        # Bug-Fix: DE_vertrag.docx + EN_vertrag.docx müssen korrekt gepaart werden
+        pairs, us, ut = self.ps.pair(
+            ['/src/DE_vertrag.docx'],
+            ['/tgt/EN_vertrag.docx'],
+        )
+        assert len(pairs) == 1
+        assert us == [] and ut == []
         assert pairs[0].source_lang == 'de'
         assert pairs[0].translation_lang == 'en'
 

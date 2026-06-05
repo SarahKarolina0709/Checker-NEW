@@ -6,13 +6,19 @@ page_kunden.py via `ui.add_head_html(APP_CSS)` eingebunden.
 """
 
 APP_CSS = '''<style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&display=swap');
 
 :root{
   --primary:#0a1628;--primary-light:#1a365d;--accent:#d4af37;
   --success:#16a34a;--warning:#d97706;--error:#dc2626;
   --surface:#ffffff;--surface-alt:#f8fafc;--surface-border:#e2e8f0;
+  --surface-border-light:#f1f5f9;--surface-border-strong:#d1d5db;
+  /* Semantic tint borders */
+  --border-warning:#fed7aa;--border-success:#bbf7d0;--border-info:#93c5fd;
   --text:#0f172a;--text-muted:#64748b;--text-light:#94a3b8;
+  /* Semantic text colors for colored backgrounds */
+  --text-body:#334155;
+  --success-text:#064e3b;--warning-text:#92400e;--error-text:#7f1d1d;
   --radius-sm:6px;--radius-md:10px;--radius-lg:14px;--radius-pill:50px;
   /* Typography scale (7 Stufen) */
   --fs-xs:11px;--fs-sm:12px;--fs-md:13px;--fs-lg:14px;
@@ -26,8 +32,24 @@ APP_CSS = '''<style>
   --bg-success-soft:#ecfdf5;--bg-success-tint:#f0fdf4;
   --bg-error-soft:#fecaca;--bg-error-tint:#fef2f2;
 }
-body{font-family:'DM Sans','Segoe UI',system-ui,sans-serif!important;
-    font-size:var(--fs-md)!important;line-height:var(--lh-normal);
+html,body{overflow-x:hidden!important}
+
+/* ── Einheitliche Schriftart überall (DM Sans überschreibt Quasar Roboto) ── */
+*,*::before,*::after{
+  font-family:'DM Sans','Segoe UI',system-ui,-apple-system,sans-serif!important;
+}
+/* Material Icons / icon-Elemente MÜSSEN ihre eigene Schrift behalten */
+.material-icons,.material-icons-outlined,.material-icons-round,
+.material-symbols-outlined,.material-symbols-rounded,
+.q-icon,i.q-icon,[class*="notranslate"]{
+  font-family:'Material Icons','Material Icons Outlined','Material Symbols Outlined',
+              'Material Symbols Rounded'!important;
+}
+/* Ausnahmen: Monospace-Elemente behalten ihre Schriftart */
+code,pre,kbd,samp,.monospace{
+  font-family:'Courier New',Courier,monospace!important;
+}
+body{font-size:var(--fs-md)!important;line-height:var(--lh-normal);
     color:var(--text);background:var(--surface-alt);
     -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
     text-rendering:optimizeLegibility}
@@ -36,19 +58,19 @@ body{font-family:'DM Sans','Segoe UI',system-ui,sans-serif!important;
     font-feature-settings:"tnum"!important}
 
 /* Typography — clear hierarchy */
-.t-caption{font-size:12px!important;color:var(--text-muted)}
-.t-body{font-size:13px!important}
-.t-label{font-size:13px!important;font-weight:600!important}
-.t-heading{font-size:14px!important;font-weight:700!important}
-.t-title{font-size:18px!important;font-weight:700!important}
-.section-label{font-size:12px!important;font-weight:700!important;
+.t-caption{font-size:var(--fs-sm)!important;color:var(--text-muted)}
+.t-body{font-size:var(--fs-md)!important}
+.t-label{font-size:var(--fs-md)!important;font-weight:600!important}
+.t-heading{font-size:var(--fs-lg)!important;font-weight:700!important}
+.t-title{font-size:var(--fs-2xl)!important;font-weight:700!important}
+.section-label{font-size:var(--fs-sm)!important;font-weight:700!important;
     text-transform:uppercase;letter-spacing:1.5px;color:var(--text-light)}
 
 /* Quasar component overrides */
-.q-checkbox__label{font-size:13px!important}
-.q-select .q-field__native,.q-input .q-field__native{font-size:13px!important}
-.q-field__label{font-size:12px!important}
-.q-expansion-item__toggle,.q-item__label{font-size:13px!important}
+.q-checkbox__label{font-size:var(--fs-md)!important}
+.q-select .q-field__native,.q-input .q-field__native{font-size:var(--fs-md)!important}
+.q-field__label{font-size:var(--fs-sm)!important}
+.q-expansion-item__toggle,.q-item__label{font-size:var(--fs-md)!important}
 
 /* Cards — elevated with subtle shadow */
 .q-card{border-radius:var(--radius-md)!important;
@@ -64,17 +86,48 @@ body{font-family:'DM Sans','Segoe UI',system-ui,sans-serif!important;
 .q-btn:active{transform:translateY(0)!important}
 .q-badge{border-radius:var(--radius-pill)!important}
 
-/* Score ring */
-.score-ring{background:conic-gradient(var(--sc,var(--accent)) var(--pct,0%),
-    rgba(0,0,0,.06) var(--pct,0%));border-radius:50%;padding:4px}
+/* Klickbare Kundenkarten — deutlicher Hover + Chevron-Verschiebung */
+.cust-card{transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease,background .15s ease}
+.cust-card:hover{transform:translateX(2px);
+    border-color:var(--border-info)!important;
+    background:var(--bg-info-tint)!important;
+    box-shadow:0 3px 10px rgba(15,39,68,.08)!important}
+.cust-card .cust-chevron{opacity:.35;transition:opacity .15s ease,transform .15s ease}
+.cust-card:hover .cust-chevron{opacity:.9;transform:translateX(2px)}
+
+/* Finding-Cards — dezenter Hover-Lift (nicht im Split-Modus) */
+.finding-card{transition:box-shadow .15s ease,transform .15s ease}
+.finding-card:hover{box-shadow:0 4px 14px rgba(15,39,68,.10)!important;transform:translateY(-1px)}
+
+/* Aktivitätsliste-Zeilen */
+.act-row:hover{background:var(--bg-info-soft)!important}
+
+/* Summary-Stat-Pills — klickbar als Severity-Filter */
+.stat-pill{transition:transform .15s ease,box-shadow .15s ease,background .15s ease;
+    border-radius:var(--radius-md);cursor:pointer}
+.stat-pill:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(15,39,68,.10)}
+.stat-pill.stat-active{box-shadow:0 0 0 2px currentColor inset}
+
+/* Score ring — @property enables smooth CSS custom property transitions */
+@property --pct { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+@property --sc { syntax: '<color>'; inherits: false; initial-value: #e2e8f0; }
+.score-ring{background:conic-gradient(var(--sc) var(--pct),
+    rgba(0,0,0,.06) var(--pct));border-radius:50%;padding:4px;
+    transition:--pct 700ms cubic-bezier(.4,0,.2,1),--sc 700ms ease}
 .score-inner{background:var(--surface);border-radius:50%;display:flex;
     align-items:center;justify-content:center;width:100%;height:100%}
 
 /* Upload zones: hidden chrome */
 .q-uploader{border-radius:var(--radius-sm)!important;overflow:hidden;
-    box-shadow:none!important;border:none!important}
+    box-shadow:none!important;border:none!important;background:transparent!important}
 .q-uploader__subtitle,.q-uploader__list,.q-uploader__file{display:none!important}
 .q-uploader__list:empty{display:none!important}
+/* Transparent header so the dashed wrapper is the visual drop zone */
+.q-uploader__header{background:transparent!important;padding:6px 8px!important;
+    min-height:unset!important}
+.q-uploader__header-content{padding:0!important;min-height:unset!important;gap:4px}
+.q-uploader__title{font-size:var(--fs-sm)!important;line-height:1.3!important;
+    white-space:normal!important;font-weight:600!important;color:var(--text-body)!important}
 
 /* Scrollbar — thin & subtle */
 ::-webkit-scrollbar{width:5px}
@@ -92,8 +145,11 @@ body{font-family:'DM Sans','Segoe UI',system-ui,sans-serif!important;
 
 /* Dark mode */
 body.body--dark{--surface:#0f172a;--surface-alt:#1e293b;--surface-border:#334155;
+    --surface-border-light:#1e293b;--surface-border-strong:#475569;
+    --border-warning:#78350f;--border-success:#14532d;--border-info:#1e3a5f;
     --text:#e2e8f0;--text-muted:#94a3b8;--text-light:#64748b;
     --primary:#0a1628;--accent:#d4af37;
+    --text-body:#cbd5e1;--success-text:#6ee7b7;--warning-text:#fbbf24;--error-text:#fca5a5;
     --bg-primary:#0a1628;--bg-muted:#1e293b;
     --bg-info-soft:#0c1a2e;--bg-info-tint:#0c1827;
     --bg-warning-soft:#2d2006;--bg-warning-tint:#1f1505;
@@ -101,28 +157,14 @@ body.body--dark{--surface:#0f172a;--surface-alt:#1e293b;--surface-border:#334155
     --bg-error-soft:#3b0a0a;--bg-error-tint:#260606}
 body.body--dark .score-inner{background:var(--surface)}
 body.body--dark .q-card{border-color:var(--surface-border)!important;background:var(--surface-alt)!important}
-body.body--dark [style*="background:white"],
-body.body--dark [style*="background:#fff"],
-body.body--dark [style*="background:#ffffff"]{background:var(--surface-alt)!important}
 body.body--dark [style*="background:#f8fafc"]{background:#1e293b!important}
 body.body--dark [style*="border-bottom:1px solid #f1f5f9"],
 body.body--dark [style*="border:1px solid #e2e8f0"]{border-color:var(--surface-border)!important}
-/* Finding-Karten im Dark Mode */
+/* Finding-Karten */
 body.body--dark [style*="border-top:1px solid #e5e7eb"],
 body.body--dark [style*="border-right:1px solid #e5e7eb"],
-body.body--dark [style*="border-bottom:1px solid #e5e7eb"]{border-color:#334155!important}
-body.body--dark [style*="color:#334155"]{color:#cbd5e1!important}
-body.body--dark [style*="color:#064e3b"]{color:#6ee7b7!important}
-body.body--dark [style*="background:linear-gradient(135deg,#0f2744"]{background:#0a1628!important}
-/* Severity-Gruppenheader */
-body.body--dark [style*="background:#1e293b"]{background:#1e293b!important}
-/* Finding-Karten im Dark Mode */
-body.body--dark [style*="border-top:1px solid #e5e7eb"],
-body.body--dark [style*="border-right:1px solid #e5e7eb"],
-body.body--dark [style*="border-bottom:1px solid #e5e7eb"]{border-color:#334155!important}
+body.body--dark [style*="border-bottom:1px solid #e5e7eb"]{border-color:var(--surface-border)!important}
 body.body--dark [style*="background:#fef3c7"]{background:#2d2006!important}
-body.body--dark [style*="color:#334155"]{color:#cbd5e1!important}
-body.body--dark [style*="color:#064e3b"]{color:#6ee7b7!important}
 body.body--dark [style*="background:#ecfdf5"]{background:#052e16!important}
 body.body--dark [style*="background:#eff6ff"]{background:#0c1a2e!important}
 body.body--dark [style*="background:#f0f9ff"]{background:#0c1827!important}

@@ -6,16 +6,15 @@ Closures aus index_page() werden via `ctx` (SimpleNamespace) uebergeben.
 from __future__ import annotations
 
 import json
-import logging
 import os
 from pathlib import Path
 from types import SimpleNamespace
 
 from nicegui import ui
 
-from nicegui_app.app_settings import settings
+from nicegui_app.app_settings import settings, save_settings as _save_settings_to_file
 
-_logger = logging.getLogger(__name__)
+
 
 LANGUAGES = ['Auto-Erkennung', 'Deutsch', 'Englisch', 'Franz\u00f6sisch', 'Spanisch',
              'Italienisch', 'Niederl\u00e4ndisch', 'Polnisch', 'Tschechisch', 'Russisch',
@@ -23,77 +22,82 @@ LANGUAGES = ['Auto-Erkennung', 'Deutsch', 'Englisch', 'Franz\u00f6sisch', 'Spani
 
 
 def open_settings_dialog() -> None:
-    """\u00d6ffnet den Einstellungen-Dialog (Projektpfad, Sprachen, Pr\u00fcftiefe, Normzeile)."""
-    with ui.dialog() as dlg, ui.card().style('width:500px;'):
+    """Öffnet den Einstellungen-Dialog (Projektpfad, Glossarpfad, Sprachen, Prüftiefe, Normzeile)."""
+    with ui.dialog() as dlg, ui.card().style('width:520px;'):
         ui.label('Einstellungen').classes('t-title')
         with ui.column().classes('w-full gap-4'):
-            ui.label('Projektordner').style('font-size:13px;font-weight:600;color:var(--text);')
-            with ui.row().classes('w-full items-end gap-2'):
-                base_input = ui.input('Pfad zum Projektordner',
-                    value=settings.get('projects_base_path', '')).classes('flex-grow').props('outlined dense')
 
-                def _browse_folder():
-                    with ui.dialog() as bdlg, ui.card().style('width:500px;max-height:400px;'):
-                        ui.label('Ordner w\u00e4hlen').style('font-size:14px;font-weight:700;')
-                        current = {'path': base_input.value or str(Path.home())}
-                        path_label = ui.label(current['path']).style(
-                            'font-size:12px;color:var(--text-muted);word-break:break-all;')
-                        folder_list = ui.column().classes('w-full gap-0').style(
-                            'max-height:250px;overflow-y:auto;')
+            def _make_path_row(label_text: str, current_val: str) -> 'ui.input':
+                ui.label(label_text).style('font-size:13px;font-weight:600;color:var(--text);')
+                with ui.row().classes('w-full items-end gap-2'):
+                    inp = ui.input('Pfad', value=current_val).classes('flex-grow').props('outlined dense')
 
-                        def _render_folders():
-                            folder_list.clear()
-                            p = current['path']
-                            with folder_list:
-                                parent = str(Path(p).parent)
-                                if parent != p:
-                                    with ui.row().classes('w-full items-center cursor-pointer gap-2').style(
-                                        'padding:6px 8px;border-radius:4px;'
-                                    ).on('click', lambda: _nav(parent)):
-                                        ui.icon('arrow_upward', size='xs').style('color:var(--text-muted);')
-                                        ui.label('..').style('font-size:12px;color:var(--text-muted);')
-                                try:
-                                    dirs = sorted([d for d in os.listdir(p)
-                                        if os.path.isdir(os.path.join(p, d)) and not d.startswith('.')])
-                                    for d in dirs[:30]:
+                    def _browse(target_inp=inp):
+                        with ui.dialog() as bdlg, ui.card().style('width:500px;max-height:400px;'):
+                            ui.label('Ordner wählen').style('font-size:14px;font-weight:700;')
+                            current = {'path': target_inp.value or str(Path.home())}
+                            path_label = ui.label(current['path']).style(
+                                'font-size:12px;color:var(--text-muted);word-break:break-all;')
+                            folder_list = ui.column().classes('w-full gap-0').style(
+                                'max-height:250px;overflow-y:auto;')
+
+                            def _render_folders():
+                                folder_list.clear()
+                                p = current['path']
+                                with folder_list:
+                                    parent = str(Path(p).parent)
+                                    if parent != p:
                                         with ui.row().classes('w-full items-center cursor-pointer gap-2').style(
                                             'padding:6px 8px;border-radius:4px;'
-                                        ).on('click', lambda _, dd=d: _nav(os.path.join(current['path'], dd))):
-                                            ui.icon('folder', size='xs').style('color:var(--accent);')
-                                            ui.label(d).style('font-size:12px;color:var(--text);')
-                                except PermissionError:
-                                    ui.label('Zugriff verweigert').style('font-size:12px;color:#ef4444;')
+                                        ).on('click', lambda: _nav(parent)):
+                                            ui.icon('arrow_upward', size='xs').style('color:var(--text-muted);')
+                                            ui.label('..').style('font-size:12px;color:var(--text-muted);')
+                                    try:
+                                        dirs = sorted([d for d in os.listdir(p)
+                                            if os.path.isdir(os.path.join(p, d)) and not d.startswith('.')])
+                                        for d in dirs[:30]:
+                                            with ui.row().classes('w-full items-center cursor-pointer gap-2').style(
+                                                'padding:6px 8px;border-radius:4px;'
+                                            ).on('click', lambda _, dd=d: _nav(os.path.join(current['path'], dd))):
+                                                ui.icon('folder', size='xs').style('color:var(--accent);')
+                                                ui.label(d).style('font-size:12px;color:var(--text);')
+                                    except PermissionError:
+                                        ui.label('Zugriff verweigert').style('font-size:12px;color:var(--error);')
 
-                        def _nav(new_path):
-                            current['path'] = new_path
-                            path_label.set_text(new_path)
+                            def _nav(new_path):
+                                current['path'] = new_path
+                                path_label.set_text(new_path)
+                                _render_folders()
+
                             _render_folders()
+                            with ui.row().classes('w-full justify-end gap-2').style('margin-top:8px;'):
+                                ui.button('Abbrechen', on_click=bdlg.close).props('flat no-caps')
+                                def _select(ti=target_inp):
+                                    ti.value = current['path']
+                                    bdlg.close()
+                                ui.button('Auswählen', on_click=_select).props('no-caps unelevated').style(
+                                    'background:var(--bg-primary);color:white;')
+                        bdlg.open()
 
-                        _render_folders()
-                        with ui.row().classes('w-full justify-end gap-2').style('margin-top:8px;'):
-                            ui.button('Abbrechen', on_click=bdlg.close).props('flat no-caps')
+                    ui.button(icon='folder_open', on_click=_browse).props('flat dense round color=primary')
+                ui.label(f'Aktuell: {current_val or "nicht gesetzt"}').style(
+                    'font-size:12px;color:var(--text-light);word-break:break-all;margin-top:-4px;')
+                return inp
 
-                            def _select():
-                                base_input.value = current['path']
-                                bdlg.close()
-                            ui.button('Ausw\u00e4hlen', on_click=_select).props('no-caps unelevated').style(
-                                'background:var(--bg-primary);color:white;')
-                    bdlg.open()
-                ui.button(icon='folder_open', on_click=_browse_folder).props(
-                    'flat dense round color=primary')
-            ui.label(f'Aktuell: {settings.get("projects_base_path", "nicht gesetzt")}').style(
-                'font-size:12px;color:var(--text-light);word-break:break-all;margin-top:-4px;')
+            base_input = _make_path_row('Projektordner', settings.get('projects_base_path', ''))
+            ui.separator()
+            glossary_input = _make_path_row('Glossar-Ordner', settings.get('glossaries_path', ''))
             ui.separator()
             lang_src = ui.select(LANGUAGES, value=settings.get('src_lang', 'Auto-Erkennung'),
                 label='Standard-Quellsprache').classes('w-full')
             lang_tgt = ui.select(LANGUAGES, value=settings.get('tgt_lang', 'Auto-Erkennung'),
                 label='Standard-Zielsprache').classes('w-full')
             depth_sel = ui.select(['Schnell', 'Mittel', 'Umfangreich'],
-                value=settings.get('depth', 'Mittel'), label='Pr\u00fcftiefe').classes('w-full')
+                value=settings.get('depth', 'Mittel'), label='Prüftiefe').classes('w-full')
             ui.separator()
             ui.label('Normzeilen-Berechnung').style('font-size:13px;font-weight:600;color:var(--text);')
             with ui.row().classes('w-full items-center gap-2'):
-                norm_input = ui.number(label='Anschl\u00e4ge pro Normzeile',
+                norm_input = ui.number(label='Anschläge pro Normzeile',
                     value=settings.get('chars_per_norm_line', 36),
                     min=30, max=100, step=1).classes('w-40').props('dense outlined')
                 ui.label('(Standard: 36)').style('font-size:12px;color:var(--text-light);')
@@ -103,25 +107,13 @@ def open_settings_dialog() -> None:
                 def _save():
                     settings['project_path'] = base_input.value
                     settings['projects_base_path'] = base_input.value
+                    settings['glossaries_path'] = glossary_input.value
                     settings['src_lang'] = lang_src.value
                     settings['tgt_lang'] = lang_tgt.value
                     settings['depth'] = depth_sel.value
                     settings['chars_per_norm_line'] = int(norm_input.value or 36)
-                    try:
-                        cfg_path = Path(__file__).parent.parent / 'checker_config.json'
-                        cfg = {}
-                        if cfg_path.exists():
-                            with open(cfg_path, 'r', encoding='utf-8') as f:
-                                cfg = json.load(f)
-                        cfg['projects_base_path'] = settings['projects_base_path']
-                        cfg['default_src_lang'] = settings['src_lang']
-                        cfg['default_tgt_lang'] = settings['tgt_lang']
-                        cfg['depth'] = settings['depth']
-                        cfg['chars_per_norm_line'] = settings['chars_per_norm_line']
-                        with open(cfg_path, 'w', encoding='utf-8') as f:
-                            json.dump(cfg, f, ensure_ascii=False, indent=2)
-                    except Exception as e:
-                        _logger.warning('Settings Persist Fehler: %s', e)
+                    _save_settings_to_file(
+                        Path(__file__).parent.parent / 'checker_config.json', settings)
                     ui.notify('Einstellungen gespeichert', type='positive')
                     dlg.close()
                 ui.button('Speichern', on_click=_save).props('no-caps unelevated').style(
@@ -156,7 +148,7 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
                         'font-size:12px;font-weight:600;color:var(--success);margin-bottom:4px;')
                 for i, p in enumerate(pairs):
                     with ui.element('div').style(
-                        'width:100%;padding:10px 14px;background:var(--bg-success-tint);border:1px solid #bbf7d0;'
+                        'width:100%;padding:10px 14px;background:var(--bg-success-tint);border:1px solid var(--border-success);'
                         'border-radius:8px;display:flex;align-items:center;gap:12px;'
                     ):
                         ui.icon('check_circle', size='sm').style('color:var(--success);flex-shrink:0;')
@@ -179,14 +171,14 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
                             'flat dense round').style('color:var(--text-light);')
 
                 if unmatched_src or unmatched_tgt:
-                    ui.element('div').style('width:100%;height:1px;background:#e2e8f0;margin:8px 0;')
+                    ui.element('div').style('width:100%;height:1px;background:var(--surface-border);margin:8px 0;')
 
                 if unmatched_src:
                     ui.label('Ohne Partner (Ausgangstexte)').style(
-                        'font-size:12px;font-weight:600;color:#ea580c;')
+                        'font-size:12px;font-weight:600;color:var(--warning);')
                 for j, fp in enumerate(unmatched_src):
                     with ui.element('div').style(
-                        'width:100%;padding:10px 14px;background:var(--bg-warning-tint);border:1px solid #fed7aa;'
+                        'width:100%;padding:10px 14px;background:var(--bg-warning-tint);border:1px solid var(--border-warning);'
                         'border-radius:8px;display:flex;align-items:center;gap:12px;'
                     ):
                         ui.icon('description', size='sm').style('color:var(--primary);flex-shrink:0;')
@@ -218,10 +210,10 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
 
                 if unmatched_tgt:
                     ui.label('Ohne Partner (\u00dcbersetzungen)').style(
-                        'font-size:12px;font-weight:600;color:#ea580c;margin-top:8px;')
+                        'font-size:12px;font-weight:600;color:var(--warning);margin-top:8px;')
                 for fp in unmatched_tgt:
                     with ui.element('div').style(
-                        'width:100%;padding:10px 14px;background:var(--bg-warning-tint);border:1px solid #fed7aa;'
+                        'width:100%;padding:10px 14px;background:var(--bg-warning-tint);border:1px solid var(--border-warning);'
                         'border-radius:8px;display:flex;align-items:center;gap:8px;'
                     ):
                         ui.icon('translate', size='sm').style('color:var(--success);')
@@ -229,7 +221,7 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
 
         _render()
 
-        ui.element('div').style('width:100%;height:1px;background:#e2e8f0;margin:16px 0 12px 0;')
+        ui.element('div').style('width:100%;height:1px;background:var(--surface-border);margin:16px 0 12px 0;')
         with ui.row().classes('w-full justify-end gap-3'):
             ui.button('Abbrechen', on_click=dlg.close).props('flat no-caps').style('font-size:13px;')
 
@@ -263,7 +255,7 @@ def show_keyboard_help() -> None:
         ]
         for keys, desc in shortcuts:
             with ui.row().classes('w-full items-center gap-3').style(
-                'padding:6px 0;border-bottom:1px solid #f1f5f9;'
+                'padding:6px 0;border-bottom:1px solid var(--surface-border-light);'
             ):
                 ui.label(keys).style(
                     'font-family:monospace;font-size:12px;font-weight:700;'
@@ -441,7 +433,7 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
             count_lbl = ui.label('').style('font-size:11px;color:var(--text-muted);')
 
         list_container = ui.column().classes('w-full gap-1').style(
-            'max-height:50vh;overflow-y:auto;border:1px solid #e2e8f0;'
+            'max-height:50vh;overflow-y:auto;border:1px solid var(--surface-border);'
             'border-radius:6px;padding:8px;background:var(--surface-alt);'
         )
 
@@ -475,7 +467,7 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
                 for src_term in sorted(cur.keys(), key=str.lower):
                     tgt_term = cur[src_term]
                     with ui.row().classes('w-full items-center gap-2').style(
-                        'background:white;border:1px solid #e2e8f0;'
+                        'background:var(--surface);border:1px solid var(--surface-border);'
                         'border-radius:4px;padding:4px 8px;'
                     ):
                         si = ui.input(value=src_term).props('dense outlined').classes('flex-1')

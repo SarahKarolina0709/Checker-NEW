@@ -250,20 +250,57 @@ def run_ki_checks(
                     seg_index = n
                     break
 
-        # Priorität 2 – Substring-Suche (nur bei ausreichender Länge, case-insensitive).
-        # Wir nehmen das Segment NUR wenn es eindeutig zugeordnet werden kann
-        # (genau ein Segment enthaelt error_text). Ansonsten waere der Index
-        # raterei und wuerde Findings dem falschen Segment zuordnen — die
-        # urspruengliche match_len-Heuristik war konstant und waehlte immer
-        # den ersten Treffer.
-        if seg_index < 0 and error_text and len(error_text) >= 8:
-            et_lower = error_text.lower()
-            matches = [
-                i for i, (s, t) in enumerate(pairs_list)
-                if et_lower in t.lower() or et_lower in s.lower()
-            ]
-            if len(matches) == 1:
-                seg_index = matches[0]
+        # Priorität 2 – Text-Match gegen Segmente.
+        # Suchkandidaten aufbauen: Das Modell liefert oft den Quellsatz im
+        # 'context'-Feld (ohne [N]-Klammer) und 'error_text' im Pfeil-Format
+        # "quelle -> ziel". Beide Seiten des Pfeils sowie context werden als
+        # eigene Match-Kandidaten geprüft, da "rot -> blu" in keinem Segment
+        # als Substring vorkommt, "rot" bzw. der context-Satz aber schon.
+        if seg_index < 0:
+            from difflib import SequenceMatcher
+
+            candidates: List[str] = []
+            if context:
+                candidates.append(context)
+            if error_text:
+                # Pfeil-Format "links -> rechts" auftrennen. Ein oder mehrere
+                # Pfeil-Zeichen ([-–—=]) gefolgt von '>' (deckt ->, -->, =>, ==>,
+                # –>, —> ab) oder das Unicode-Pfeilzeichen →. Wichtig: '+' statt
+                # Einzelalternativen, damit '-->' nicht zu 'rot -' zerfällt.
+                parts = re.split(r'\s*(?:[-–—=]+>|→)\s*', error_text)
+                candidates.extend(p for p in parts if p.strip())
+                candidates.append(error_text)
+
+            # 2a – Exact Substring: eindeutiges Segment → sofort nehmen.
+            for cand in candidates:
+                cl = cand.strip().lower()
+                if len(cl) < 3:
+                    continue
+                hits = [
+                    i for i, (s, t) in enumerate(pairs_list)
+                    if cl in s.lower() or cl in t.lower()
+                ]
+                if len(hits) == 1:
+                    seg_index = hits[0]
+                    break
+
+            # 2b – Fuzzy-Match: bester Score über alle Segmente/Kandidaten,
+            # nur wenn deutlich über Zufall (≥0.65).
+            if seg_index < 0:
+                best_score, best_idx = 0.0, -1
+                for cand in candidates:
+                    cl = cand.strip().lower()
+                    if len(cl) < 5:
+                        continue
+                    for i, (s, t) in enumerate(pairs_list):
+                        score = max(
+                            SequenceMatcher(None, cl, s.lower()).ratio(),
+                            SequenceMatcher(None, cl, t.lower()).ratio(),
+                        )
+                        if score > best_score:
+                            best_score, best_idx = score, i
+                if best_score >= 0.65:
+                    seg_index = best_idx
 
         if seg_index < 0:
             logger.debug('Phase4: Segment-Index nicht ermittelbar für Fehler: %s', error_text[:60])

@@ -41,12 +41,22 @@ _LANG_CODE_RE = re.compile(
     r'(?=[_\-\.]|$)',
     re.IGNORECASE,
 )
+# Zusätzlich: Sprachcode am ANFANG des Dateinamens, z.B. "DE_vertrag" oder "EN-contract"
+_LANG_CODE_PREFIX_RE = re.compile(
+    r'^(?P<lang>de|en|fr|es|it|nl|pl|pt|ru|zh|ja|ko'
+    r'|cs|sv|da|fi|nb|nn|hu|ro|bg|hr|sk|sl|et|lv|lt|el|tr|ar|he)'
+    r'(?=[_\-\.])',
+    re.IGNORECASE,
+)
 
 
 def _extract_lang_from_name(path: str) -> Optional[str]:
-    """Extrahiert einen Sprachcode aus dem Dateinamen, z.B. 'de' aus 'vertrag_de.docx'."""
+    """Extrahiert einen Sprachcode aus dem Dateinamen.
+    
+    Erkennt Suffix-Codes ('vertrag_de.docx') und Präfix-Codes ('DE_vertrag.docx').
+    """
     stem = os.path.splitext(os.path.basename(path))[0]
-    m = _LANG_CODE_RE.search(stem)
+    m = _LANG_CODE_RE.search(stem) or _LANG_CODE_PREFIX_RE.match(stem)
     return m.group('lang').lower() if m else None
 _XML_NS_LANG = '{http://www.w3.org/XML/1998/namespace}lang'
 
@@ -292,8 +302,14 @@ class PairingService:
             filename = os.path.splitext(os.path.basename(path))[0].lower()
             
             # Language-Codes entfernen (de, en, fr, etc.) für fairen Vergleich
+            # Suffix-Position: _de, -en, .fr, …
             filename = re.sub(
                 r'[_\-\.](?:de|en|fr|es|it|nl|pl|pt|ru|zh|ja|ko|cs|sv|da|fi|nb|nn|hu|ro|bg|hr|sk|sl|et|lv|lt|el|tr|ar|he)(?=[_\-\.]|$)',
+                '', filename
+            )
+            # Präfix-Position: DE_, EN-, fr. etc.
+            filename = re.sub(
+                r'^(?:de|en|fr|es|it|nl|pl|pt|ru|zh|ja|ko|cs|sv|da|fi|nb|nn|hu|ro|bg|hr|sk|sl|et|lv|lt|el|tr|ar|he)(?=[_\-\.])',
                 '', filename
             )
             

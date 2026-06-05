@@ -7,6 +7,7 @@ from typing import Iterable, Tuple, List, Dict, Optional, Any
 import re
 import os
 import logging
+import functools
 from collections import Counter
 
 _logger = logging.getLogger(__name__)
@@ -547,6 +548,7 @@ def _clean_domains(urls: Iterable[str]) -> List[str]:
             cleaned.append(domain)
     return cleaned
 
+@functools.lru_cache(maxsize=512)
 def _split_sentences(text: str) -> List[str]:
     """Teilt Text in Sätze auf.
     
@@ -654,6 +656,45 @@ def check_risk(src: str, tgt: str, *, complement_phase2: bool = True, segment_in
             issues.append(QAIssue("RISK_DATA_URI", "major", "risk", 
                 "Neuer data: URI im Ziel", src, tgt, segment_index))
     return issues
+
+
+# Doppelte Wörter: "das das", "the the" etc.
+_WORD_REPEAT_RX = re.compile(r'\b(\w{3,})\s+\1\b', re.IGNORECASE)
+# Leerzeichen um einzelnen Bindestrich (sollte "–" oder "-" ohne Leerzeichen sein)
+_WHITESPACE_HYPHEN_RX = re.compile(r'(?<!\s)\s+-\s+(?!\s)')
+
+
+def check_word_repetitions(src: str, tgt: str, segment_index: int = -1) -> List[QAIssue]:
+    """Prüft auf versehentlich wiederholte Wörter und Whitespace-Bindestriche.
+
+    Checks:
+    - Doppelte Wörter (das das, the the, …) — fehler in Target, nicht in Source
+    - Einzelner Bindestrich mit Leerzeichen auf beiden Seiten ( - ) der in Source nicht vorkommt
+    """
+    issues: List[QAIssue] = []
+    if not tgt:
+        return issues
+    repeats = _WORD_REPEAT_RX.findall(tgt)
+    # Nur melden wenn in Source NICHT auch vorhanden (verhindert False Positive bei bewusstem Stil)
+    src_repeats = set(_WORD_REPEAT_RX.findall(src)) if src else set()
+    new_repeats = [w for w in repeats if w.lower() not in {r.lower() for r in src_repeats}]
+    if new_repeats:
+        examples = list(dict.fromkeys(w.lower() for w in new_repeats))[:3]
+        issues.append(QAIssue(
+            "STYLE_WORD_REPEAT", "minor", "style",
+            f"Wiederholtes Wort im Ziel: {examples}",
+            src, tgt, segment_index,
+            {"words": examples},
+        ))
+    # Whitespace-Bindestriche nur melden wenn nicht schon in Quelle vorhanden
+    if _WHITESPACE_HYPHEN_RX.search(tgt) and not _WHITESPACE_HYPHEN_RX.search(src or ''):
+        issues.append(QAIssue(
+            "STYLE_WHITESPACE_HYPHEN", "minor", "style",
+            "Bindestrich mit Leerzeichen auf beiden Seiten ( - ); ggf. Gedankenstrich (–) verwenden",
+            src, tgt, segment_index,
+        ))
+    return issues
+
 
 def _compute_lix(text: str) -> Optional[float]:
     sents = _split_sentences(text)
@@ -1547,6 +1588,7 @@ def run_phase3_checks(pairs: Iterable[Tuple[str,str]], *, enable_semantic: bool 
             staccato_gate_qe_ratio=staccato_gate_qe_ratio,
             segment_index=idx,
         ))
+        issues.extend(check_word_repetitions(src, tgt, segment_index=idx))
         if grammar_checker:
             for entry in grammar_findings.get(idx, []):
                 severity = str(entry.get("severity", "minor") or "minor").lower()

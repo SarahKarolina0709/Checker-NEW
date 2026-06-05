@@ -114,7 +114,7 @@ def kalender_page():
                             elif is_today:
                                 bg = 'background:var(--bg-info-soft);border-color:#3b82f6;'
                             else:
-                                bg = 'background:white;border-color:#e2e8f0;'
+                                bg = 'background:var(--surface);border-color:var(--surface-border);'
                             with ui.card().style(
                                 f'width:14.28%;min-height:80px;padding:6px;cursor:pointer;'
                                 f'border-radius:6px;border:1px solid;{bg}'
@@ -137,13 +137,20 @@ def kalender_page():
     ui.add_head_html(APP_CSS)
     with ui.header().classes('items-center px-6 py-0').style(
         'background:linear-gradient(135deg,#0a1628 0%,#0f2744 40%,#1a365d 100%);min-height:56px;'
+        'box-shadow:0 2px 12px rgba(0,0,0,.15);'
     ):
         with ui.row().classes('w-full items-center gap-4'):
-            ui.icon('calendar_month', size='md').style('color:var(--accent)')
-            ui.label('Kalender-Ansicht').style('font-size:14px;font-weight:700;color:white;')
+            from nicegui_app.utils import render_logo
+            render_logo(clickable=True, subtitle=True)
+            ui.element('div').style(
+                'width:1px;height:24px;background:rgba(255,255,255,.15);margin:0 4px;')
+            ui.icon('calendar_month', size='xs').style('color:var(--accent);opacity:.8;')
+            ui.label('Kalender').style(
+                'font-size:var(--fs-md);font-weight:600;color:rgba(255,255,255,.7);')
             ui.element('div').classes('flex-grow')
-            ui.button('Zurück zur Analyse', icon='arrow_back',
-                on_click=lambda: ui.navigate.to('/')).props('flat no-caps text-color=white').style('font-size:12px;')
+            ui.button('Zurück', icon='arrow_back',
+                on_click=lambda: ui.navigate.to('/')).props('flat no-caps text-color=white dense').style(
+                'font-size:var(--fs-sm);opacity:.7;')
 
     with ui.row().classes('w-full flex-nowrap items-start gap-4 p-6').style(
         'min-height:calc(100vh - 56px);background:var(--surface-alt);'

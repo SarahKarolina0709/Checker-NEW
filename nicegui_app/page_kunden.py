@@ -40,7 +40,7 @@ def kunden_page():
 
     with ui.row().classes('w-full gap-0').style('min-height:calc(100vh - 56px);'):
         with ui.column().classes('w-[320px] p-4 gap-2').style(
-            'background:white;border-right:1px solid #e2e8f0;overflow-y:auto;max-height:calc(100vh - 56px);'
+            'background:var(--surface);border-right:1px solid var(--surface-border);overflow-y:auto;max-height:calc(100vh - 56px);'
         ):
             ui.label('KUNDEN').classes('section-label')
             search_inp = ui.input(placeholder='Kunde suchen...').classes('w-full').props('dense outlined clearable')
@@ -51,18 +51,15 @@ def kunden_page():
 
             def _filter_list(query=''):
                 customer_list.clear()
-                q = (query or '').strip().lower()
-                filtered = [c for c in customers if q in c.lower()] if q else customers
+                filtered = _customers_mod.filter_customers(customers, query)
                 with customer_list:
                     for cust in filtered:
-                        if cust.isdigit() or cust.startswith(('_', '.')):
-                            continue
                         info = _customers_mod.load_customer_info(base, cust)
                         initial = cust[0].upper() if cust else '?'
                         n_proj = len(_customers_mod.list_projects(base, cust))
                         is_sel = selected.get('name') == cust
                         with ui.card().classes('w-full cursor-pointer').props('flat bordered').style(
-                            f'padding:8px 12px;{"background:var(--bg-info-soft);border-color:#93c5fd;" if is_sel else ""}'
+                            f'padding:8px 12px;{"background:var(--bg-info-soft);border-color:var(--border-info);" if is_sel else ""}'
                         ).on('click', lambda _, c=cust: _show_customer(c)):
                             with ui.row().classes('items-center gap-4 w-full'):
                                 with ui.element('div').style(
@@ -167,10 +164,10 @@ def kunden_page():
                                     count = len(files)
                                     with ui.row().classes('w-full items-center gap-2').style('padding:4px 0;'):
                                         ui.icon('folder', size='xs').style(
-                                            f'color:{"#d4af37" if count else "#d1d5db"};')
+                                            f'color:{"var(--accent)" if count else "var(--surface-border-strong)"};')
                                         ui.label(folder_name).style(
                                             f'font-size:12px;font-weight:600;'
-                                            f'color:{"#1f2937" if count else "#9ca3af"};')
+                                            f'color:{"var(--text)" if count else "var(--text-muted)"};')
                                         if count:
                                             ui.badge(str(count)).style(
                                                 'background:var(--bg-primary);color:white;font-size:12px;border-radius:20px;')

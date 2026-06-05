@@ -1424,9 +1424,35 @@ def check_security(src: str, tgt: str) -> List[QAIssue]:
         issues.append(QAIssue("SECURITY_INLINE_STYLE", "major", "security", "Neues inline style Attribut im Ziel", src, tgt))
     return issues
 
-def check_untranslated_segments(src: str, tgt: str, threshold: float = 0.88) -> List[QAIssue]:
+_UNTRANSLATED_PAIR_THRESHOLDS: Dict[str, float] = {
+    'de-en': 0.85, 'en-de': 0.85,
+    'de-fr': 0.82, 'fr-de': 0.82,
+    'de-es': 0.82, 'es-de': 0.82,
+    'de-it': 0.82, 'it-de': 0.82,
+    'en-fr': 0.82, 'fr-en': 0.82,
+    'en-es': 0.82, 'es-en': 0.82,
+    'de-zh': 0.95, 'zh-de': 0.95,
+    'de-ja': 0.95, 'ja-de': 0.95,
+    'en-zh': 0.95, 'zh-en': 0.95,
+    'en-ja': 0.95, 'ja-en': 0.95,
+    'de-ru': 0.90, 'ru-de': 0.90,
+    'en-ru': 0.90, 'ru-en': 0.90,
+}
+
+
+def check_untranslated_segments(
+    src: str,
+    tgt: str,
+    threshold: float = 0.88,
+    src_lang: str = '',
+    tgt_lang: str = '',
+) -> List[QAIssue]:
     """Erkennt Segmente die der Übersetzer vergessen hat zu übersetzen.
-    
+
+    Für Sprachpaare mit vielen Kognaten (z. B. DE↔EN, DE↔FR) wird eine
+    niedrigere Ähnlichkeitsschwelle verwendet, um Falsch-Positive zu reduzieren.
+    Für Sprachen mit anderer Schrift (DE↔ZH, DE↔JA) wird die Schwelle erhöht.
+
     VERBESSERT: Mehrere Heuristiken für Cross-Language-Erkennung:
     1. Exakte Gleichheit (nach Normalisierung)
     2. SequenceMatcher für gleiche Schrift (hohe Übereinstimmung = unübersetzt)
@@ -1436,7 +1462,12 @@ def check_untranslated_segments(src: str, tgt: str, threshold: float = 0.88) -> 
     issues: List[QAIssue] = []
     if not src or not tgt:
         return issues
-    
+
+    # Sprachpaar-spezifische Schwelle bestimmen (Kognaten vs. andere Schrift)
+    if src_lang or tgt_lang:
+        pair_key = f'{src_lang[:2].lower()}-{tgt_lang[:2].lower()}'
+        threshold = _UNTRANSLATED_PAIR_THRESHOLDS.get(pair_key, threshold)
+
     # Normalisiere beide Texte (ohne Tags, Platzhalter, Zahlen)
     src_clean = _strip_tags(src).strip()
     tgt_clean = _strip_tags(tgt).strip()
@@ -1888,6 +1919,9 @@ def run_phase2_checks(
     list_enabled = bool(list_cfg.get('enabled', True)) if isinstance(list_cfg, dict) else bool(list_cfg)
     # VERBESSERT: target_lang aus Config (Default: 'de')
     target_lang = str(punctuation_cfg.get('target_lang', locale_cfg.get('target_lang', 'de')))
+    # Sprachcodes für Falsch-Positiv-Schwelle bei unübersetzten Segmenten
+    src_lang_code = str(validation_cfg.get('src_lang', '') or '')
+    tgt_lang_code = str(validation_cfg.get('tgt_lang', '') or '')
 
     all_pairs = list(pairs)
     issues: List[QAIssue] = []
@@ -1901,7 +1935,7 @@ def run_phase2_checks(
             issues.append(issue)
     
     for idx, (src, tgt) in enumerate(all_pairs):
-        _add_issues_with_index(check_untranslated_segments(src, tgt), idx)
+        _add_issues_with_index(check_untranslated_segments(src, tgt, src_lang=src_lang_code, tgt_lang=tgt_lang_code), idx)
         _add_issues_with_index(check_empty_translation(src, tgt), idx)
         _add_issues_with_index(check_html_tags(src, tgt), idx)
         _add_issues_with_index(check_pronoun_consistency(tgt), idx)

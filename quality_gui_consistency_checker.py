@@ -29,7 +29,12 @@ _logger = logging.getLogger(__name__)
 # Minimum Termlänge für Konsistenzprüfung
 MIN_TERM_LENGTH = 3
 # Minimum Vorkommen eines Terms für Prüfung
-MIN_TERM_OCCURRENCES = 2
+# Erhöht auf 3 damit kurze ALL-CAPS-Akronyme (KI, EU, IT) weniger False Positives erzeugen
+MIN_TERM_OCCURRENCES = 3
+
+# ALL-CAPS-Akronyme ab 2 Buchstaben (KI, EU, IT, API…) werden unabhängig von
+# MIN_TERM_LENGTH extrahiert — die Längengrenze gilt nur für normale Wörter.
+_ACRONYM_PATTERN = re.compile(r'\b[A-ZÄÖÜ]{2,}\b')
 # Maximale Terme pro Analyse (Performance-Limit)
 MAX_TERMS_TO_CHECK = 500
 
@@ -178,9 +183,15 @@ class ConsistencyChecker:
         return term.strip()
     
     def _is_valid_term(self, term: str) -> bool:
-        """Prüft ob ein Term gültig ist für Konsistenzprüfung."""
+        """Prüft ob ein Term gültig ist für Konsistenzprüfung.
+        
+        ALL-CAPS-Akronyme (≥ 2 Zeichen) werden explizit zugelassen, auch wenn
+        sie kürzer als min_term_length sind — KI, EU, IT sind relevante Terme.
+        """
         normalized = self._normalize_term(term)
-        if len(normalized) < self.min_term_length:
+        # Akronym-Bypass: ALL-CAPS mit ≥ 2 Buchstaben immer zulassen
+        is_acronym = term.isupper() and len(term) >= 2 and term.isalpha()
+        if not is_acronym and len(normalized) < self.min_term_length:
             return False
         # Stoppwort-Vergleich immer case-insensitive – Stoppwörter sind lowercase
         if normalized.lower() in self.stopwords:

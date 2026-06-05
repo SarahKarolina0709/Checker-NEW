@@ -2,8 +2,8 @@
 """Text-Extraktion fuer alle unterstuetzten Dateiformate.
 
 Kapselt die zuvor in main.py verstreute Logik:
-- TXT/MD/PY (UTF-8)
-- DOCX inkl. Tabellenzellen
+- TXT/MD/PY (UTF-8 → CP1252 → Latin-1 Fallback-Kette)
+- DOCX inkl. Tabellenzellen, Header/Footer, TextBoxen
 - PDF (pdfplumber -> PyMuPDF -> OCR-Fallback)
 - Bilder (OCR via Tesseract, optional)
 
@@ -13,6 +13,7 @@ verstaendliche Meldung statt Crash.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -37,6 +38,30 @@ try:
 except ImportError:
     pytesseract = None  # type: ignore
     _HAS_OCR = False
+
+# Encoding-Fallback-Kette für TXT-Dateien (Windows-Dateien oft cp1252)
+_TXT_ENCODINGS = ('utf-8-sig', 'utf-8', 'cp1252', 'latin-1')
+
+
+def _normalize_text(text: str) -> str:
+    """Bereinigt unsichtbare Sonderzeichen die Wort-Matching stören.
+
+    - Soft-Hyphens (\\xad) entfernen
+    - Zero-Width-Spaces/Joiners entfernen
+    - Non-breaking spaces → normales Leerzeichen
+    - Mehrfache Leerzeilen → eine Leerzeile
+    """
+    # Unsichtbare Zeichen entfernen
+    text = text.replace('\xad', '')          # soft hyphen
+    text = text.replace('\u200b', '')        # zero-width space
+    text = text.replace('\u200c', '')        # zero-width non-joiner
+    text = text.replace('\u200d', '')        # zero-width joiner
+    text = text.replace('\ufeff', '')        # BOM (falls noch vorhanden)
+    text = text.replace('\u00a0', ' ')       # non-breaking space → space
+    text = text.replace('\u202f', ' ')       # narrow no-break space → space
+    # Mehrfache Leerzeilen auf maximal 2 reduzieren
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text
 
 
 def _ocr_image(path: str) -> str:
@@ -136,8 +161,16 @@ def _extract_text_impl(path: str) -> str:
     """Tatsaechliche Extraktion - ohne Cache."""
     ext = Path(path).suffix.lower()
     if ext in ('.txt', '.py', '.md'):
+        # Encoding-Fallback-Kette (UTF-8-BOM → UTF-8 → CP1252 → Latin-1)
+        for enc in _TXT_ENCODINGS:
+            try:
+                text = Path(path).read_text(encoding=enc)
+                return _normalize_text(text)
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+        # Letzter Ausweg: UTF-8 mit Ersatz-Zeichen
         try:
-            return Path(path).read_text(encoding='utf-8', errors='replace')
+            return _normalize_text(Path(path).read_text(encoding='utf-8', errors='replace'))
         except Exception as exc:
             return f'[Lesefehler {Path(path).name}: {exc}]'
     if ext == '.docx':
@@ -145,14 +178,40 @@ def _extract_text_impl(path: str) -> str:
             from docx import Document  # type: ignore
             doc = Document(path)
             parts: List[str] = []
+            # Header/Footer aller Sektionen
+            for section in doc.sections:
+                for hf in (section.header, section.footer):
+                    try:
+                        for p in hf.paragraphs:
+                            t = (p.text or '').strip()
+                            if t:
+                                parts.append(t)
+                    except Exception:
+                        pass
+            # Absätze
             parts.extend(p.text for p in doc.paragraphs if p.text and p.text.strip())
+            # Tabellen — merged cells deduplizieren (python-docx gibt sie mehrfach zurück)
             for table in doc.tables:
                 for row in table.rows:
+                    seen_ids: set = set()
                     for cell in row.cells:
+                        if id(cell) in seen_ids:
+                            continue
+                        seen_ids.add(id(cell))
                         ct = (cell.text or '').strip()
                         if ct:
                             parts.append(ct)
-            return '\n'.join(parts)
+            # TextBoxen / Shapes (werden von python-docx nicht direkt exponiert)
+            try:
+                from docx.oxml.ns import qn  # type: ignore
+                for shape in doc.element.body.iter(qn('wps:txbx')):
+                    for p_elem in shape.iter(qn('w:p')):
+                        runs = ''.join(r.text or '' for r in p_elem.iter(qn('w:t')))
+                        if runs.strip():
+                            parts.append(runs.strip())
+            except Exception:
+                pass
+            return _normalize_text('\n'.join(parts))
         except ImportError:
             return f'[python-docx nicht installiert: {Path(path).name}]'
         except Exception as exc:
@@ -163,8 +222,25 @@ def _extract_text_impl(path: str) -> str:
         text = ''
         try:
             import pdfplumber  # type: ignore
+            pages_text: List[str] = []
             with pdfplumber.open(path) as pdf:
-                text = '\n'.join(p.extract_text() or '' for p in pdf.pages)
+                for page in pdf.pages:
+                    page_parts: List[str] = []
+                    # Fließtext
+                    pt = page.extract_text() or ''
+                    if pt.strip():
+                        page_parts.append(pt)
+                    # Tabellen separat — vermeidet zusammengepresste Zellen
+                    try:
+                        for tbl in page.extract_tables() or []:
+                            for row in tbl:
+                                cells = [str(c or '').strip() for c in row if c and str(c).strip()]
+                                if cells:
+                                    page_parts.append(' | '.join(cells))
+                    except Exception:
+                        pass
+                    pages_text.append('\n'.join(page_parts))
+            text = '\n'.join(pages_text)
         except Exception:
             try:
                 import fitz  # type: ignore
@@ -175,12 +251,14 @@ def _extract_text_impl(path: str) -> str:
                     doc.close()
             except Exception:
                 pass
-        if not text.strip():
+        # Scanned PDFs liefern oft wenige Wörter (<5) trotz Seite — OCR-Fallback
+        if not text.strip() or len(text.split()) < 5:
             ocr_text = _ocr_pdf_page(path)
             if ocr_text.strip():
-                return ocr_text
-            return f'[PDF-Extraktion fehlgeschlagen: {Path(path).name}]'
-        return text
+                return _normalize_text(ocr_text)
+            if not text.strip():
+                return f'[PDF-Extraktion fehlgeschlagen: {Path(path).name}]'
+        return _normalize_text(text)
     if ext == '.doc':
         return f'[.doc-Format nur mit externem Konverter: {Path(path).name}]'
     return ''

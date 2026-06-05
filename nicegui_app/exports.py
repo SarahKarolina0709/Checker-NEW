@@ -78,7 +78,7 @@ def export_excel(findings: list, output_dir: str) -> str:
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = 'Findings'
-    ws.append(['Nr', 'Schwere', 'Code', 'Kategorie', 'Nachricht', 'Quelltext', 'Zieltext'])
+    ws.append(['Nr', 'Schwere', 'Code', 'Kategorie', 'Nachricht', 'Segment', 'Quelltext', 'Zieltext'])
     for i, f in enumerate(findings, 1):
         ws.append([
             i,
@@ -86,6 +86,7 @@ def export_excel(findings: list, output_dir: str) -> str:
             _xml_clean(f.code),
             _xml_clean(getattr(f, 'category', '')),
             _xml_clean(f.message),
+            getattr(f, 'segment_index', -1),
             _xml_clean((getattr(f, 'source_text', '') or '')[:500]),
             _xml_clean((getattr(f, 'target_text', '') or '')[:500]),
         ])
@@ -123,16 +124,18 @@ def export_pdf(findings: list, score: int, output_dir: str) -> str:
         Spacer(1, 16),
     ]
     small_style = ParagraphStyle('small', parent=styles['Normal'], fontSize=7, leading=9)
-    data = [['Nr', 'Schwere', 'Code', 'Nachricht']]
+    data = [['Nr', 'Seg.', 'Schwere', 'Code', 'Nachricht']]
     for i, f in enumerate(findings, 1):
-        msg = f.message[:120] + ('...' if len(f.message) > 120 else '')
+        msg = f.message[:110] + ('...' if len(f.message) > 110 else '')
+        seg = getattr(f, 'segment_index', -1)
         data.append([
             str(i),
+            str(seg) if seg >= 0 else '–',
             severity_label(f.severity),
             _xml_escape(str(f.code)),
             Paragraph(_xml_escape(msg), small_style),
         ])
-    table = Table(data, colWidths=[1 * cm, 2 * cm, 3 * cm, 12 * cm], repeatRows=1)
+    table = Table(data, colWidths=[1 * cm, 1 * cm, 2 * cm, 3 * cm, 11 * cm], repeatRows=1)
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0f2744')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),

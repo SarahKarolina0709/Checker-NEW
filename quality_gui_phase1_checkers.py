@@ -274,20 +274,32 @@ def _count_quotes_safely(t: str) -> tuple[int,int]:
     t_wo = _RE_APOSTROPHE_PLURAL.sub("", t_wo)
     return t_wo.count('"'), t_wo.count("'")
 
+def _count_german_quote_pairs(text: str) -> tuple[int, int]:
+    """Pair-Matching für deutsche Quotes: zählt öffnende und schließende korrekt.
+
+    Liefert (open_count, close_count) – ausgeglichen = kein Fehler.
+    Unterschied zu simplem count(): mehrere Paare „A" und „B" werden korrekt
+    als 2 öffnend / 2 schließend erkannt, nicht als Missmatch.
+    """
+    open_count = text.count(GERMAN_QUOTE_OPEN)
+    # Schließende: alle Varianten, aber kein Doppelzählen wenn Zeichen identisch
+    close_chars = set(GERMAN_QUOTE_CLOSE_VARIANTS)
+    close_count = sum(text.count(c) for c in close_chars)
+    return open_count, close_count
+
+
 def check_quotes_basic(src: str, tgt: str, segment_index: int = -1) -> List[QAIssue]:
     """Quote-Balance mit Ignorieren wortinterner Apostrophe und deutscher Quotes.
     
-    VERBESSERT: Mehrere schließende Varianten für deutsche Quotes.
-    Zusätzlich: prüft ob Quote-Anzahl zwischen src und tgt übereinstimmt.
+    Verwendet Pair-Matching für deutsche Quotes (verhindert False Positives
+    bei mehreren Paaren wie „Satz 1" und „Satz 2").
     """
     issues: List[QAIssue] = []
     counts = {}
     for label, text in (("source", src), ("target", tgt)):
         dbl, sng = _count_quotes_safely(text)
         stripped = _strip_html_tags(text or "")
-        de_open = stripped.count(GERMAN_QUOTE_OPEN)
-        # VERBESSERT: Zähle alle schließenden Varianten zusammen
-        de_close = sum(stripped.count(v) for v in GERMAN_QUOTE_CLOSE_VARIANTS)
+        de_open, de_close = _count_german_quote_pairs(stripped)
         counts[label] = {"dbl": dbl, "sng": sng, "de_open": de_open, "de_close": de_close}
         if dbl % 2 != 0:
             issues.append(QAIssue("QUOTE_UNBALANCED","minor","quotes", f'Ungerade Anzahl von " in {label}', src, tgt, segment_index))

@@ -46,6 +46,41 @@ def html_esc(text: str) -> str:
                 .replace('>', '&gt;').replace('"', '&quot;'))
 
 
+def render_logo(clickable: bool = True, subtitle: bool = True) -> None:
+    """Einheitliches Brand-Logo für Header aller Seiten.
+
+    Rendert: [QF-Badge mit translate-Icon] [Qualitäts-Framework / PROFESSIONAL EDITION]
+    """
+    def _build():
+        with ui.row().classes('items-center gap-3 flex-nowrap'):
+            # QF-Badge: gold-border Karte mit translate-Icon
+            badge = ui.element('div').style(
+                'width:38px;height:38px;flex-shrink:0;border-radius:10px;'
+                'background:linear-gradient(145deg,#d4af37,#c49b28);'
+                'display:flex;align-items:center;justify-content:center;'
+                'box-shadow:0 2px 8px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.25);'
+                'cursor:pointer;position:relative;overflow:hidden;')
+            with badge:
+                # innerer Glanz-Highlight
+                ui.element('div').style(
+                    'position:absolute;top:0;left:0;right:0;height:50%;'
+                    'background:rgba(255,255,255,.18);border-radius:10px 10px 0 0;pointer-events:none;')
+                ui.icon('translate').style(
+                    'font-size:20px;color:#0a1628;position:relative;z-index:1;')
+            if clickable:
+                badge.on('click', lambda: ui.navigate.to('/'))
+            # Text-Block
+            with ui.column().classes('gap-0'):
+                ui.label('Qualitäts-Framework').style(
+                    'font-size:var(--fs-lg);font-weight:800;color:#fff;'
+                    'letter-spacing:-.3px;line-height:1.15;white-space:nowrap;')
+                if subtitle:
+                    ui.label('PROFESSIONAL EDITION').style(
+                        'font-size:9px;font-weight:700;color:var(--accent);'
+                        'text-transform:uppercase;letter-spacing:2px;line-height:1.1;')
+    _build()
+
+
 def copy_to_clipboard(text: str) -> None:
     """Kopiert Text in die Zwischenablage (clientseitig via JS)."""
     if not text:
