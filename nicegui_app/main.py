@@ -899,28 +899,113 @@ def index_page():
             pass
         return False
 
+    def _exclude_file(fp: str, role: str):
+        """Datei nur von der Pruefung ausschliessen — bleibt auf der Disk."""
+        key = 'source_files' if role == 'source' else 'translation_files'
+        lst = list(s.get(key, []))
+        if fp in lst:
+            lst.remove(fp)
+        s[key] = lst
+        ex = list(s.get('excluded_files', []))
+        if fp not in ex:
+            ex.append(fp)
+        s['excluded_files'] = ex
+        s['paired_results'] = [
+            p for p in s.get('paired_results', [])
+            if p.get('source') != fp and p.get('translation') != fp
+        ]
+        _refresh_file_list()
+        _do_autopairing()
+        _update_start_btn()
+        try:
+            _refresh_project_folders()
+        except Exception:
+            pass
+        _refresh_results_area()
+
+    def _include_file(fp: str, role: str):
+        """Zuvor ausgeschlossene Datei wieder zur Pruefung aufnehmen."""
+        s['excluded_files'] = [e for e in s.get('excluded_files', []) if e != fp]
+        key = 'source_files' if role == 'source' else 'translation_files'
+        lst = list(s.get(key, []))
+        if fp not in lst and os.path.isfile(fp):
+            lst.append(fp)
+        s[key] = lst
+        _refresh_file_list()
+        _do_autopairing()
+        _update_start_btn()
+        try:
+            _refresh_project_folders()
+        except Exception:
+            pass
+        _refresh_results_area()
+
     def _remove_file(fp: str, role: str):
-        # Nur bei echter Disk-Loeschung nachfragen (Datenverlust vermeiden).
+        # Datei nicht im Projektordner (z.B. frischer Upload): einfach aus der
+        # Pruefliste nehmen, hier entsteht kein Datenverlust auf der Disk.
         if not _file_is_on_disk_in_project(fp):
             _do_remove_file(fp, role)
             return
         fname = os.path.basename(fp)
-        with ui.dialog() as dlg, ui.card().style('width:400px;'):
+        # Ausschliessen ist nur sinnvoll, wenn die Datei aktuell geprueft wird
+        # (Ausgangstext / Uebersetzung). Andere Ordner (Korrektur etc.) bieten
+        # nur das Loeschen an.
+        key = 'source_files' if role == 'source' else 'translation_files'
+        can_exclude = role in ('source', 'translation') and fp in s.get(key, [])
+        with ui.dialog() as dlg, ui.card().style('width:440px;'):
             with ui.row().classes('w-full items-center gap-2'):
-                ui.icon('warning', size='sm').style('color:var(--error);')
-                ui.label('Datei löschen?').style(
+                ui.icon('help_outline' if can_exclude else 'warning',
+                        size='sm').style(
+                    f'color:{"var(--primary)" if can_exclude else "var(--error)"};')
+                ui.label('Datei entfernen' if can_exclude else 'Datei löschen?').style(
                     'font-size:var(--fs-lg);font-weight:700;color:var(--text);')
-            ui.label(f'„{fname}" wird endgültig aus dem Projektordner '
-                     'gelöscht. Das kann nicht rückgängig gemacht werden.').style(
-                'font-size:var(--fs-sm);color:var(--text-muted);')
+            if can_exclude:
+                ui.label(f'Was möchtest du mit „{fname}" tun?').style(
+                    'font-size:var(--fs-sm);color:var(--text-muted);')
+                with ui.row().classes('w-full items-start gap-3').style(
+                    'padding:10px 12px;border-radius:8px;background:var(--surface);'
+                    'border:1px solid var(--surface-border);margin-top:6px;'):
+                    ui.icon('visibility_off', size='sm').style(
+                        'color:var(--primary);margin-top:2px;')
+                    with ui.column().classes('gap-0 flex-grow min-w-0'):
+                        ui.label('Nur von der Prüfung ausschließen').style(
+                            'font-size:var(--fs-sm);font-weight:600;color:var(--text);')
+                        ui.label('Datei bleibt im Projektordner erhalten und kann '
+                                 'jederzeit wieder aufgenommen werden.').style(
+                            'font-size:var(--fs-xs);color:var(--text-muted);')
+                with ui.row().classes('w-full items-start gap-3').style(
+                    'padding:10px 12px;border-radius:8px;'
+                    'background:var(--bg-error-tint);border:1px solid var(--error);'):
+                    ui.icon('delete_forever', size='sm').style(
+                        'color:var(--error);margin-top:2px;')
+                    with ui.column().classes('gap-0 flex-grow min-w-0'):
+                        ui.label('Endgültig vom Datenträger löschen').style(
+                            'font-size:var(--fs-sm);font-weight:600;color:var(--error);')
+                        ui.label('Die Datei wird unwiderruflich aus dem '
+                                 'Projektordner gelöscht.').style(
+                            'font-size:var(--fs-xs);color:var(--text-muted);')
+            else:
+                ui.label(f'„{fname}" wird endgültig aus dem Projektordner '
+                         'gelöscht. Das kann nicht rückgängig gemacht werden.').style(
+                    'font-size:var(--fs-sm);color:var(--text-muted);')
             with ui.row().classes('w-full justify-end gap-2').style('margin-top:8px;'):
                 ui.button('Abbrechen', on_click=dlg.close).props('flat no-caps')
+
+                if can_exclude:
+                    def _do_exclude():
+                        dlg.close()
+                        _exclude_file(fp, role)
+                        ui.notify(f'„{fname}" von der Prüfung ausgeschlossen',
+                                  type='info')
+                    ui.button('Ausschließen', icon='visibility_off',
+                              on_click=_do_exclude).props(
+                        'no-caps outline color=primary')
 
                 def _confirm():
                     dlg.close()
                     _do_remove_file(fp, role)
-                    ui.notify(f'„{fname}" gelöscht', type='info')
-                ui.button('Löschen', icon='delete', on_click=_confirm).props(
+                    ui.notify(f'„{fname}" gelöscht', type='warning')
+                ui.button('Löschen', icon='delete_forever', on_click=_confirm).props(
                     'no-caps unelevated color=negative')
         dlg.open()
 
@@ -2998,6 +3083,7 @@ def index_page():
                 s['active_project_path'] = proj_path
                 s['source_files'] = []
                 s['translation_files'] = []
+                s['excluded_files'] = []
                 src_dir = _find_source_folder(proj_path)
                 tgt_dir = _find_translation_folder(proj_path)
                 if src_dir:
@@ -3087,20 +3173,40 @@ def index_page():
                                         size_str = f'{sz/1024:.0f} KB' if sz > 1024 else f'{sz} B'
                                     except Exception:
                                         size_str = ''
+                                    is_excluded = fp in s.get('excluded_files', [])
+                                    row_bg = ('var(--surface-alt)' if is_excluded
+                                              else 'var(--surface)')
+                                    accent = ('var(--text-light)' if is_excluded
+                                              else icon_color)
                                     with ui.row().classes('w-full items-center gap-2 file-row').style(
                                         'padding:7px 10px;border-radius:0 8px 8px 0;margin:3px 0;'
-                                        f'border-left:3px solid {icon_color};background:var(--surface);'):
-                                        ui.icon('insert_drive_file', size='xs').style(f'color:{icon_color};opacity:.7;')
+                                        f'border-left:3px solid {accent};background:{row_bg};'
+                                        + ('opacity:.6;' if is_excluded else '')):
+                                        ui.icon('visibility_off' if is_excluded else 'insert_drive_file',
+                                                size='xs').style(f'color:{accent};opacity:.7;')
                                         ui.label(fname).style(
                                             'font-size:var(--fs-md);color:var(--text);flex-grow:1;'
-                                            'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
-                                        ui.label(size_str).style(
-                                            'font-size:var(--fs-xs);color:var(--text-light);'
-                                            'font-variant-numeric:tabular-nums;')
-                                        ui.button(icon='close',
-                                            on_click=lambda _, f=fp, r=role: _remove_file(f, r or 'source')
-                                        ).props('flat dense round size=xs').classes('file-del').style(
-                                            'color:var(--text-light);').tooltip('Datei entfernen')
+                                            'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+                                            + ('text-decoration:line-through;color:var(--text-light);'
+                                               if is_excluded else ''))
+                                        if is_excluded:
+                                            ui.label('ausgeschlossen').style(
+                                                'font-size:var(--fs-xs);color:var(--text-light);'
+                                                'font-style:italic;')
+                                        else:
+                                            ui.label(size_str).style(
+                                                'font-size:var(--fs-xs);color:var(--text-light);'
+                                                'font-variant-numeric:tabular-nums;')
+                                        if is_excluded:
+                                            ui.button(icon='restart_alt',
+                                                on_click=lambda _, f=fp, r=role: _include_file(f, r or 'source')
+                                            ).props('flat dense round size=xs').classes('file-del').style(
+                                                'color:var(--primary);').tooltip('Wieder zur Prüfung aufnehmen')
+                                        else:
+                                            ui.button(icon='close',
+                                                on_click=lambda _, f=fp, r=role: _remove_file(f, r or 'source')
+                                            ).props('flat dense round size=xs').classes('file-del').style(
+                                                'color:var(--text-light);').tooltip('Datei entfernen')
                                 if role in ('source', 'translation'):
                                     drop_ref = refs.get('src_picker' if role == 'source' else 'tgt_picker')
                                     if drop_ref:
