@@ -157,6 +157,7 @@ CATEGORY_LABELS_DE = {
     'numbers': 'Zahlen',
     'ocr': 'OCR-Erkennung',
     'ki_semantic': 'KI-Analyse',
+    'source_quality': 'Quelltext-Qualität',
     'Sonstige': 'Sonstige',
 }
 
@@ -242,6 +243,7 @@ from nicegui_app import ui_findings as _ui_findings  # noqa: E402
 from nicegui_app import ui_dialogs as _ui_dialogs  # noqa: E402
 from nicegui_app import analysis as _analysis  # noqa: E402
 from nicegui_app import lang_detect as _lang_detect  # noqa: E402
+from nicegui_app import source_proofing as _source_proofing  # noqa: E402
 from nicegui_app.text_extraction import get_text_stats as _ext_text_stats  # noqa: E402, F401
 
 
@@ -568,6 +570,7 @@ def severity_border(sev: str) -> str:
 _PHASE_CODE_PREFIXES = {
     'Phase 1': (
         'URL_', 'EMAIL_', 'WS_', 'ZERO_WIDTH', 'BRACKET_', 'QUOTE_',
+        'SOURCE_',
     ),
     'Phase 2': (
         'NUMBER_', 'NUM_', 'UNIT_', 'HTML_', 'PRONOUN_', 'DUPLICATE_',
@@ -1603,6 +1606,30 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     f.target_file = file_pairs[idx][1]
             except Exception:
                 pass
+        # Quelltext-Pruefung: von Word markierte Rechtschreib-/Grammatikfehler
+        # im Ausgangsdokument als Hinweis melden (zaehlt NICHT zum Score).
+        if config.get('phase1') and not s.get('cancel_requested'):
+            try:
+                proof_count = 0
+                for pi, (src_path, tgt_path) in enumerate(file_pairs):
+                    src_text = text_pairs[pi][0] if pi < len(text_pairs) else ''
+                    tgt_text = text_pairs[pi][1] if pi < len(text_pairs) else ''
+                    proof = await loop.run_in_executor(
+                        None,
+                        _source_proofing.build_proofing_findings,
+                        src_path, src_text, tgt_text, pi,
+                    )
+                    for pf in proof:
+                        pf.source_file = src_path
+                        pf.target_file = tgt_path
+                    all_results.extend(proof)
+                    proof_count += len(proof)
+                if proof_count:
+                    phase_finding_counts['phase1'] = (
+                        phase_finding_counts.get('phase1', 0) + proof_count
+                    )
+            except Exception as exc:
+                _logger.warning('Quelltext-Pruefung fehlgeschlagen: %s', exc)
         s['findings'] = [_finding_to_dict(f) for f in all_results]
         s['last_score'] = s.get('current_score', -1)  # vorherigen Score merken
         s['current_score'] = compute_score(all_results)
