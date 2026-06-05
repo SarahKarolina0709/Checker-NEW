@@ -3080,35 +3080,45 @@ def index_page():
                                         size_str = f'{sz/1024:.0f} KB' if sz > 1024 else f'{sz} B'
                                     except Exception:
                                         size_str = ''
-                                    with ui.row().classes('w-full items-center gap-2').style(
-                                        'padding:6px 8px;border-radius:6px;border:1px solid var(--surface-border-light);margin:2px 0;'):
-                                        ui.icon('insert_drive_file', size='xs').style(f'color:{icon_color};opacity:.6;')
+                                    with ui.row().classes('w-full items-center gap-2 file-row').style(
+                                        'padding:7px 10px;border-radius:8px;margin:3px 0;'
+                                        f'border-left:3px solid {icon_color};background:var(--surface);'):
+                                        ui.icon('insert_drive_file', size='xs').style(f'color:{icon_color};opacity:.7;')
                                         ui.label(fname).style(
                                             'font-size:var(--fs-md);color:var(--text);flex-grow:1;'
                                             'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
-                                        ui.label(size_str).style('font-size:var(--fs-sm);color:var(--text-light);')
+                                        ui.label(size_str).style(
+                                            'font-size:var(--fs-xs);color:var(--text-light);'
+                                            'font-variant-numeric:tabular-nums;')
                                         ui.button(icon='close',
                                             on_click=lambda _, f=fp, r=role: _remove_file(f, r or 'source')
-                                        ).props('flat dense round size=xs').style('color:var(--text-light);')
+                                        ).props('flat dense round size=xs').classes('file-del').style(
+                                            'color:var(--text-light);').tooltip('Datei entfernen')
                                 if role in ('source', 'translation'):
                                     drop_ref = refs.get('src_picker' if role == 'source' else 'tgt_picker')
                                     if drop_ref:
                                         ui.button('Weitere hochladen', icon='add',
                                             on_click=lambda _, d=drop_ref: d.run_method('pickFiles')
-                                        ).props('flat dense no-caps size=xs').style(f'color:{icon_color};margin-top:4px;')
+                                        ).props('flat dense no-caps size=xs').style(f'color:{icon_color};margin-top:6px;')
                         else:
-                            with ui.row().classes('w-full items-center gap-2').style('padding:4px 0;'):
-                                ui.icon(icon_name, size='xs').style(f'color:{icon_color};opacity:.4;')
-                                ui.label(f'{clean_name} (0)').style('font-size:var(--fs-md);color:var(--text-light);flex-grow:1;')
+                            with ui.row().classes('w-full items-center gap-2 folder-empty').style(
+                                'padding:6px 10px;border-radius:8px;'
+                                'border:1px dashed var(--surface-border);margin:3px 0;'):
+                                ui.icon(icon_name, size='xs').style(f'color:{icon_color};opacity:.45;')
+                                ui.label(f'{clean_name}').style(
+                                    'font-size:var(--fs-md);color:var(--text-light);flex-grow:1;')
+                                ui.label('leer').style('font-size:var(--fs-xs);color:var(--text-light);opacity:.7;')
                                 if role in ('source', 'translation'):
                                     drop_ref = refs.get('src_picker' if role == 'source' else 'tgt_picker')
                                     if drop_ref:
-                                        ui.button('Hochladen', icon='upload',
+                                        ui.button(icon='upload',
                                             on_click=lambda _, d=drop_ref: d.run_method('pickFiles')
-                                        ).props('flat dense no-caps size=xs').style(f'color:{icon_color};')
+                                        ).props('flat dense round size=xs').style(
+                                            f'color:{icon_color};').tooltip('Datei hochladen')
 
                     if src_files or tgt_files:
-                        ui.element('div').style('height:1px;background:var(--surface-border);margin:12px 0;')
+                        ui.element('div').style('height:1px;background:var(--surface-border);margin:14px 0 10px;')
+                        ui.label('ZUORDNUNG').classes('section-label').style('margin-bottom:8px;')
                         _render_pairing_status(pairs, src_files, tgt_files)
 
             def _render_pairing_status(pairs, src_files, tgt_files):
@@ -3117,29 +3127,36 @@ def index_page():
                 n_paired = len(pairs)
                 n_total = len(doc_src)
                 all_paired = n_paired == n_total and n_total > 0
-                if pairs:
-                    for p in pairs:
-                        sn = os.path.basename(p.get('source', ''))
-                        tn = os.path.basename(p.get('translation', ''))
-                        with ui.row().classes('w-full items-center gap-1').style(
-                            'padding:6px 10px;background:var(--bg-success-tint);border-radius:6px;margin:2px 0;'):
+                with ui.column().classes('w-full gap-2 assign-box'):
+                    if pairs:
+                        for p in pairs:
+                            sn = os.path.basename(p.get('source', ''))
+                            tn = os.path.basename(p.get('translation', ''))
+                            with ui.row().classes('w-full items-center gap-2 pair-row').style(
+                                'padding:7px 10px;background:var(--bg-success-tint);'
+                                'border-radius:8px;border-left:3px solid var(--success);'):
+                                ui.icon('check_circle', size='xs').style('color:var(--success);')
+                                ui.label(sn).style('font-size:var(--fs-sm);color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
+                                ui.icon('arrow_forward', size='xs').style('color:var(--text-light);')
+                                ui.label(tn).style('font-size:var(--fs-sm);color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
+                                ui.button(icon='link_off', on_click=lambda _, pp=p: _unpair(pp)).props(
+                                    'flat dense round size=xs').classes('pair-del').style(
+                                    'color:var(--text-light);').tooltip('Zuordnung lösen')
+                    with ui.row().classes('w-full items-center gap-2'):
+                        if all_paired:
                             ui.icon('check_circle', size='xs').style('color:var(--success);')
-                            ui.label(sn).style('font-size:var(--fs-sm);color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
-                            ui.icon('arrow_forward', size='xs').style('color:var(--success);')
-                            ui.label(tn).style('font-size:var(--fs-sm);color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
-                            ui.button(icon='link_off', on_click=lambda _, pp=p: _unpair(pp)).props('flat dense round size=xs').style('color:var(--text-light);')
-                with ui.row().classes('w-full items-center gap-2').style('margin-top:4px;'):
-                    if all_paired:
-                        ui.icon('check_circle', size='xs').style('color:var(--success);')
-                        ui.label(f'Alle {n_paired} zugeordnet').style('font-size:var(--fs-sm);font-weight:600;color:var(--success);flex-grow:1;')
-                    elif n_paired > 0:
-                        ui.icon('info', size='xs').style('color:var(--warning);')
-                        ui.label(f'{n_paired} von {n_total} zugeordnet').style('font-size:var(--fs-sm);font-weight:600;color:var(--warning);flex-grow:1;')
-                    elif n_total > 0:
-                        ui.icon('warning', size='xs').style('color:var(--error);')
-                        ui.label('Nicht zugeordnet').style('font-size:var(--fs-sm);font-weight:600;color:var(--error);flex-grow:1;')
-                    if not all_paired and (src_files or tgt_files):
-                        ui.button('Zuordnen', icon='tune', on_click=_show_pairing_dialog).props('outline dense no-caps size=sm').style('color:var(--primary);')
+                            ui.label(f'Alle {n_paired} zugeordnet').style('font-size:var(--fs-sm);font-weight:600;color:var(--success);flex-grow:1;')
+                        elif n_paired > 0:
+                            ui.icon('info', size='xs').style('color:var(--warning);')
+                            ui.label(f'{n_paired} von {n_total} zugeordnet').style('font-size:var(--fs-sm);font-weight:600;color:var(--warning);flex-grow:1;')
+                        elif n_total > 0:
+                            ui.icon('warning', size='xs').style('color:var(--error);')
+                            ui.label('Nicht zugeordnet').style('font-size:var(--fs-sm);font-weight:600;color:var(--error);flex-grow:1;')
+                        else:
+                            ui.icon('hourglass_empty', size='xs').style('color:var(--text-light);')
+                            ui.label('Warte auf Dateien').style('font-size:var(--fs-sm);color:var(--text-light);flex-grow:1;')
+                        if not all_paired and (src_files or tgt_files):
+                            ui.button('Zuordnen', icon='tune', on_click=_show_pairing_dialog).props('outline dense no-caps size=sm').style('color:var(--primary);')
 
             def _toggle_file(fp: str, role: str, checked: bool):
                 """Datei zur Prüfung an/abwählen."""

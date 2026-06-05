@@ -143,6 +143,25 @@ body{font-size:var(--fs-md)!important;line-height:var(--lh-normal);
 .folder-exp .q-icon{color:inherit!important}
 .folder-exp .q-expansion-item__toggle-icon{color:var(--text-light)!important}
 
+/* Datei-Zeilen (Projektordner-Ansicht) — Rollen-Akzent + Hover-Reveal */
+.file-row{transition:background .12s ease,border-color .12s ease}
+.file-row:hover{background:var(--bg-muted)!important}
+.file-row .file-del{opacity:0;transition:opacity .12s ease}
+.file-row:hover .file-del{opacity:1}
+.folder-empty{opacity:.7;transition:opacity .12s ease}
+.folder-empty:hover{opacity:1}
+/* Count-Badge im Ordner-Header */
+.folder-badge{display:inline-flex;align-items:center;justify-content:center;
+    min-width:18px;height:18px;padding:0 6px;border-radius:9px;
+    font-size:var(--fs-xs);font-weight:700;line-height:1;
+    background:var(--bg-muted);color:var(--text-muted)}
+/* Zuordnungs-Abschnitt */
+.assign-box{background:var(--surface-alt);border:1px solid var(--surface-border);
+    border-radius:var(--radius-md);padding:12px}
+.pair-row{transition:background .12s ease}
+.pair-row .pair-del{opacity:0;transition:opacity .12s ease}
+.pair-row:hover .pair-del{opacity:1}
+
 /* Dark mode */
 body.body--dark{--surface:#0f172a;--surface-alt:#1e293b;--surface-border:#334155;
     --surface-border-light:#1e293b;--surface-border-strong:#475569;
