@@ -75,7 +75,7 @@ def render_logo(clickable: bool = True, subtitle: bool = True) -> None:
                     'font-size:var(--fs-lg);font-weight:800;color:#fff;'
                     'letter-spacing:-.3px;line-height:1.15;white-space:nowrap;')
                 if subtitle:
-                    ui.label('PROFESSIONAL EDITION').style(
+                    ui.label('PROFESSIONAL EDITION').classes('hdr-subtitle').style(
                         'font-size:9px;font-weight:700;color:var(--accent);'
                         'text-transform:uppercase;letter-spacing:2px;line-height:1.1;')
     _build()

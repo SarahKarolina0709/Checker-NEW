@@ -2461,12 +2461,16 @@ def index_page():
                     return ('font-size:var(--fs-sm);padding:6px 12px;'
                             + ('opacity:1;background:rgba(255,255,255,.12);border-radius:6px;' if is_active
                                else 'opacity:.65;'))
-                ui.button('Kunden', icon='business',
-                    on_click=lambda: ui.navigate.to('/kunden')).props(
-                    'flat no-caps text-color=white dense').style(_nav_style('/kunden'))
-                ui.button('Kalender', icon='calendar_month',
-                    on_click=lambda: ui.navigate.to('/kalender')).props(
-                    'flat no-caps text-color=white dense').style(_nav_style('/kalender'))
+                def _mk_nav(label: str, icon: str, path: str):
+                    b = ui.button(icon=icon,
+                        on_click=lambda p=path: ui.navigate.to(p)).props(
+                        'flat no-caps text-color=white dense').style(_nav_style(path))
+                    with b:
+                        ui.label(label).classes('hdr-label').style('margin-left:6px;')
+                    b.tooltip(label)
+                    return b
+                _mk_nav('Kunden', 'business', '/kunden')
+                _mk_nav('Kalender', 'calendar_month', '/kalender')
 
             ui.element('div').classes('flex-grow')
 
@@ -2479,9 +2483,12 @@ def index_page():
 
             # Aktionen (Primaer/Export rechts)
             with ui.row().classes('items-center gap-1 flex-nowrap'):
-                ui.button('Neue Analyse', icon='refresh', on_click=lambda: _confirm_reset()).props(
+                _btn_new = ui.button(icon='refresh', on_click=lambda: _confirm_reset()).props(
                     'flat no-caps text-color=white dense').style(
                     'font-size:var(--fs-sm);opacity:.75;padding:6px 12px;')
+                with _btn_new:
+                    ui.label('Neue Analyse').classes('hdr-label').style('margin-left:6px;')
+                _btn_new.tooltip('Neue Analyse')
                 refs['export_btn'] = ui.dropdown_button('Export', icon='download').props(
                     'flat no-caps text-color=white dense').style(
                     'font-size:var(--fs-sm);opacity:.35;padding:6px 12px;')

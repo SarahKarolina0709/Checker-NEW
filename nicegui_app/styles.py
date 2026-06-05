@@ -191,4 +191,11 @@ body.body--dark [style*="background:linear-gradient(135deg,#0f2744"]{background:
 /* Header-Buttons: Hover-Akzent (Quasar overrides .q-btn:hover transform; setze opacity) */
 .q-header .q-btn{transition:opacity .15s ease,background .15s ease!important}
 .q-header .q-btn:hover{opacity:1!important;background:rgba(255,255,255,.08)!important}
+
+/* Responsive Header: Beschriftungen unter 1024px ausblenden (Icon-only + Tooltip),
+   damit die rechten Aktionen nicht abgeschnitten werden */
+@media (max-width:1023px){
+  .hdr-label{display:none!important}
+  .hdr-subtitle{display:none!important}
+}
 </style>'''
