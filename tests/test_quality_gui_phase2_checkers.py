@@ -97,6 +97,30 @@ class TestNumbersUnits:
         critical = [i for i in issues if i.severity == "critical" and "NUMBER" in i.code]
         assert len(critical) == 0
 
+    def test_repeated_source_number_present_in_target(self):
+        """Wiederholte Zahl in der Quelle, einmal im Ziel -> kein False Positive.
+
+        Regression: Zaehl-Vergleich meldete frueher 'fehlt im Ziel', obwohl die
+        Zahl im Ziel vorhanden ist (z.B. doppelte Textbloecke im Quelldokument).
+        """
+        src = "Preis 1,45 Euro. Preis 1,45 Euro."  # Quelle nennt 1,45 zweimal
+        tgt = "Price 1.45 Euro."                    # Ziel einmal
+        missing = [i for i in check_numbers_units(src, tgt) if i.code == "NUMBER_MISSING"]
+        assert missing == []
+
+    def test_word_date_year_not_flagged_as_added(self):
+        """Jahr aus 'March 24, 2026' darf nicht als neue Zahl gemeldet werden."""
+        src = "Referenznummer 2026-03-24-A vom 24.03.2026"
+        tgt = "Reference 2026-03-24-A dated March 24, 2026"
+        nums = [i for i in check_numbers_units(src, tgt) if "NUMBER" in i.code]
+        assert nums == []
+
+    def test_genuinely_missing_number_still_detected(self):
+        """Trotz Praesenz-Vergleich: echt fehlende Zahl wird weiter erkannt."""
+        issues = check_numbers_units("Wir haben 10 und 20 Stück.", "We have 10 pieces.")
+        missing = [i for i in issues if i.code == "NUMBER_MISSING"]
+        assert any("20" in i.message for i in missing)
+
 
 # ============================================================================
 # Eigennamen

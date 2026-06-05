@@ -123,6 +123,23 @@ _ENUM_NR_PATTERN  = re.compile(r'Nr\.\s*\d+', re.IGNORECASE)
 _ENUM_NUMMER_PAT  = re.compile(r'Nummer\s*\d+', re.IGNORECASE)
 _DATE_ISO_REMOVE  = re.compile(r'\d{4}[-/]\d{2}[-/]\d{2}')
 _DATE_EU_REMOVE   = re.compile(r'\d{1,2}[./-]\d{1,2}[./-]\d{2,4}')
+# Datumsangaben mit Monatsnamen (DE/EN), z.B. "March 24, 2026", "24. März 2026",
+# "24 March 2026", "March 2026". Sonst leckt die Jahreszahl als nackte Zahl
+# durch (deutsche Quelle nutzt oft 24.03.2026 -> entfernt, englisches Ziel
+# "March 24, 2026" -> Jahr blieb stehen -> False-Positive "Zahl neu im Ziel").
+_MONTH_NAME_GROUP = (
+    r'(?:Jan(?:uar|uary)?|Feb(?:ruar|ruary)?|Mär(?:z)?|March|Mar|Apr(?:il)?|'
+    r'Mai|May|Jun[ie]?|Jul[iy]?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|'
+    r'Okt(?:ober)?|Oct(?:ober)?|Nov(?:ember)?|Dez(?:ember)?|Dec(?:ember)?)'
+)
+_DATE_WORD_REMOVE = re.compile(
+    r'(?:'
+    r'\d{1,2}\.?\s+' + _MONTH_NAME_GROUP + r'(?:\s+\d{2,4})?'              # 24. März 2026 / 24 March
+    r'|' + _MONTH_NAME_GROUP + r'\s+\d{1,2}(?:st|nd|rd|th)?,?\s*\d{2,4}'   # March 24, 2026
+    r'|' + _MONTH_NAME_GROUP + r'\s+\d{4}'                                  # March 2026
+    r')',
+    re.IGNORECASE,
+)
 _TIME_REMOVE      = re.compile(r'\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:Uhr|AM|PM|h))?', re.IGNORECASE)
 _OCLOCK_REMOVE    = re.compile(r"\d{1,2}\s*(?:Uhr|o'?clock)", re.IGNORECASE)
 _VERSION_REMOVE   = re.compile(r'[vV](?:ersion)?\s*\d+(?:\.\d+)+')
@@ -1187,6 +1204,7 @@ def check_numbers_units(src: str, tgt: str) -> List[QAIssue]:
         # WICHTIG: Längere/spezifischere Patterns zuerst!
         text_clean = _DATE_ISO_REMOVE.sub('', text_clean)     # 1965-06-16, 1965/06/16 (ISO)
         text_clean = _DATE_EU_REMOVE.sub('', text_clean)      # 16.06.1965, 16/06/1965, 16-06-1965
+        text_clean = _DATE_WORD_REMOVE.sub('', text_clean)    # March 24, 2026 / 24. März 2026
 
         # Entferne Zeitangaben
         text_clean = _TIME_REMOVE.sub('', text_clean)         # 14:30, 2:30 PM
@@ -1267,8 +1285,13 @@ def check_numbers_units(src: str, tgt: str) -> List[QAIssue]:
     
     has_conversion = _has_unit_conversion(src_with_units, tgt_with_units)
     
-    missing = [n for n in src_nums if src_nums[n] > tgt_nums.get(n, 0)]
-    added   = [n for n in tgt_nums if tgt_nums[n] > src_nums.get(n, 0)]
+    # Vorhandensein statt Haeufigkeit vergleichen: Eine Zahl gilt nur dann als
+    # fehlend, wenn sie im Ziel GAR NICHT vorkommt (und umgekehrt). Ein reiner
+    # Anzahl-Vergleich (Counter) erzeugt False Positives, wenn der Quelltext
+    # eine Zahl oefter wiederholt als die Uebersetzung — z.B. doppelte
+    # Textbloecke oder zu einem Satz zusammengefasste Wiederholungen.
+    missing = [n for n in src_nums if tgt_nums.get(n, 0) == 0]
+    added   = [n for n in tgt_nums if src_nums.get(n, 0) == 0]
     
     # ============================================
     # INTELLIGENTE FILTERUNG
