@@ -170,6 +170,17 @@ body{font-size:var(--fs-md)!important;line-height:var(--lh-normal);
 .pair-row{transition:background .12s ease}
 .pair-row .pair-del{opacity:0;transition:opacity .12s ease}
 .pair-row:hover .pair-del{opacity:1}
+/* Klickbare Auswahl-Karten (Entfernen-Dialog) */
+.choice-card{cursor:pointer;border-radius:10px;border:1px solid var(--surface-border);
+    background:var(--surface);transition:border-color .12s ease,background .12s ease,
+    box-shadow .12s ease,transform .06s ease}
+.choice-card:hover{border-color:var(--primary);background:var(--surface-alt);
+    box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.choice-card:active{transform:translateY(1px)}
+.choice-card .choice-go{color:var(--text-light);transition:transform .12s ease,color .12s ease}
+.choice-card:hover .choice-go{color:var(--primary);transform:translateX(3px)}
+.choice-card-danger:hover{border-color:var(--error);background:var(--bg-error-tint)}
+.choice-card-danger:hover .choice-go{color:var(--error)}
 
 /* Dark mode */
 body.body--dark{--surface:#0f172a;--surface-alt:#1e293b;--surface-border:#334155;

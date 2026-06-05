@@ -952,61 +952,69 @@ def index_page():
         # nur das Loeschen an.
         key = 'source_files' if role == 'source' else 'translation_files'
         can_exclude = role in ('source', 'translation') and fp in s.get(key, [])
-        with ui.dialog() as dlg, ui.card().style('width:440px;'):
-            with ui.row().classes('w-full items-center gap-2'):
-                ui.icon('help_outline' if can_exclude else 'warning',
-                        size='sm').style(
-                    f'color:{"var(--primary)" if can_exclude else "var(--error)"};')
-                ui.label('Datei entfernen' if can_exclude else 'Datei löschen?').style(
-                    'font-size:var(--fs-lg);font-weight:700;color:var(--text);')
+
+        def _do_exclude():
+            dlg.close()
+            _exclude_file(fp, role)
+            ui.notify(f'„{fname}" von der Prüfung ausgeschlossen', type='info')
+
+        def _confirm():
+            dlg.close()
+            _do_remove_file(fp, role)
+            ui.notify(f'„{fname}" gelöscht', type='warning')
+
+        with ui.dialog() as dlg, ui.card().classes('q-pa-none').style(
+            'width:460px;border-radius:14px;overflow:hidden;'):
+            # Kopfbereich
+            with ui.column().classes('w-full gap-1').style('padding:20px 22px 4px;'):
+                with ui.row().classes('w-full items-center gap-2'):
+                    ui.icon('help_outline' if can_exclude else 'warning',
+                            size='sm').style(
+                        f'color:{"var(--primary)" if can_exclude else "var(--error)"};')
+                    ui.label('Datei entfernen' if can_exclude else 'Datei löschen?').style(
+                        'font-size:var(--fs-lg);font-weight:700;color:var(--text);')
+                ui.label(
+                    f'Was möchtest du mit „{fname}" tun?' if can_exclude
+                    else f'„{fname}" wird endgültig aus dem Projektordner gelöscht. '
+                         'Das kann nicht rückgängig gemacht werden.'
+                ).style('font-size:var(--fs-sm);color:var(--text-muted);'
+                        'overflow:hidden;text-overflow:ellipsis;')
+
             if can_exclude:
-                ui.label(f'Was möchtest du mit „{fname}" tun?').style(
-                    'font-size:var(--fs-sm);color:var(--text-muted);')
-                with ui.row().classes('w-full items-start gap-3').style(
-                    'padding:10px 12px;border-radius:8px;background:var(--surface);'
-                    'border:1px solid var(--surface-border);margin-top:6px;'):
-                    ui.icon('visibility_off', size='sm').style(
-                        'color:var(--primary);margin-top:2px;')
-                    with ui.column().classes('gap-0 flex-grow min-w-0'):
-                        ui.label('Nur von der Prüfung ausschließen').style(
-                            'font-size:var(--fs-sm);font-weight:600;color:var(--text);')
-                        ui.label('Datei bleibt im Projektordner erhalten und kann '
-                                 'jederzeit wieder aufgenommen werden.').style(
-                            'font-size:var(--fs-xs);color:var(--text-muted);')
-                with ui.row().classes('w-full items-start gap-3').style(
-                    'padding:10px 12px;border-radius:8px;'
-                    'background:var(--bg-error-tint);border:1px solid var(--error);'):
-                    ui.icon('delete_forever', size='sm').style(
-                        'color:var(--error);margin-top:2px;')
-                    with ui.column().classes('gap-0 flex-grow min-w-0'):
-                        ui.label('Endgültig vom Datenträger löschen').style(
-                            'font-size:var(--fs-sm);font-weight:600;color:var(--error);')
-                        ui.label('Die Datei wird unwiderruflich aus dem '
-                                 'Projektordner gelöscht.').style(
-                            'font-size:var(--fs-xs);color:var(--text-muted);')
+                with ui.column().classes('w-full gap-2').style('padding:14px 22px 6px;'):
+                    # Option 1 — Ausschliessen (klickbare Karte)
+                    with ui.row().classes(
+                        'w-full items-center gap-3 choice-card no-wrap'
+                    ).style('padding:12px 14px;').on('click', _do_exclude):
+                        ui.icon('visibility_off', size='sm').style(
+                            'color:var(--primary);')
+                        with ui.column().classes('gap-0 flex-grow min-w-0'):
+                            ui.label('Nur von der Prüfung ausschließen').style(
+                                'font-size:var(--fs-sm);font-weight:600;color:var(--text);')
+                            ui.label('Datei bleibt im Projektordner erhalten und kann '
+                                     'jederzeit wieder aufgenommen werden.').style(
+                                'font-size:var(--fs-xs);color:var(--text-muted);')
+                        ui.icon('chevron_right', size='sm').classes('choice-go')
+                    # Option 2 — Endgueltig loeschen (klickbare Karte)
+                    with ui.row().classes(
+                        'w-full items-center gap-3 choice-card choice-card-danger no-wrap'
+                    ).style('padding:12px 14px;').on('click', _confirm):
+                        ui.icon('delete_forever', size='sm').style('color:var(--error);')
+                        with ui.column().classes('gap-0 flex-grow min-w-0'):
+                            ui.label('Endgültig vom Datenträger löschen').style(
+                                'font-size:var(--fs-sm);font-weight:600;color:var(--error);')
+                            ui.label('Die Datei wird unwiderruflich aus dem '
+                                     'Projektordner gelöscht.').style(
+                                'font-size:var(--fs-xs);color:var(--text-muted);')
+                        ui.icon('chevron_right', size='sm').classes('choice-go')
+                with ui.row().classes('w-full justify-end').style('padding:8px 22px 18px;'):
+                    ui.button('Abbrechen', on_click=dlg.close).props('flat no-caps')
             else:
-                ui.label(f'„{fname}" wird endgültig aus dem Projektordner '
-                         'gelöscht. Das kann nicht rückgängig gemacht werden.').style(
-                    'font-size:var(--fs-sm);color:var(--text-muted);')
-            with ui.row().classes('w-full justify-end gap-2').style('margin-top:8px;'):
-                ui.button('Abbrechen', on_click=dlg.close).props('flat no-caps')
-
-                if can_exclude:
-                    def _do_exclude():
-                        dlg.close()
-                        _exclude_file(fp, role)
-                        ui.notify(f'„{fname}" von der Prüfung ausgeschlossen',
-                                  type='info')
-                    ui.button('Ausschließen', icon='visibility_off',
-                              on_click=_do_exclude).props(
-                        'no-caps outline color=primary')
-
-                def _confirm():
-                    dlg.close()
-                    _do_remove_file(fp, role)
-                    ui.notify(f'„{fname}" gelöscht', type='warning')
-                ui.button('Löschen', icon='delete_forever', on_click=_confirm).props(
-                    'no-caps unelevated color=negative')
+                with ui.row().classes('w-full justify-end gap-2').style(
+                    'padding:14px 22px 18px;'):
+                    ui.button('Abbrechen', on_click=dlg.close).props('flat no-caps')
+                    ui.button('Löschen', icon='delete_forever', on_click=_confirm).props(
+                        'no-caps unelevated color=negative')
         dlg.open()
 
     # ------------------------------------------------------------------
