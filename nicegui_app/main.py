@@ -814,18 +814,25 @@ def index_page():
                             'font-size:var(--fs-xs);color:var(--text-muted);')
                 else:
                     # Kleiner "+ Weitere" Button statt große Drop-Zone
-                    drop_ref = refs.get('src_drop' if role == 'source' else 'tgt_drop')
-                    def _show_drop(d=drop_ref):
+                    picker = refs.get('src_picker' if role == 'source' else 'tgt_picker')
+                    def _pick(d=picker):
                         if d:
-                            d.visible = True
+                            d.run_method('pickFiles')
                     ui.button('Weitere Dateien', icon='add',
-                              on_click=_show_drop).props('flat dense no-caps size=sm').style(
+                              on_click=_pick).props('flat dense no-caps size=sm').style(
                         'font-size:var(--fs-sm);color:var(--text-light);margin-top:4px;')
             # Drop-Zone verstecken wenn Dateien vorhanden
             drop_key = 'src_drop' if role == 'source' else 'tgt_drop'
             drop = refs.get(drop_key)
             if drop:
                 drop.visible = not bool(files)
+
+        # Gesamte Upload-Zone (inkl. Ueberschriften + Hinweis) ausblenden,
+        # sobald irgendeine Datei vorhanden ist — verhindert verwaiste Labels.
+        upl = refs.get('upload_area')
+        if upl:
+            has_any = bool(s.get('source_files') or s.get('translation_files'))
+            upl.visible = not has_any
 
     def _toggle_role(fp: str, current_role: str):
         if current_role == 'source':
@@ -853,9 +860,30 @@ def index_page():
         if fp in lst:
             lst.remove(fp)
         s[key] = lst
+        # Falls die Datei als Kopie im aktiven Projektordner liegt: auch von
+        # der Disk loeschen, sonst taucht sie beim naechsten Disk-Listing
+        # (_refresh_project_folders) sofort wieder auf.
+        proj_path = s.get('active_project_path', '')
+        try:
+            if proj_path and os.path.isfile(fp):
+                ap_file = os.path.abspath(fp)
+                ap_proj = os.path.abspath(proj_path)
+                if os.path.commonpath([ap_file, ap_proj]) == ap_proj:
+                    os.remove(fp)
+        except Exception:
+            pass
+        # Betroffene Paare entfernen
+        s['paired_results'] = [
+            p for p in s.get('paired_results', [])
+            if p.get('source') != fp and p.get('translation') != fp
+        ]
         _refresh_file_list()
         _do_autopairing()
         _update_start_btn()
+        try:
+            _refresh_project_folders()
+        except Exception:
+            pass
         _refresh_results_area()
 
     # ------------------------------------------------------------------
@@ -2594,41 +2622,47 @@ def index_page():
                     refs['project_folders_container'] = ui.column().classes('w-full gap-2')
 
                     # Upload-Zonen mit Drag & Drop (farbcodiert, mit Titel-Caption)
-                    with ui.row().classes('w-full gap-3').style('margin-top:12px;'):
-                        # --- Ausgangstext (blau) ---
-                        with ui.column().classes('flex-1').style('gap:5px;min-width:0;'):
-                            with ui.row().classes('items-center gap-2'):
-                                ui.icon('description', size='xs').style('color:var(--primary);')
-                                ui.label('Ausgangstext').style(
-                                    'font-size:var(--fs-sm);font-weight:700;color:var(--primary);'
-                                    'text-transform:uppercase;letter-spacing:.5px;')
-                            src_drop = ui.upload(
-                                label='Klicken oder Datei hierher ziehen',
-                                on_upload=_handle_source_upload,
-                                auto_upload=True, multiple=True, max_file_size=50_000_000,
-                            ).props('accept=".pdf,.docx,.txt,.doc,.png,.jpg,.jpeg,.tiff,.tif" flat dense'
-                            ).classes('w-full').style(
-                                'border:2px dashed var(--border-info);border-radius:var(--radius-md);'
-                                'min-height:64px;background:var(--bg-info-tint);')
-                            refs['src_drop'] = src_drop
-                        # --- Übersetzung (grün) ---
-                        with ui.column().classes('flex-1').style('gap:5px;min-width:0;'):
-                            with ui.row().classes('items-center gap-2'):
-                                ui.icon('translate', size='xs').style('color:var(--success);')
-                                ui.label('Übersetzung').style(
-                                    'font-size:var(--fs-sm);font-weight:700;color:var(--success);'
-                                    'text-transform:uppercase;letter-spacing:.5px;')
-                            tgt_drop = ui.upload(
-                                label='Klicken oder Datei hierher ziehen',
-                                on_upload=_handle_translation_upload,
-                                auto_upload=True, multiple=True, max_file_size=50_000_000,
-                            ).props('accept=".pdf,.docx,.txt,.doc,.png,.jpg,.jpeg,.tiff,.tif" flat dense'
-                            ).classes('w-full').style(
-                                'border:2px dashed var(--border-success);border-radius:var(--radius-md);'
-                                'min-height:64px;background:var(--bg-success-tint);')
-                            refs['tgt_drop'] = tgt_drop
-                    ui.label('Unterstützt: PDF, DOCX, TXT, Bilder (OCR) · max. 50 MB').style(
-                        'font-size:var(--fs-xs);color:var(--text-light);margin-top:8px;')
+                    # Wird ausgeblendet sobald Dateien vorhanden sind — dann
+                    # erfolgt das Nachladen ueber die "Weitere hochladen"-Buttons
+                    # in der Ordner-Ansicht (vermeidet verwaiste Labels).
+                    _upload_area = ui.column().classes('w-full gap-0').style('margin-top:12px;')
+                    refs['upload_area'] = _upload_area
+                    with _upload_area:
+                        with ui.row().classes('w-full gap-3'):
+                            # --- Ausgangstext (blau) ---
+                            with ui.column().classes('flex-1').style('gap:5px;min-width:0;'):
+                                with ui.row().classes('items-center gap-2'):
+                                    ui.icon('description', size='xs').style('color:var(--primary);')
+                                    ui.label('Ausgangstext').style(
+                                        'font-size:var(--fs-sm);font-weight:700;color:var(--primary);'
+                                        'text-transform:uppercase;letter-spacing:.5px;')
+                                src_drop = ui.upload(
+                                    label='Klicken oder Datei hierher ziehen',
+                                    on_upload=_handle_source_upload,
+                                    auto_upload=True, multiple=True, max_file_size=50_000_000,
+                                ).props('accept=".pdf,.docx,.txt,.doc,.png,.jpg,.jpeg,.tiff,.tif" flat dense'
+                                ).classes('w-full').style(
+                                    'border:2px dashed var(--border-info);border-radius:var(--radius-md);'
+                                    'min-height:64px;background:var(--bg-info-tint);')
+                                refs['src_drop'] = src_drop
+                            # --- Übersetzung (grün) ---
+                            with ui.column().classes('flex-1').style('gap:5px;min-width:0;'):
+                                with ui.row().classes('items-center gap-2'):
+                                    ui.icon('translate', size='xs').style('color:var(--success);')
+                                    ui.label('Übersetzung').style(
+                                        'font-size:var(--fs-sm);font-weight:700;color:var(--success);'
+                                        'text-transform:uppercase;letter-spacing:.5px;')
+                                tgt_drop = ui.upload(
+                                    label='Klicken oder Datei hierher ziehen',
+                                    on_upload=_handle_translation_upload,
+                                    auto_upload=True, multiple=True, max_file_size=50_000_000,
+                                ).props('accept=".pdf,.docx,.txt,.doc,.png,.jpg,.jpeg,.tiff,.tif" flat dense'
+                                ).classes('w-full').style(
+                                    'border:2px dashed var(--border-success);border-radius:var(--radius-md);'
+                                    'min-height:64px;background:var(--bg-success-tint);')
+                                refs['tgt_drop'] = tgt_drop
+                        ui.label('Unterstützt: PDF, DOCX, TXT, Bilder (OCR) · max. 50 MB').style(
+                            'font-size:var(--fs-xs);color:var(--text-light);margin-top:8px;')
 
                 # Versteckte Backend-Container
                 refs['src_container'] = ui.column().style('display:none;')
@@ -2642,13 +2676,16 @@ def index_page():
                 ):
                     ui.label('Dateien direkt prüfen — ohne Kundenzuordnung.').style(
                         'font-size:var(--fs-sm);color:var(--text-light);padding:4px 0;')
-                    # Versteckte Uploads
+                    # Versteckte Uploads (immer display:none — zuverlaessiger
+                    # pickFiles-Trigger fuer alle "Weitere hochladen"-Buttons)
                     _quick_src = ui.upload(on_upload=_handle_source_upload, auto_upload=True,
                         multiple=True, max_file_size=50_000_000).props(
                         'accept=".pdf,.docx,.txt,.doc,.png,.jpg,.jpeg,.tiff,.tif"').style('display:none;')
                     _quick_tgt = ui.upload(on_upload=_handle_translation_upload, auto_upload=True,
                         multiple=True, max_file_size=50_000_000).props(
                         'accept=".pdf,.docx,.txt,.doc,.png,.jpg,.jpeg,.tiff,.tif"').style('display:none;')
+                    refs['src_picker'] = _quick_src
+                    refs['tgt_picker'] = _quick_tgt
                     with ui.row().classes('w-full gap-2'):
                         ui.button('Ausgangstext wählen', icon='description',
                             on_click=lambda: _quick_src.run_method('pickFiles')).props(
@@ -3016,7 +3053,7 @@ def index_page():
                                             on_click=lambda _, f=fp, r=role: _remove_file(f, r or 'source')
                                         ).props('flat dense round size=xs').style('color:var(--text-light);')
                                 if role in ('source', 'translation'):
-                                    drop_ref = refs.get('src_drop' if role == 'source' else 'tgt_drop')
+                                    drop_ref = refs.get('src_picker' if role == 'source' else 'tgt_picker')
                                     if drop_ref:
                                         ui.button('Weitere hochladen', icon='add',
                                             on_click=lambda _, d=drop_ref: d.run_method('pickFiles')
@@ -3026,7 +3063,7 @@ def index_page():
                                 ui.icon(icon_name, size='xs').style(f'color:{icon_color};opacity:.4;')
                                 ui.label(f'{clean_name} (0)').style('font-size:var(--fs-md);color:var(--text-light);flex-grow:1;')
                                 if role in ('source', 'translation'):
-                                    drop_ref = refs.get('src_drop' if role == 'source' else 'tgt_drop')
+                                    drop_ref = refs.get('src_picker' if role == 'source' else 'tgt_picker')
                                     if drop_ref:
                                         ui.button('Hochladen', icon='upload',
                                             on_click=lambda _, d=drop_ref: d.run_method('pickFiles')
