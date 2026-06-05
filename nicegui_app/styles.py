@@ -10,7 +10,7 @@ APP_CSS = '''<style>
 
 :root{
   --primary:#0a1628;--primary-light:#1a365d;--accent:#d4af37;
-  --success:#16a34a;--warning:#d97706;--error:#dc2626;
+  --success:#16a34a;--warning:#d97706;--error:#dc2626;--info:#2563eb;
   --surface:#ffffff;--surface-alt:#f8fafc;--surface-border:#e2e8f0;
   --surface-border-light:#f1f5f9;--surface-border-strong:#d1d5db;
   /* Semantic tint borders */
@@ -170,6 +170,9 @@ body{font-size:var(--fs-md)!important;line-height:var(--lh-normal);
 .pair-row{transition:background .12s ease}
 .pair-row .pair-del{opacity:0;transition:opacity .12s ease}
 .pair-row:hover .pair-del{opacity:1}
+/* Top-Kategorien-Heatmap: Zeilen-Hover */
+.cat-row{transition:background .12s ease}
+.cat-row:hover{background:var(--bg-muted)}
 /* Klickbare Auswahl-Karten (Entfernen-Dialog) */
 .choice-card{cursor:pointer;border-radius:10px;border:1px solid var(--surface-border);
     background:var(--surface);transition:border-color .12s ease,background .12s ease,
@@ -188,7 +191,7 @@ body.body--dark{--surface:#0f172a;--surface-alt:#1e293b;--surface-border:#334155
     --border-warning:#78350f;--border-success:#14532d;--border-info:#1e3a5f;
     --role-source:#60a5fa;
     --text:#e2e8f0;--text-muted:#94a3b8;--text-light:#64748b;
-    --primary:#0a1628;--accent:#d4af37;
+    --primary:#0a1628;--accent:#d4af37;--info:#60a5fa;
     --text-body:#cbd5e1;--success-text:#6ee7b7;--warning-text:#fbbf24;--error-text:#fca5a5;
     --bg-primary:#0a1628;--bg-muted:#1e293b;
     --bg-info-soft:#0c1a2e;--bg-info-tint:#0c1827;

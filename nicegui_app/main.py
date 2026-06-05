@@ -132,6 +132,50 @@ LANG_CODE_MAP = {
     'Ukrainisch': 'uk',
 }
 
+# Deutsche Anzeige-Labels fuer die (intern englischen) Kategorie-Codes der
+# Checker. Wird in der "Top-Kategorien"-Heatmap und in der Findings-Suche
+# genutzt, damit die UI durchgaengig deutsch ist.
+CATEGORY_LABELS_DE = {
+    'completeness': 'Vollständigkeit',
+    'consistency': 'Konsistenz',
+    'formatting': 'Formatierung',
+    'html': 'HTML & Tags',
+    'metadata': 'Metadaten',
+    'punctuation': 'Interpunktion',
+    'quotes': 'Anführungszeichen',
+    'readability': 'Lesbarkeit',
+    'references': 'Verweise (URLs/E-Mail)',
+    'risk': 'Risiko',
+    'security': 'Sicherheit',
+    'semantic': 'Bedeutung',
+    'structure': 'Struktur',
+    'style': 'Stil',
+    'terminology': 'Terminologie',
+    'typography': 'Typografie',
+    'whitespace': 'Leerzeichen',
+    'grammar': 'Grammatik',
+    'numbers': 'Zahlen',
+    'ocr': 'OCR-Erkennung',
+    'ki_semantic': 'KI-Analyse',
+    'Sonstige': 'Sonstige',
+}
+
+
+def category_label_de(cat: str) -> str:
+    """Liefert das deutsche Anzeige-Label fuer einen Kategorie-Code.
+
+    Unbekannte Codes werden lesbar formatiert (snake_case -> Titel).
+    """
+    if not cat:
+        return 'Sonstige'
+    key = cat.strip()
+    if key in CATEGORY_LABELS_DE:
+        return CATEGORY_LABELS_DE[key]
+    low = key.lower()
+    if low in CATEGORY_LABELS_DE:
+        return CATEGORY_LABELS_DE[low]
+    return key.replace('_', ' ').strip().capitalize()
+
 ALLOWED_EXTENSIONS = {
     '.pdf', '.docx', '.txt', '.doc',
     '.png', '.jpg', '.jpeg', '.tiff', '.tif',
@@ -1731,6 +1775,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                 continue
             if st:
                 hay = (f.message + ' ' + (f.category or '') + ' '
+                       + category_label_de(f.category) + ' '
                        + os.path.basename(getattr(f, 'source_file', '') or '') + ' '
                        + os.path.basename(getattr(f, 'target_file', '') or '')).lower()
                 if st not in hay:
@@ -2003,28 +2048,54 @@ def index_page(kunde: str = '', auftrag: str = ''):
                 key=lambda kv: (-sum(kv[1].values()), kv[0]),
             )[:6]
             max_total = max((sum(d.values()) for _, d in top), default=1) or 1
+            _SEV_STYLE = [
+                ('Kritisch', 'var(--error)'),
+                ('Wichtig', 'var(--warning)'),
+                ('Hinweis', 'var(--info)'),
+            ]
             with cont:
                 if not top:
-                    ui.label('—').style('font-size:var(--fs-xs);color:var(--text-light);')
+                    ui.label('Keine Befunde').style('font-size:var(--fs-xs);color:var(--text-light);')
+                else:
+                    # Severity-Legende, damit die Balkenfarben verständlich sind
+                    with ui.row().classes('items-center gap-3').style('margin:0 0 8px 2px;'):
+                        for sev_lbl, sev_clr in _SEV_STYLE:
+                            tot = sum(d.get(sev_lbl, 0) for _, d in top)
+                            if tot <= 0:
+                                continue
+                            with ui.row().classes('items-center gap-1').style('gap:5px;'):
+                                ui.element('div').style(
+                                    f'width:9px;height:9px;border-radius:50%;background:{sev_clr};'
+                                    'flex-shrink:0;')
+                                ui.label(f'{sev_lbl} ({tot})').style(
+                                    'font-size:var(--fs-xs);color:var(--text-muted);')
                 for cat, d in top:
                     total = sum(d.values())
                     width_pct = max(8, int(total / max_total * 100))
-                    with ui.row().classes('w-full items-center gap-2 cursor-pointer').style(
-                        'padding:2px 4px;border-radius:4px;'
-                    ).on('click', lambda _, c=cat: (s.update({'search_text': c}),
+                    label_de = category_label_de(cat)
+                    crit, warn, hint = d.get('Kritisch', 0), d.get('Wichtig', 0), d.get('Hinweis', 0)
+                    tip_parts = []
+                    if crit:
+                        tip_parts.append(f'{crit} kritisch')
+                    if warn:
+                        tip_parts.append(f'{warn} wichtig')
+                    if hint:
+                        tip_parts.append(f'{hint} Hinweis')
+                    tip = label_de + (' · ' + ' · '.join(tip_parts) if tip_parts else '')
+                    with ui.row().classes('w-full items-center gap-2 cat-row cursor-pointer').style(
+                        'padding:3px 4px;border-radius:6px;'
+                    ).on('click', lambda _, c=label_de: (s.update({'search_text': c}),
                                                      refs.get('search_input') and refs['search_input'].set_value(c),
-                                                     _refresh_results_area())):
-                        ui.label(cat[:38] + ('…' if len(cat) > 38 else '')).style(
-                            'font-size:var(--fs-xs);color:var(--text-muted);width:160px;flex-shrink:0;'
+                                                     _refresh_results_area())).tooltip(tip):
+                        ui.label(label_de[:34] + ('…' if len(label_de) > 34 else '')).style(
+                            'font-size:var(--fs-sm);color:var(--text-body);width:150px;flex-shrink:0;'
                             'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
                         with ui.element('div').style(
-                            f'flex-grow:1;height:10px;border-radius:5px;background:var(--bg-muted);'
-                            f'position:relative;overflow:hidden;'
+                            'flex-grow:1;height:12px;border-radius:6px;background:var(--bg-muted);'
+                            'border:1px solid var(--surface-border);position:relative;overflow:hidden;'
                         ):
                             seg_left = 0.0
-                            for sev_lbl, sev_clr in [('Kritisch', 'var(--error)'),
-                                                      ('Wichtig', 'var(--warning)'),
-                                                      ('Hinweis', 'var(--text-muted)')]:
+                            for sev_lbl, sev_clr in _SEV_STYLE:
                                 cnt = d.get(sev_lbl, 0)
                                 if cnt <= 0:
                                     continue
@@ -2036,7 +2107,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                                 )
                                 seg_left += pct
                         ui.label(str(total)).style(
-                            'font-size:var(--fs-xs);font-weight:700;color:var(--text);'
+                            'font-size:var(--fs-sm);font-weight:700;color:var(--text);'
                             'width:24px;text-align:right;')
         # Per-File-Heatmap (Score je Datei-Paar)
         if refs.get('per_file_heatmap'):
@@ -2060,6 +2131,17 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         sc = compute_score(flist)
                         items.append((sp, tp, flist, sc))
                     items.sort(key=lambda x: x[3])
+                    # Legende: Score-Farbbänder + Erklärung der Zahl rechts
+                    with ui.row().classes('items-center gap-3').style('margin:0 0 8px 2px;flex-wrap:wrap;'):
+                        for clr, txt in [('var(--success)', 'gut (≥80)'),
+                                          ('var(--warning)', 'mittel (50–79)'),
+                                          ('var(--error)', 'kritisch (<50)')]:
+                            with ui.row().classes('items-center').style('gap:5px;'):
+                                ui.element('div').style(
+                                    f'width:9px;height:9px;border-radius:50%;background:{clr};flex-shrink:0;')
+                                ui.label(txt).style('font-size:var(--fs-xs);color:var(--text-muted);')
+                        ui.label('· Zahl rechts = Befunde').style(
+                            'font-size:var(--fs-xs);color:var(--text-light);')
                     for sp, tp, flist, sc in items[:10]:
                         sclr = 'var(--success)' if sc >= 80 else 'var(--warning)' if sc >= 50 else 'var(--error)'
                         nm = os.path.basename(sp or tp or '?')
@@ -2067,31 +2149,44 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         for ff in flist:
                             sev_cnt[severity_label(ff.severity)] = (
                                 sev_cnt.get(severity_label(ff.severity), 0) + 1)
-                        with ui.row().classes('w-full items-center gap-2 cursor-pointer').style(
-                            'padding:2px 4px;border-radius:4px;'
+                        n_find = len(flist)
+                        tip_parts = []
+                        if sev_cnt['Kritisch']:
+                            tip_parts.append(f'{sev_cnt["Kritisch"]} kritisch')
+                        if sev_cnt['Wichtig']:
+                            tip_parts.append(f'{sev_cnt["Wichtig"]} wichtig')
+                        if sev_cnt['Hinweis']:
+                            tip_parts.append(f'{sev_cnt["Hinweis"]} Hinweis')
+                        tip = (f'{nm} · Score {sc}/100 · {n_find} Befund'
+                               + ('e' if n_find != 1 else '')
+                               + (' (' + ', '.join(tip_parts) + ')' if tip_parts else ''))
+                        with ui.row().classes('w-full items-center gap-2 cat-row cursor-pointer').style(
+                            'padding:3px 4px;border-radius:6px;'
                         ).on('click', lambda _, n=nm: (s.update({'search_text': n}),
                                                         refs.get('search_input') and refs['search_input'].set_value(n),
-                                                        _refresh_results_area())):
+                                                        _refresh_results_area())).tooltip(tip):
                             ui.label(nm[:32] + ('…' if len(nm) > 32 else '')).style(
-                                'font-size:var(--fs-xs);color:var(--text-muted);width:160px;flex-shrink:0;'
+                                'font-size:var(--fs-sm);color:var(--text-body);width:150px;flex-shrink:0;'
                                 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
                             with ui.element('div').style(
-                                'flex-grow:1;height:10px;border-radius:5px;'
-                                'background:var(--bg-muted);position:relative;overflow:hidden;'
+                                'flex-grow:1;height:12px;border-radius:6px;'
+                                'background:var(--bg-muted);border:1px solid var(--surface-border);'
+                                'position:relative;overflow:hidden;'
                             ):
                                 ui.element('div').style(
                                     f'position:absolute;top:0;bottom:0;left:0;'
                                     f'width:{max(0,min(100,sc))}%;background:{sclr};'
                                 )
                             ui.label(f'{sc}').style(
-                                f'font-size:var(--fs-xs);font-weight:700;color:{sclr};'
-                                f'width:30px;text-align:right;')
-                            ui.label(f'{len(flist)}').style(
-                                'font-size:var(--fs-xs);color:var(--text-light);width:20px;text-align:right;'
-                            ).tooltip(
-                                f'Kritisch: {sev_cnt["Kritisch"]} · '
-                                f'Wichtig: {sev_cnt["Wichtig"]} · '
-                                f'Hinweis: {sev_cnt["Hinweis"]}')
+                                f'font-size:var(--fs-sm);font-weight:700;color:{sclr};'
+                                f'width:30px;text-align:right;').tooltip(f'Score {sc}/100')
+                            with ui.element('div').classes('find-badge').style(
+                                'min-width:22px;height:18px;padding:0 6px;border-radius:9px;'
+                                'display:inline-flex;align-items:center;justify-content:center;'
+                                'background:var(--bg-muted);'
+                            ).tooltip('Anzahl Befunde'):
+                                ui.label(str(n_find)).style(
+                                    'font-size:var(--fs-xs);font-weight:700;color:var(--text-muted);line-height:1;')
         # Visibility
         for key in ('results_area', 'score_card', 'summary_card'):
             if refs[key]:

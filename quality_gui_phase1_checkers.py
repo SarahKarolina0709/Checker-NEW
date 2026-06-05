@@ -166,13 +166,13 @@ def check_urls_emails(src: str, tgt: str, segment_index: int = -1) -> List[QAIss
 def check_whitespace_and_zero_width(src: str, tgt: str, segment_index: int = -1) -> List[QAIssue]:
     """Prüft Whitespace und unsichtbare Zeichen mit verbesserter NBSP-Erkennung."""
     issues: List[QAIssue] = []
-    for label, text in (("source", src), ("target", tgt)):
+    for loc, text in (("im Ausgangstext", src), ("in der Übersetzung", tgt)):
         if DUP_SPACE_PATTERN.search(text):
-            issues.append(QAIssue("WS_DOUBLE_SPACE", "minor", "whitespace", f"Doppelte Leerzeichen in {label}", src, tgt, segment_index))
+            issues.append(QAIssue("WS_DOUBLE_SPACE", "minor", "whitespace", f"Doppelte Leerzeichen {loc}", src, tgt, segment_index))
         if TRAIL_SPACE_PATTERN.search(text):
-            issues.append(QAIssue("WS_TRAILING", "minor", "whitespace", f"Trailing Whitespace in {label}", src, tgt, segment_index))
+            issues.append(QAIssue("WS_TRAILING", "minor", "whitespace", f"Leerzeichen am Zeilenende {loc}", src, tgt, segment_index))
         if LEAD_SPACE_PATTERN.search(text):
-            issues.append(QAIssue("WS_LEADING", "minor", "whitespace", f"Führende Leerzeichen in {label}", src, tgt, segment_index))
+            issues.append(QAIssue("WS_LEADING", "minor", "whitespace", f"Führende Leerzeichen {loc}", src, tgt, segment_index))
         zw = extract_zero_width(text)
         if zw:
             # VERBESSERT: Nur NBSP/NNBSP ignorieren die IN französischen Mustern vorkommen
@@ -210,7 +210,7 @@ def check_whitespace_and_zero_width(src: str, tgt: str, segment_index: int = -1)
             unique_names = list(dict.fromkeys(names))  # Erhält Reihenfolge
             if unique_names:
                 issues.append(QAIssue("ZERO_WIDTH_CHAR", "minor", "whitespace", 
-                    f"Unsichtbare/geschützte Zeichen in {label}: {unique_names}", src, tgt, segment_index, {"chars": zw}))
+                    f"Unsichtbare/geschützte Zeichen {loc}: {unique_names}", src, tgt, segment_index, {"chars": zw}))
     return issues
 
 def check_brackets_basic(src: str, tgt: str, segment_index: int = -1) -> List[QAIssue]:
