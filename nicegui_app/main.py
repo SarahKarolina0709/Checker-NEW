@@ -854,7 +854,7 @@ def index_page():
         _refresh_file_list()
         _do_autopairing()
 
-    def _remove_file(fp: str, role: str):
+    def _do_remove_file(fp: str, role: str):
         key = 'source_files' if role == 'source' else 'translation_files'
         lst = list(s.get(key, []))
         if fp in lst:
@@ -885,6 +885,44 @@ def index_page():
         except Exception:
             pass
         _refresh_results_area()
+
+    def _file_is_on_disk_in_project(fp: str) -> bool:
+        """True, wenn fp eine echte Datei im aktiven Projektordner ist
+        (Entfernen wuerde sie unwiderruflich von der Disk loeschen)."""
+        proj_path = s.get('active_project_path', '')
+        try:
+            if proj_path and os.path.isfile(fp):
+                ap_file = os.path.abspath(fp)
+                ap_proj = os.path.abspath(proj_path)
+                return os.path.commonpath([ap_file, ap_proj]) == ap_proj
+        except Exception:
+            pass
+        return False
+
+    def _remove_file(fp: str, role: str):
+        # Nur bei echter Disk-Loeschung nachfragen (Datenverlust vermeiden).
+        if not _file_is_on_disk_in_project(fp):
+            _do_remove_file(fp, role)
+            return
+        fname = os.path.basename(fp)
+        with ui.dialog() as dlg, ui.card().style('width:400px;'):
+            with ui.row().classes('w-full items-center gap-2'):
+                ui.icon('warning', size='sm').style('color:var(--error);')
+                ui.label('Datei löschen?').style(
+                    'font-size:var(--fs-lg);font-weight:700;color:var(--text);')
+            ui.label(f'„{fname}" wird endgültig aus dem Projektordner '
+                     'gelöscht. Das kann nicht rückgängig gemacht werden.').style(
+                'font-size:var(--fs-sm);color:var(--text-muted);')
+            with ui.row().classes('w-full justify-end gap-2').style('margin-top:8px;'):
+                ui.button('Abbrechen', on_click=dlg.close).props('flat no-caps')
+
+                def _confirm():
+                    dlg.close()
+                    _do_remove_file(fp, role)
+                    ui.notify(f'„{fname}" gelöscht', type='info')
+                ui.button('Löschen', icon='delete', on_click=_confirm).props(
+                    'no-caps unelevated color=negative')
+        dlg.open()
 
     # ------------------------------------------------------------------
     # Auto-pairing
