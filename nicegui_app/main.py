@@ -668,7 +668,7 @@ def _export_correction_package() -> Optional[str]:
 # Main page
 # ===========================================================================
 @ui.page('/')
-def index_page():
+def index_page(kunde: str = '', auftrag: str = ''):
     s = app.storage.user
     for key, default in [
         ('source_files', []), ('translation_files', []), ('paired_results', []),
@@ -3144,6 +3144,7 @@ def index_page():
                 ui.notify('Zuordnung gelöst', type='info')
 
             def _refresh_project_folders():
+                container = refs.get('project_folders_container')
                 if not container:
                     return
                 container.clear()
@@ -3634,6 +3635,34 @@ def index_page():
         except Exception:
             pass
     _update_start_btn()
+
+    # URL-Parameter auswerten: /?kunde=X&auftrag=Y oeffnet Kunde + Projekt direkt
+    # (Navigation von der Kunden- und Kalender-Seite). Laeuft NACH dem
+    # State-Restore, damit eine explizite URL-Auswahl Vorrang hat.
+    if kunde:
+        try:
+            _on_customer_selected(kunde)
+            try:
+                _render_customer_list()
+            except Exception:
+                pass
+            if auftrag:
+                proj_path = _get_project_path(kunde, auftrag)
+                if not proj_path or not os.path.isdir(proj_path):
+                    # Fallback: Projekt per Namens-/Datums-Praefix suchen
+                    for p in _list_projects(kunde):
+                        if p == auftrag or p.startswith(auftrag) or auftrag in p:
+                            cand = _get_project_path(kunde, p) or os.path.join(
+                                _get_customer_path(kunde), p)
+                            if os.path.isdir(cand):
+                                proj_path, auftrag = cand, p
+                                break
+                if proj_path and os.path.isdir(proj_path):
+                    n_src = _count_files_in_folder(_find_source_folder(proj_path) or '')
+                    n_tgt = _count_files_in_folder(_find_translation_folder(proj_path) or '')
+                    _select_auftrag(auftrag, proj_path, n_src, n_tgt)
+        except Exception as exc:
+            _logger.warning('URL-Projektauswahl fehlgeschlagen: %s', exc)
 
 
 # ===========================================================================
