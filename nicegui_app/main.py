@@ -3106,7 +3106,7 @@ def index_page():
                                     if drop_ref:
                                         ui.button('Weitere hochladen', icon='add',
                                             on_click=lambda _, d=drop_ref: d.run_method('pickFiles')
-                                        ).props('flat dense no-caps size=xs').style(f'color:{icon_color};margin-top:6px;')
+                                        ).props('flat dense no-caps size=xs').style(f'color:{icon_color};margin-top:6px;font-size:var(--fs-xs);')
                         else:
                             with ui.row().classes('w-full items-center gap-2 folder-empty').style(
                                 'padding:6px 4px;margin:2px 0;'):
@@ -3162,7 +3162,7 @@ def index_page():
                             ui.icon('hourglass_empty', size='xs').style('color:var(--text-light);')
                             ui.label('Warte auf Dateien').style('font-size:var(--fs-sm);color:var(--text-light);flex-grow:1;')
                         if not all_paired and (src_files or tgt_files):
-                            ui.button('Zuordnen', icon='tune', on_click=_show_pairing_dialog).props('outline dense no-caps size=sm').style('color:var(--primary);')
+                            ui.button('Zuordnen', icon='tune', on_click=_show_pairing_dialog).props('outline dense no-caps size=sm').style('color:var(--primary);font-size:var(--fs-sm);')
 
             def _toggle_file(fp: str, role: str, checked: bool):
                 """Datei zur Prüfung an/abwählen."""
