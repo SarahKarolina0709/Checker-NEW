@@ -15,6 +15,8 @@ APP_CSS = '''<style>
   --surface-border-light:#f1f5f9;--surface-border-strong:#d1d5db;
   /* Semantic tint borders */
   --border-warning:#fed7aa;--border-success:#bbf7d0;--border-info:#93c5fd;
+  /* Rollen-Farben (Datei-Zuordnung) — Quelle weicher als --primary */
+  --role-source:#2563eb;
   --text:#0f172a;--text-muted:#64748b;--text-light:#94a3b8;
   /* Semantic text colors for colored backgrounds */
   --text-body:#334155;
@@ -173,6 +175,7 @@ body{font-size:var(--fs-md)!important;line-height:var(--lh-normal);
 body.body--dark{--surface:#0f172a;--surface-alt:#1e293b;--surface-border:#334155;
     --surface-border-light:#1e293b;--surface-border-strong:#475569;
     --border-warning:#78350f;--border-success:#14532d;--border-info:#1e3a5f;
+    --role-source:#60a5fa;
     --text:#e2e8f0;--text-muted:#94a3b8;--text-light:#64748b;
     --primary:#0a1628;--accent:#d4af37;
     --text-body:#cbd5e1;--success-text:#6ee7b7;--warning-text:#fbbf24;--error-text:#fca5a5;

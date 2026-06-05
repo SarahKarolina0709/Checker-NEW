@@ -2677,9 +2677,9 @@ def index_page():
                             # --- Ausgangstext (blau) ---
                             with ui.column().classes('flex-1').style('gap:5px;min-width:0;'):
                                 with ui.row().classes('items-center gap-2'):
-                                    ui.icon('description', size='xs').style('color:var(--primary);')
+                                    ui.icon('description', size='xs').style('color:var(--role-source);')
                                     ui.label('Ausgangstext').style(
-                                        'font-size:var(--fs-sm);font-weight:700;color:var(--primary);'
+                                        'font-size:var(--fs-sm);font-weight:700;color:var(--role-source);'
                                         'text-transform:uppercase;letter-spacing:.5px;')
                                 src_drop = ui.upload(
                                     label='Klicken oder Datei hierher ziehen',
@@ -2734,7 +2734,7 @@ def index_page():
                     with ui.row().classes('w-full gap-2'):
                         ui.button('Ausgangstext wählen', icon='description',
                             on_click=lambda: _quick_src.run_method('pickFiles')).props(
-                            'outline dense no-caps size=sm').classes('flex-1').style('color:var(--primary);')
+                            'outline dense no-caps size=sm').classes('flex-1').style('color:var(--role-source);')
                         ui.button('Übersetzung wählen', icon='translate',
                             on_click=lambda: _quick_tgt.run_method('pickFiles')).props(
                             'outline dense no-caps size=sm').classes('flex-1').style('color:var(--success);')
@@ -3018,7 +3018,7 @@ def index_page():
 
             # Ordner-Icons
             _FOLDER_ICONS = {
-                '01_Ausgangstext': ('description', 'var(--primary)', 'source'),
+                '01_Ausgangstext': ('description', 'var(--role-source)', 'source'),
                 '02_Übersetzung': ('translate', 'var(--success)', 'translation'),
                 '02_Übersetzungen': ('translate', 'var(--success)', 'translation'),
                 '03_Korrektur': ('rate_review', 'var(--warning)', None),
@@ -3060,7 +3060,7 @@ def index_page():
                         subdirs = []
 
                     _FI = {
-                        '01_Ausgangstext': ('description', 'var(--primary)', 'source'),
+                        '01_Ausgangstext': ('description', 'var(--role-source)', 'source'),
                         '02_Uebersetzung': ('translate', 'var(--success)', 'translation'),
                         '02_Uebersetzungen': ('translate', 'var(--success)', 'translation'),
                         '03_Korrektur': ('rate_review', 'var(--warning)', None),
