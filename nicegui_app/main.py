@@ -197,6 +197,7 @@ from nicegui_app.findings import finding_fingerprint as _finding_fingerprint  # 
 from nicegui_app import ui_findings as _ui_findings  # noqa: E402
 from nicegui_app import ui_dialogs as _ui_dialogs  # noqa: E402
 from nicegui_app import analysis as _analysis  # noqa: E402
+from nicegui_app import lang_detect as _lang_detect  # noqa: E402
 from nicegui_app.text_extraction import get_text_stats as _ext_text_stats  # noqa: E402, F401
 
 
@@ -461,6 +462,15 @@ def run_analysis_sync(config: Dict[str, Any]) -> List[QAIssue]:
     if not text_pairs:
         return []
     all_findings: List[QAIssue] = []
+    # Sprachcodes aufloesen: "Auto-Erkennung" (-> 'auto') wird hier aus den
+    # tatsaechlichen Quell-/Zieltexten bestimmt, damit Phase 2/4 echte Codes
+    # erhalten statt des Platzhalters 'auto'.
+    raw_src = LANG_CODE_MAP.get(config.get('src_lang', ''), 'de')
+    raw_tgt = LANG_CODE_MAP.get(config.get('tgt_lang', ''), 'en')
+    src_texts = [p[0] for p in text_pairs if isinstance(p, (list, tuple)) and p]
+    tgt_texts = [p[1] for p in text_pairs if isinstance(p, (list, tuple)) and len(p) > 1]
+    src_code = _lang_detect.resolve_lang(raw_src, src_texts, 'de')
+    tgt_code = _lang_detect.resolve_lang(raw_tgt, tgt_texts, 'en')
     if config.get('phase1'):
         try:
             all_findings.extend(run_phase1_checks(text_pairs))
@@ -470,8 +480,8 @@ def run_analysis_sync(config: Dict[str, Any]) -> List[QAIssue]:
         try:
             gp = config.get('glossary_path', '')
             ph2_cfg = {
-                'src_lang': LANG_CODE_MAP.get(config.get('src_lang', ''), 'de'),
-                'tgt_lang': LANG_CODE_MAP.get(config.get('tgt_lang', ''), 'en'),
+                'src_lang': src_code,
+                'tgt_lang': tgt_code,
             }
             all_findings.extend(run_phase2_checks(text_pairs, glossary_path=gp or 'glossary_terms.json', config=ph2_cfg))
         except Exception as exc:
@@ -486,8 +496,8 @@ def run_analysis_sync(config: Dict[str, Any]) -> List[QAIssue]:
             from quality_gui_phase4_ki_checker import run_ki_checks
             all_findings.extend(run_ki_checks(
                 text_pairs,
-                src_lang=LANG_CODE_MAP.get(config.get('src_lang', ''), 'de'),
-                tgt_lang=LANG_CODE_MAP.get(config.get('tgt_lang', ''), 'en'),
+                src_lang=src_code,
+                tgt_lang=tgt_code,
                 ollama_model=config['ollama_model'],
             ))
         except Exception as exc:
