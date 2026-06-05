@@ -3081,7 +3081,7 @@ def index_page():
                                     except Exception:
                                         size_str = ''
                                     with ui.row().classes('w-full items-center gap-2 file-row').style(
-                                        'padding:7px 10px;border-radius:8px;margin:3px 0;'
+                                        'padding:7px 10px;border-radius:0 8px 8px 0;margin:3px 0;'
                                         f'border-left:3px solid {icon_color};background:var(--surface);'):
                                         ui.icon('insert_drive_file', size='xs').style(f'color:{icon_color};opacity:.7;')
                                         ui.label(fname).style(
@@ -3134,7 +3134,7 @@ def index_page():
                             tn = os.path.basename(p.get('translation', ''))
                             with ui.row().classes('w-full items-center gap-2 pair-row').style(
                                 'padding:7px 10px;background:var(--bg-success-tint);'
-                                'border-radius:8px;border-left:3px solid var(--success);'):
+                                'border-radius:0 8px 8px 0;border-left:3px solid var(--success);'):
                                 ui.icon('check_circle', size='xs').style('color:var(--success);')
                                 ui.label(sn).style('font-size:var(--fs-sm);color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
                                 ui.icon('arrow_forward', size='xs').style('color:var(--text-light);')
