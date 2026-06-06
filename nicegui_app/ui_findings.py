@@ -75,11 +75,13 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
     hint_only = bool(meta.get('hint_only'))
     pad = '6px 10px' if compact else '12px'
     mb = '4px' if compact else '8px'
+    _sel = getattr(ctx, 'select_finding', None)
     card_style = (
         f'border-left:5px solid {sev_clr};border-radius:6px;'
         f'margin-bottom:{mb};padding:0;'
         f'background:{"var(--bg-muted)" if hint_only else "var(--surface)"};'
         f'{"opacity:.85;" if hint_only else ""}'
+        f'{"cursor:pointer;" if _sel else ""}'
         f'border-top:1px solid var(--surface-border);border-right:1px solid var(--surface-border);'
         f'border-bottom:1px solid var(--surface-border);'
         f'{"box-shadow:0 0 0 2px var(--primary);" if is_selected else ""}'
@@ -89,6 +91,10 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
             card_el.props(f'id=finding-card-{idx}')
         except Exception:
             pass
+        # Mausklick auf die Karte selektiert sie (analog Tastatur j/k). Klicks auf
+        # interaktive Kinder (Datei-Zeile, Checkbox) stoppen via .stop die Weiterleitung.
+        if _sel:
+            card_el.on('click', lambda _, i=idx: _sel(i))
         with ui.column().classes('w-full gap-1').style(f'padding:{pad};'):
             src_f = getattr(f, 'source_file', '') or ''
             tgt_f = getattr(f, 'target_file', '') or ''
@@ -96,7 +102,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                 with ui.row().classes('w-full items-center gap-2 cursor-pointer').style(
                     'padding:4px 8px;background:var(--bg-muted);border-radius:4px;'
                     'margin-bottom:4px;font-size:var(--fs-xs);'
-                ).on('click', lambda _, sf=os.path.basename(src_f or tgt_f):
+                ).on('click.stop', lambda _, sf=os.path.basename(src_f or tgt_f):
                      (s.update({'search_text': sf}),
                       refs.get('search_input') and refs['search_input'].set_value(sf),
                       ctx.refresh_results())):
@@ -133,6 +139,8 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                     on_change=lambda e, i=idx: ctx.toggle_checked(
                         i, getattr(e, 'value', getattr(e, 'args', False))))
                 cb.style('font-size:var(--fs-sm);')
+                # Checkbox-Klick darf die Karte nicht zusaetzlich selektieren
+                cb.on('click.stop', lambda: None)
             msg_fs = '12px' if compact else '13px'
             msg_text = (f.message[:120] + '…' if compact and len(f.message) > 120
                         else f.message)
@@ -1026,14 +1034,14 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                                     is_today = (day_num == _today.day and m == _today.month and y == _today.year)
                                     is_sel = (day_str == sel)
                                     if is_sel:
-                                        cell_bg = 'background:var(--primary);border-color:var(--primary);'
+                                        cell_bg = 'background:var(--bg-primary);border-color:var(--bg-primary);'
                                         num_clr = '#fff'
                                     elif cnt > 0:
-                                        cell_bg = 'background:#eef2ff;border-color:#818cf8;'
-                                        num_clr = '#4f46e5'
+                                        cell_bg = 'background:var(--bg-info-soft);border-color:var(--info);'
+                                        num_clr = 'var(--info)'
                                     elif is_today:
-                                        cell_bg = 'background:var(--bg-info-soft);border-color:#3b82f6;'
-                                        num_clr = '#1d4ed8'
+                                        cell_bg = 'background:var(--bg-info-soft);border-color:var(--info);'
+                                        num_clr = 'var(--info)'
                                     else:
                                         cell_bg = 'background:var(--surface-alt);border-color:transparent;'
                                         num_clr = 'var(--text-muted)'
@@ -1049,7 +1057,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                                         if cnt > 0 and not is_sel:
                                             ui.element('div').style(
                                                 'width:4px;height:4px;border-radius:50%;'
-                                                'background:#818cf8;margin:0 auto;margin-top:-2px;')
+                                                'background:var(--info);margin:0 auto;margin-top:-2px;')
 
             def _nav_cal(delta: int):
                 mo = _cal_view['month'] + delta

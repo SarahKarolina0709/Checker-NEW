@@ -39,6 +39,16 @@ def kalender_page():
             m, y = 1, y + 1
         view['month'], view['year'] = m, y
         _render_calendar()
+        _reset_detail()
+
+    def _reset_detail():
+        """Setzt das Detail-Panel auf den Platzhalter zurueck (z.B. nach Monatswechsel)."""
+        if not detail_container:
+            return
+        detail_container.clear()
+        with detail_container:
+            ui.label('Klicken Sie auf einen Tag, um Projekte zu sehen').style(
+                'font-size:12px;color:var(--text-light);')
 
     def _show_day(day_str: str, customers: List[str]):
         if not detail_container:
@@ -68,9 +78,9 @@ def kalender_page():
                         ui.label(_customers_mod.display_name(cust)).style('font-size:13px;font-weight:600;')
                     with ui.row().classes('gap-4').style('margin-left:28px;'):
                         ui.label(f'{n_src} Ausgangstexte').style(
-                            f'font-size:12px;color:{"#0f2744" if n_src else "#9ca3af"};')
+                            f'font-size:12px;color:{"var(--text)" if n_src else "var(--text-light)"};')
                         ui.label(f'{n_tgt} Übersetzungen').style(
-                            f'font-size:12px;color:{"#16a34a" if n_tgt else "#9ca3af"};')
+                            f'font-size:12px;color:{"var(--success)" if n_tgt else "var(--text-light)"};')
                     with ui.row().classes('gap-2').style('margin-left:28px;margin-top:4px;'):
                         ui.button('Analyse starten', icon='play_arrow',
                             on_click=lambda _, c=cust, d=day_str: ui.navigate.to(f'/?kunde={c}&auftrag={d}')
@@ -110,9 +120,10 @@ def kalender_page():
                             count = len(customers)
                             is_today = (day_num == today.day and m == today.month and y == today.year)
                             if count > 0:
-                                bg = 'background:#eef2ff;border-color:#6366f1;'
+                                bg = 'background:var(--bg-info-soft);border-color:var(--info);'
                             elif is_today:
-                                bg = 'background:var(--bg-info-soft);border-color:#3b82f6;'
+                                bg = ('background:var(--bg-info-soft);border-color:var(--info);'
+                                      'box-shadow:0 0 0 1px var(--info) inset;')
                             else:
                                 bg = 'background:var(--surface);border-color:var(--surface-border);'
                             with ui.card().style(
@@ -122,14 +133,14 @@ def kalender_page():
                                 with ui.row().classes('items-center gap-1'):
                                     ui.label(str(day_num)).style(
                                         f'font-size:13px;font-weight:700;'
-                                        f'color:{"#3b82f6" if is_today else "#1f2937" if count == 0 else "#4f46e5"};')
+                                        f'color:{"var(--info)" if is_today else "var(--text)" if count == 0 else "var(--info)"};')
                                     if count > 0:
                                         ui.badge(str(count)).style(
-                                            'background:#4f46e5;color:white;font-size:12px;border-radius:20px;')
+                                            'background:var(--info);color:white;font-size:12px;border-radius:20px;')
                                 if count > 0:
                                     for cust in customers[:2]:
                                         ui.label(_customers_mod.display_name(cust)).style(
-                                            'font-size:12px;color:#4f46e5;overflow:hidden;'
+                                            'font-size:12px;color:var(--info);overflow:hidden;'
                                             'text-overflow:ellipsis;white-space:nowrap;line-height:1.2;')
                                     if count > 2:
                                         ui.label(f'+{count-2} weitere').style('font-size:12px;color:var(--text-light);')
@@ -159,7 +170,5 @@ def kalender_page():
             cal_container = ui.column().classes('w-full')
         with ui.column().classes('w-[350px] min-w-[300px]'):
             detail_container = ui.column().classes('w-full')
-            with detail_container:
-                ui.label('Klicken Sie auf einen Tag um Projekte zu sehen').style(
-                    'font-size:12px;color:var(--text-light);')
+            _reset_detail()
     _render_calendar()

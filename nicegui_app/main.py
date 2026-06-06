@@ -2321,11 +2321,18 @@ def index_page(kunde: str = '', auftrag: str = ''):
         )
         _ui_findings.render_findings_list(ctx)
 
+    def _select_finding_card(idx: int):
+        """Selektiert eine Karte im Normal-Modus (analog j/k-Tastatur-Navigation)."""
+        selected_idx['v'] = idx
+        _render_findings_list()
+        _scroll_to_selected()
+
     def _render_finding_card(idx: int, f: QAIssue):
         ctx = SimpleNamespace(
             s=s, refs=refs, selected_idx=selected_idx,
             toggle_checked=_toggle_checked,
             refresh_results=_refresh_results_area,
+            select_finding=_select_finding_card,
         )
         _ui_findings.render_finding_card(ctx, idx, f)
 

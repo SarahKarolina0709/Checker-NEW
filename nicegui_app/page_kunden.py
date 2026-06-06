@@ -5,6 +5,7 @@ Registriert Route /kunden via @ui.page-Dekorator beim Import.
 """
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime
 from typing import List
@@ -45,7 +46,7 @@ def kunden_page():
             ui.label('KUNDEN').classes('section-label')
             search_inp = ui.input(placeholder='Kunde suchen...').classes('w-full').props('dense outlined clearable')
             ui.button('Neuer Kunde', icon='person_add',
-                on_click=lambda: ui.navigate.to('/')).props('no-caps outline dense').classes('w-full')
+                on_click=lambda: _new_customer()).props('no-caps outline dense').classes('w-full')
             ui.separator()
             customer_list = ui.column().classes('w-full gap-1')
 
@@ -190,6 +191,30 @@ def kunden_page():
                                                 ui.icon(icon_map.get(ext, 'insert_drive_file'), size='xs').style('color:var(--text-light)')
                                                 ui.label(fname).style('font-size:12px;color:var(--text);flex-grow:1;')
                                                 ui.label(sz).style('font-size:12px;color:var(--text-light);')
+
+    def _new_customer():
+        from types import SimpleNamespace
+        from nicegui_app import ui_dialogs as _ui_dialogs
+
+        def _finalize(name: str, info: dict):
+            folder = _customers_mod.sanitize_folder_name(name)
+            info['display_name'] = name
+            info['folder_name'] = folder
+            path = _customers_mod.ensure_project(base, folder)
+            if path:
+                try:
+                    with open(os.path.join(path, 'kundeninfo.json'), 'w', encoding='utf-8') as fh:
+                        json.dump(info, fh, ensure_ascii=False, indent=2)
+                except Exception:
+                    pass
+            # Closure-Liste in place aktualisieren, damit _filter_list den neuen Kunden sieht
+            customers[:] = _customers_mod.load_customers(base)
+            selected['name'] = folder
+            _filter_list(search_inp.value or '')
+            _show_customer(folder)
+            ui.notify(f'Kunde "{name}" angelegt', type='positive')
+
+        _ui_dialogs.show_new_customer_dialog(SimpleNamespace(finalize_new_customer=_finalize))
 
     def _new_project(customer_name: str):
         with ui.dialog() as dlg, ui.card().style('width:380px;'):
