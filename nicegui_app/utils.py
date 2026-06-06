@@ -81,6 +81,22 @@ def render_logo(clickable: bool = True, subtitle: bool = True) -> None:
     _build()
 
 
+def make_keyboard_activatable(el, action, *, role: str = 'button'):
+    """Macht ein klickbares Custom-Element (div/card/column) tastatur-bedienbar.
+
+    Fuegt das Element via tabindex in die Tab-Reihenfolge ein, kennzeichnet es
+    fuer Screenreader (role) und loest `action` (parameterlos) bei Enter und
+    Leertaste aus — analog zum vorhandenen .on('click', ...). Der sichtbare
+    Fokusring kommt aus dem :focus-visible-Stil im Design-System.
+
+    Rueckgabe: das Element (damit `with make_keyboard_activatable(...):` geht).
+    """
+    el.props(f'tabindex=0 role={role}')
+    el.on('keydown.enter', lambda _=None: action())
+    el.on('keydown.space.prevent', lambda _=None: action())
+    return el
+
+
 def copy_to_clipboard(text: str) -> None:
     """Kopiert Text in die Zwischenablage (clientseitig via JS)."""
     if not text:

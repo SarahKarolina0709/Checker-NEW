@@ -237,6 +237,7 @@ from nicegui_app.utils import (  # noqa: E402, F401
     fmt_size as _fmt_size,
     html_esc as _html_esc,
     copy_to_clipboard as _copy_to_clipboard,
+    make_keyboard_activatable as _kb_activate,
 )
 from nicegui_app.findings import finding_fingerprint as _finding_fingerprint  # noqa: E402, F401
 from nicegui_app import ui_findings as _ui_findings  # noqa: E402
@@ -1043,9 +1044,9 @@ def index_page(kunde: str = '', auftrag: str = ''):
             if can_exclude:
                 with ui.column().classes('w-full gap-2').style('padding:14px 22px 6px;'):
                     # Option 1 — Ausschliessen (klickbare Karte)
-                    with ui.row().classes(
+                    with _kb_activate(ui.row().classes(
                         'w-full items-center gap-3 choice-card no-wrap'
-                    ).style('padding:12px 14px;').on('click', _do_exclude):
+                    ).style('padding:12px 14px;').on('click', _do_exclude), _do_exclude):
                         ui.icon('visibility_off', size='sm').style(
                             'color:var(--primary);')
                         with ui.column().classes('gap-0 flex-grow min-w-0'):
@@ -1056,9 +1057,9 @@ def index_page(kunde: str = '', auftrag: str = ''):
                                 'font-size:var(--fs-xs);color:var(--text-muted);')
                         ui.icon('chevron_right', size='sm').classes('choice-go')
                     # Option 2 — Endgueltig loeschen (klickbare Karte)
-                    with ui.row().classes(
+                    with _kb_activate(ui.row().classes(
                         'w-full items-center gap-3 choice-card choice-card-danger no-wrap'
-                    ).style('padding:12px 14px;').on('click', _confirm):
+                    ).style('padding:12px 14px;').on('click', _confirm), _confirm):
                         ui.icon('delete_forever', size='sm').style('color:var(--error);')
                         with ui.column().classes('gap-0 flex-grow min-w-0'):
                             ui.label('Endgültig vom Datenträger löschen').style(
@@ -2796,9 +2797,12 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     info = _load_customer_info(cust)
                     initial = cust[0].upper() if cust else '?'
                     n_proj = len(_list_projects(cust))
-                    with ui.card().classes('w-full cursor-pointer cust-card').props('flat bordered').style(
-                        f'padding:8px 12px;{"background:var(--bg-info-soft);border-color:var(--border-info);" if is_active else ""}'
-                    ).on('click', lambda _, c=cust: _select_customer(c)):
+                    with _kb_activate(
+                        ui.card().classes('w-full cursor-pointer cust-card').props('flat bordered').style(
+                            f'padding:8px 12px;{"background:var(--bg-info-soft);border-color:var(--border-info);" if is_active else ""}'
+                        ).on('click', lambda _, c=cust: _select_customer(c)),
+                        lambda c=cust: _select_customer(c),
+                    ):
                         with ui.row().classes('items-center gap-3 w-full flex-nowrap'):
                             with ui.element('div').style(
                                 'width:36px;height:36px;border-radius:8px;flex-shrink:0;'
@@ -3173,13 +3177,16 @@ def index_page(kunde: str = '', auftrag: str = ''):
                             without_files.append(entry)
                     for proj, proj_path, n_src, n_tgt in with_files:
                         is_sel = s.get('active_project_path', '') == proj_path
-                        with ui.row().classes('w-full items-center gap-2 cursor-pointer cust-card').style(
-                            f'border-left:3px solid {"var(--primary)" if is_sel else "var(--surface-border)"};'
-                            f'padding:8px 12px;background:{"var(--bg-info-soft)" if is_sel else "transparent"};'
-                            f'border-radius:6px;transition:all .15s;flex-wrap:nowrap;'
-                            f'{"box-shadow:0 1px 3px rgba(15,39,68,.08);" if is_sel else ""}'
-                        ).on('click', lambda _, p=proj, pp=proj_path, ns=n_src, nt=n_tgt:
-                             _select_auftrag(p, pp, ns, nt)):
+                        with _kb_activate(
+                            ui.row().classes('w-full items-center gap-2 cursor-pointer cust-card').style(
+                                f'border-left:3px solid {"var(--primary)" if is_sel else "var(--surface-border)"};'
+                                f'padding:8px 12px;background:{"var(--bg-info-soft)" if is_sel else "transparent"};'
+                                f'border-radius:6px;transition:all .15s;flex-wrap:nowrap;'
+                                f'{"box-shadow:0 1px 3px rgba(15,39,68,.08);" if is_sel else ""}'
+                            ).on('click', lambda _, p=proj, pp=proj_path, ns=n_src, nt=n_tgt:
+                                 _select_auftrag(p, pp, ns, nt)),
+                            lambda p=proj, pp=proj_path, ns=n_src, nt=n_tgt: _select_auftrag(p, pp, ns, nt),
+                        ):
                             with ui.column().classes('gap-1 flex-grow min-w-0'):
                                 # Datum aus Ordnername extrahieren (z.B. "2026-03-24_Müller" → "24.03.2026")
                                 display_name = proj
@@ -3522,9 +3529,12 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         ('var(--warning)', 'Wichtig', 'major_count', 'major', 'warning', 'var(--bg-warning-tint)'),
                         ('var(--text-muted)', 'Hinweise', 'minor_count', 'minor', 'info', 'var(--bg-muted)'),
                     ]:
-                        with ui.column().classes('items-center gap-0 flex-1 stat-pill').style(
-                            f'padding:8px 4px;background:{bg};color:{sev_clr};'
-                        ).on('click', lambda _, k=filt_key: _set_filter(k)) as _pill:
+                        with _kb_activate(
+                            ui.column().classes('items-center gap-0 flex-1 stat-pill').style(
+                                f'padding:8px 4px;background:{bg};color:{sev_clr};'
+                            ).on('click', lambda _, k=filt_key: _set_filter(k)),
+                            lambda k=filt_key: _set_filter(k),
+                        ) as _pill:
                             refs[f'{ref_key}_pill'] = _pill
                             with ui.row().classes('items-center gap-1'):
                                 ui.icon(icon, size='14px').style(f'color:{sev_clr};opacity:.8;')

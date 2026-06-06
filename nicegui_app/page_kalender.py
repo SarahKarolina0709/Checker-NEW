@@ -16,7 +16,7 @@ from nicegui_app.app_settings import settings
 from nicegui_app.customers import MONTH_NAMES_DE
 from nicegui_app import customers as _customers_mod
 from nicegui_app.styles import APP_CSS
-from nicegui_app.utils import safe_open_folder
+from nicegui_app.utils import safe_open_folder, make_keyboard_activatable
 
 
 def _scan_project_dates():
@@ -136,10 +136,13 @@ def kalender_page():
                                       'box-shadow:0 0 0 1px var(--info) inset;')
                             else:
                                 bg = 'background:var(--surface);border-color:var(--surface-border);'
-                            with ui.card().style(
-                                f'width:14.28%;min-height:80px;padding:6px;cursor:pointer;'
-                                f'border-radius:6px;border:1px solid;{bg}'
-                            ).props('flat').on('click', lambda _, ds=day_str, cs=customers: _show_day(ds, cs)):
+                            with make_keyboard_activatable(
+                                ui.card().style(
+                                    f'width:14.28%;min-height:80px;padding:6px;cursor:pointer;'
+                                    f'border-radius:6px;border:1px solid;{bg}'
+                                ).props('flat').on('click', lambda _, ds=day_str, cs=customers: _show_day(ds, cs)),
+                                lambda ds=day_str, cs=customers: _show_day(ds, cs),
+                            ):
                                 with ui.row().classes('items-center gap-1'):
                                     ui.label(str(day_num)).style(
                                         f'font-size:13px;font-weight:700;'

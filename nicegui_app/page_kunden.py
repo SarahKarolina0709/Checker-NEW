@@ -16,7 +16,7 @@ from nicegui_app.app_settings import settings
 from nicegui_app.customers import PROJECT_FOLDERS
 from nicegui_app import customers as _customers_mod
 from nicegui_app.styles import APP_CSS
-from nicegui_app.utils import safe_open_folder
+from nicegui_app.utils import safe_open_folder, make_keyboard_activatable
 
 
 @ui.page('/kunden')
@@ -59,9 +59,12 @@ def kunden_page():
                         initial = cust[0].upper() if cust else '?'
                         n_proj = len(_customers_mod.list_projects(base, cust))
                         is_sel = selected.get('name') == cust
-                        with ui.card().classes('w-full cursor-pointer').props('flat bordered').style(
-                            f'padding:8px 12px;{"background:var(--bg-info-soft);border-color:var(--border-info);" if is_sel else ""}'
-                        ).on('click', lambda _, c=cust: _show_customer(c)):
+                        with make_keyboard_activatable(
+                            ui.card().classes('w-full cursor-pointer').props('flat bordered').style(
+                                f'padding:8px 12px;{"background:var(--bg-info-soft);border-color:var(--border-info);" if is_sel else ""}'
+                            ).on('click', lambda _, c=cust: _show_customer(c)),
+                            lambda c=cust: _show_customer(c),
+                        ):
                             with ui.row().classes('items-center gap-4 w-full'):
                                 with ui.element('div').style(
                                     'width:36px;height:36px;border-radius:8px;'
