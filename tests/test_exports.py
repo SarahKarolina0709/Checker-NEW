@@ -95,7 +95,7 @@ class TestTxt:
     def test_empty_findings(self):
         path = E.export_txt([], 100, self.tmp)
         assert os.path.isfile(path)
-        assert 'Findings: 0' in open(path, encoding='utf-8').read()
+        assert 'Befunde: 0' in open(path, encoding='utf-8').read()
 
 
 # ---------------------------------------------------------------------------

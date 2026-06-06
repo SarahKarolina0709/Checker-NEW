@@ -1595,7 +1595,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
             if refs['progress_text']:
                 refs['progress_text'].set_text(
                     f'{n_pairs} Dateipaar(e) · Phase {idx + 1}/{total} · {phase_name} · '
-                    f'{phase_count} Findings · {elapsed:.1f}s'
+                    f'{phase_count} Befunde · {elapsed:.1f}s'
                 )
             if refs['progress_bar']:
                 refs['progress_bar'].value = (idx + 1) / total
@@ -1664,7 +1664,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
             total_elapsed = time.monotonic() - analysis_start
             status = 'Abgebrochen' if was_cancelled else 'Fertig'
             refs['progress_text'].set_text(
-                f'{status} in {total_elapsed:.1f}s · {len(all_results)} Findings'
+                f'{status} in {total_elapsed:.1f}s · {len(all_results)} Befunde'
             )
         # Letzte Analyse-Dauer persistent speichern
         s['last_analysis_elapsed'] = total_elapsed if not was_cancelled else None
@@ -1696,7 +1696,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
         except Exception:
             pass
         if was_cancelled:
-            ui.notify(f'Analyse abgebrochen · {len(all_results)} Findings (Teilergebnis)',
+            ui.notify(f'Analyse abgebrochen · {len(all_results)} Befunde (Teilergebnis)',
                       type='warning', timeout=4000)
         else:
             _new_score = s['current_score']
@@ -1718,7 +1718,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
             _crit_str = f' · {_counts["Kritisch"]} kritisch' if _counts['Kritisch'] else ''
             _type = 'positive' if _new_score >= 80 else 'warning' if _new_score >= 50 else 'negative'
             ui.notify(
-                f'Score {_new_score}/100{_delta_str} · {len(all_results)} Findings{_crit_str}',
+                f'Score {_new_score}/100{_delta_str} · {len(all_results)} Befunde{_crit_str}',
                 type=_type, timeout=5000)
 
     def _save_report_to_project():
@@ -1739,7 +1739,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
             with open(report_path, 'w', encoding='utf-8') as f:
                 f.write(f'Qualitätsprüfung — Score: {score}/100\n')
                 f.write(f'Datum: {datetime.now().strftime("%d.%m.%Y %H:%M")}\n')
-                f.write(f'Findings: {len(findings)}\n')
+                f.write(f'Befunde: {len(findings)}\n')
                 f.write('=' * 60 + '\n\n')
                 for i, fd in enumerate(findings, 1):
                     fi = _dict_to_finding(fd) if isinstance(fd, dict) else fd
@@ -1928,7 +1928,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                 refs['score_ring'].style(f'position:absolute;inset:0;--sc:{rclr};--pct:{pct}%;')
         if refs['score_sublabel']:
             total_f = len(s.get('findings', []))
-            f_txt = f' · {total_f} Finding{"s" if total_f != 1 else ""}' if total_f else ''
+            f_txt = f' · {total_f} Befund{"e" if total_f != 1 else ""}' if total_f else ''
             if current_score < 0:
                 refs['score_sublabel'].set_text('Noch keine Analyse')
             elif current_score >= 80:
@@ -2386,7 +2386,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
         """Markiert alle aktuell sichtbaren (gefilterten) Findings als done/undone."""
         filtered = _filtered_findings()
         if not filtered:
-            ui.notify('Keine sichtbaren Findings', type='info')
+            ui.notify('Keine sichtbaren Befunde', type='info')
             return
         prev = dict(s.get('checked_findings', {}) or {})
         checked = dict(prev)
@@ -2407,7 +2407,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
             pass
         _refresh_results_area()
         ui.notify(
-            f'{n_changed} Findings als {"erledigt" if done else "offen"} markiert',
+            f'{n_changed} Befunde als {"erledigt" if done else "offen"} markiert',
             type='positive',
         )
 
@@ -2519,7 +2519,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
             return
         with ui.dialog() as dlg, ui.card().style('padding:20px;min-width:320px;'):
             ui.label('Neue Analyse starten?').style('font-size:var(--fs-xl);font-weight:700;')
-            ui.label(f'{n} Findings gehen verloren.').style('font-size:var(--fs-md);color:var(--text-muted);margin-top:4px;')
+            ui.label(f'{n} Befunde gehen verloren.').style('font-size:var(--fs-md);color:var(--text-muted);margin-top:4px;')
             with ui.row().classes('w-full justify-end gap-2').style('margin-top:16px;'):
                 ui.button('Abbrechen', on_click=dlg.close).props('flat no-caps')
                 ui.button('Zurücksetzen', on_click=lambda: (dlg.close(), _reset())).props(
@@ -2586,7 +2586,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
         if path and os.path.exists(path):
             ui.download(path)
             ui.notify(
-                f'{fmt.upper()}-Export ({scope_label}, {len(findings)} Findings) erstellt',
+                f'{fmt.upper()}-Export ({scope_label}, {len(findings)} Befunde) erstellt',
                 type='positive',
             )
 
@@ -2640,7 +2640,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
         _refresh_results_area()
         ts = session_data.get('timestamp', '')
         ui.notify(f'Sitzung wiederhergestellt (Score: {s["current_score"]}, '
-                  f'{len(s["findings"])} Findings, {ts})', type='positive')
+                  f'{len(s["findings"])} Befunde, {ts})', type='positive')
 
     # ------------------------------------------------------------------
     # Glossary
@@ -2899,7 +2899,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         if not s.get('active_customer'):
                             with ui.column().classes('w-full items-center').style('gap:4px;padding:12px 0;'):
                                 ui.icon('touch_app', size='sm').style('color:var(--text-light);opacity:.4;')
-                                ui.label('Wähle links einen Kunden').style(
+                                ui.label('Wählen Sie links einen Kunden').style(
                                     'font-size:var(--fs-sm);color:var(--text-light);')
                                 ui.label('um seine Projekte zu sehen').style(
                                     'font-size:var(--fs-xs);color:var(--text-muted);')
@@ -3585,7 +3585,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     # Gefilterter Export
                     with ui.button(icon='filter_alt').props(
                         'flat dense no-caps size=sm color=primary'
-                    ).tooltip('Nur sichtbare (gefilterte) Findings exportieren'):
+                    ).tooltip('Nur sichtbare (gefilterte) Befunde exportieren'):
                         with ui.menu():
                             ui.item('Gefilterte als PDF',
                                 on_click=lambda: _do_export('pdf', only_filtered=True))
@@ -3722,7 +3722,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         value=s.get('sort_mode', 'default'),
                         on_change=lambda e: _set_sort_mode(getattr(e, 'value', 'default')),
                     ).props('dense outlined options-dense').tooltip(
-                        'Findings sortieren'
+                        'Befunde sortieren'
                     ).style('font-size:var(--fs-sm);min-width:120px;')
                     # Kompakt-Modus Toggle
                     _compact_icon = 'density_small' if s.get('view_mode') == 'normal' else 'density_medium'

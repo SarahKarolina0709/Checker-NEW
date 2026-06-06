@@ -294,8 +294,8 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
     if idx < 0:
         with ui.column().classes('w-full items-center justify-center').style('padding:32px;'):
             ui.icon('touch_app', size='3rem').style('color:var(--text-light);')
-            ui.label('Finding auswählen').style('font-size:var(--fs-lg);color:var(--text-light);margin-top:8px;')
-            ui.label('Klicke links auf ein Finding für Details').style(
+            ui.label('Befund auswählen').style('font-size:var(--fs-lg);color:var(--text-light);margin-top:8px;')
+            ui.label('Klicken Sie links auf einen Befund für Details').style(
                 'font-size:var(--fs-sm);color:var(--text-light);')
         return
     findings = s.get('findings', [])
@@ -462,7 +462,7 @@ def render_findings_list(ctx: SimpleNamespace) -> None:
                     _hint = ('Suchbegriff anpassen oder Filter zurücksetzen'
                              if (s.get('search_text') or '').strip()
                              else 'Anderen Schweregrad-Filter wählen')
-                    ui.label(f'{total_findings} Finding(s) vorhanden · {_hint}').style(
+                    ui.label(f'{total_findings} Befund(e) vorhanden · {_hint}').style(
                         'font-size:var(--fs-sm);color:var(--text-light);text-align:center;')
             return
         if split_mode:
@@ -804,7 +804,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                          'Ausgangstext + Übersetzung per Klick oder Drag & Drop',
                          'var(--bg-success-soft)', 'var(--border-success)', '#166534', '#dcfce7'),
                         ('play_circle', '3', 'Analyse starten',
-                         'Score, Findings & Korrekturvorschläge erhalten',
+                         'Score, Befunde & Korrekturvorschläge erhalten',
                          'var(--bg-warning-soft)', 'var(--border-warning)', '#92400e', '#fef3c7'),
                     ]
                     with ui.row().classes('w-full gap-3').style('flex-wrap:nowrap;margin-bottom:16px;'):

@@ -247,9 +247,9 @@ def show_keyboard_help() -> None:
             ('Strg + Eingabe', 'Analyse starten'),
             ('Esc', 'Analyse abbrechen / Hilfe schliessen'),
             ('Strg + Z', 'Letzte Erledigt-Aktion rueckgaengig'),
-            ('j  /  Pfeil ab', 'Naechstes Finding'),
-            ('k  /  Pfeil auf', 'Vorheriges Finding'),
-            ('x  /  Leertaste', 'Aktuelles Finding als erledigt markieren'),
+            ('j  /  Pfeil ab', 'Nächster Befund'),
+            ('k  /  Pfeil auf', 'Vorheriger Befund'),
+            ('x  /  Leertaste', 'Aktuellen Befund als erledigt markieren'),
             ('1 / 2 / 3 / 0', 'Filter Kritisch / Wichtig / Hinweis / Alle'),
             ('?', 'Diese Hilfe anzeigen'),
         ]

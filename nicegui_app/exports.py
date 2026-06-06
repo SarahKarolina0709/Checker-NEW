@@ -67,7 +67,7 @@ def export_txt(findings: list, score: int, output_dir: str) -> str:
         'Qualitäts-Framework -- Analysebericht',
         f'Datum: {datetime.now().strftime("%Y-%m-%d %H:%M")}',
         f'Score: {score}/100',
-        f'Findings: {len(findings)}',
+        f'Befunde: {len(findings)}',
         '', '=' * 60,
     ]
     for i, f in enumerate(findings, 1):
@@ -90,7 +90,7 @@ def export_excel(findings: list, output_dir: str) -> str:
     import openpyxl  # noqa: PLC0415
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = 'Findings'
+    ws.title = 'Befunde'
     ws.append(['Nr', 'Schwere', 'Code', 'Kategorie', 'Nachricht', 'Segment', 'Quelltext', 'Zieltext'])
     for i, f in enumerate(findings, 1):
         ws.append([
