@@ -60,7 +60,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
     """
     # Lazy-Import um Zirkel-Importe mit main.py zu vermeiden
     from nicegui_app.severity import (
-        severity_label, severity_color, phase_from_code,
+        severity_label, severity_color, severity_icon, phase_from_code,
     )
     s = ctx.s
     refs = ctx.refs
@@ -68,6 +68,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
 
     sev_lbl = severity_label(f.severity)
     sev_clr = severity_color(f.severity)
+    sev_ico = severity_icon(f.severity)
     phase_lbl = phase_from_code(f.code)
     is_selected = idx == selected_idx['v']
     compact = s.get('view_mode', 'normal') == 'compact'
@@ -116,6 +117,8 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                         ui.label(os.path.basename(tgt_f)).style(
                             'color:var(--success);font-weight:600;')
             with ui.row().classes('w-full items-center gap-2 flex-wrap'):
+                ui.icon(sev_ico, size='xs').style(f'color:{sev_clr};flex-shrink:0;') \
+                    .tooltip(sev_lbl)
                 ui.badge(sev_lbl).style(
                     f'background:transparent;color:{sev_clr};border:1px solid {sev_clr};border-radius:20px;')
                 if hint_only and not compact:
@@ -217,7 +220,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                                         f'white-space:pre-wrap;word-break:break-word;">'
                                         f'{html_esc(before)}'
                                         f'<mark style="background:var(--bg-error-soft);color:var(--error-text);'
-                                        f'padding:1px 3px;border-radius:3px;font-weight:700;">'
+                                        f'padding:1px 3px;border-radius:3px;font-weight:700;text-decoration:underline wavy;">'
                                         f'{html_esc(error_span)}</mark>'
                                         f'{html_esc(after)}</span>'
                                     ).classes('flex-grow')
@@ -284,7 +287,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
 
     ctx braucht: s, refs, selected_idx, toggle_checked, dict_to_finding.
     """
-    from nicegui_app.severity import severity_label, severity_color, phase_from_code
+    from nicegui_app.severity import severity_label, severity_color, severity_icon, phase_from_code
     s = ctx.s
     selected_idx = ctx.selected_idx
     idx = selected_idx['v']
@@ -306,6 +309,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
     suggestion = (meta.get('suggestion') or '').strip()
     error_span = (meta.get('error_text') or '').strip()
     with ui.row().classes('w-full items-center gap-2 flex-wrap').style('margin-bottom:8px;'):
+        ui.icon(severity_icon(f.severity), size='sm').style(f'color:{sev_clr};flex-shrink:0;')
         ui.badge(sev_lbl).style(
             f'background:{sev_clr};color:white;border-radius:20px;font-size:var(--fs-sm);')
         if phase_lbl:
@@ -401,7 +405,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
                         f'white-space:pre-wrap;word-break:break-word;">'
                         f'{html_esc(before)}'
                         f'<mark style="background:var(--bg-error-soft);color:var(--error-text);'
-                        f'padding:1px 3px;border-radius:3px;font-weight:700;">'
+                        f'padding:1px 3px;border-radius:3px;font-weight:700;text-decoration:underline wavy;">'
                         f'{html_esc(error_span)}</mark>'
                         f'{html_esc(after)}</span>'
                     ).classes('flex-grow')
@@ -420,7 +424,7 @@ def render_findings_list(ctx: SimpleNamespace) -> None:
     ctx braucht: s, refs, filtered_findings(), render_welcome(),
     render_split_list(filtered), render_detail_panel(), render_finding_card(idx, f).
     """
-    from nicegui_app.severity import severity_label
+    from nicegui_app.severity import severity_label, severity_icon
     s = ctx.s
     refs = ctx.refs
     container = refs['findings_container']
@@ -492,10 +496,8 @@ def render_findings_list(ctx: SimpleNamespace) -> None:
                     with ui.row().classes('w-full items-center gap-2').style(
                         'padding:6px 4px 4px;margin-top:4px;'
                     ):
-                        ui.element('div').style(
-                            f'height:2px;width:12px;border-radius:2px;'
-                            f'background:{clr};flex-shrink:0;'
-                        )
+                        ui.icon(severity_icon(f.severity), size='xs').style(
+                            f'color:{clr};flex-shrink:0;')
                         ui.label(f'{sev_lbl}  ({cnt})').style(
                             f'font-size:var(--fs-xs);font-weight:700;color:{clr};'
                             f'text-transform:uppercase;letter-spacing:0.8px;'

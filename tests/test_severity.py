@@ -84,6 +84,24 @@ class TestUIHelpers:
         # Darf nicht crashen
         assert 'border-left' in severity.border(None)
 
+    def test_icons_per_severity(self):
+        assert severity.icon('critical') == 'error'
+        assert severity.icon('major') == 'warning'
+        assert severity.icon('minor') == 'info'
+        assert severity.icon('info') == 'info'
+
+    def test_icon_german_aliases(self):
+        assert severity.icon('kritisch') == 'error'
+        assert severity.icon('wichtig') == 'warning'
+
+    def test_icon_none_safe(self):
+        # None/Unbekannt -> 'info' (kein Crash)
+        assert severity.icon(None) == 'info'
+        assert severity.icon('whatever') == 'info'
+
+    def test_severity_icon_alias(self):
+        assert severity.severity_icon is severity.icon
+
 
 # ---------------------------------------------------------------------------
 # compute_score

@@ -35,6 +35,9 @@ _UI_LABELS = {CRITICAL: 'Kritisch', MAJOR: 'Wichtig', MINOR: 'Hinweis', INFO: 'H
 # Farben
 _UI_COLORS = {CRITICAL: '#dc2626', MAJOR: '#ea580c', MINOR: '#6b7280', INFO: '#6b7280'}
 
+# Material-Icons (Redundanz zur Farbe — Barrierefreiheit bei Rot-Gruen-Sehschwaeche)
+_UI_ICONS = {CRITICAL: 'error', MAJOR: 'warning', MINOR: 'info', INFO: 'info'}
+
 
 def normalize(sev: Any) -> str:
     """Normalisiert beliebigen Severity-Input auf kanonischen Wert.
@@ -59,6 +62,11 @@ def color(sev: Any) -> str:
     return _UI_COLORS[normalize(sev)]
 
 
+def icon(sev: Any) -> str:
+    """Material-Icon-Name fuer Severity (ergaenzt die Farbe — Barrierefreiheit)."""
+    return _UI_ICONS[normalize(sev)]
+
+
 def border(sev: Any) -> str:
     """CSS border-left fuer Severity-Cards."""
     return f'border-left:4px solid {color(sev)}'
@@ -75,6 +83,7 @@ def is_hint_only(finding: Any) -> bool:
 # Aliases für ui_findings.py (legacy-Kompatibilität)
 severity_label = label
 severity_color = color
+severity_icon = icon
 
 _PHASE_CODE_PREFIXES: dict[str, tuple[str, ...]] = {
     'Phase 1': (
