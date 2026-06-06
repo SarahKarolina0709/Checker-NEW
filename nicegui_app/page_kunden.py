@@ -98,6 +98,8 @@ def kunden_page():
 
     def _show_customer(customer_name: str):
         selected['name'] = customer_name
+        # Linke Liste neu rendern, damit die aktive Karte markiert wird
+        _filter_list(search_inp.value or '')
         if not project_detail:
             return
         project_detail.clear()
@@ -113,7 +115,8 @@ def kunden_page():
                     ui.label(initial).style('color:var(--accent);font-size:16px;font-weight:800;')
                 with ui.column().classes('gap-0'):
                     ui.label(customer_name).classes('t-title')
-                    ui.label(f'{len(projects)} Projekte').style('font-size:12px;color:var(--text-muted);')
+                    ui.label(f'{len(projects)} {"Projekt" if len(projects) == 1 else "Projekte"}').style(
+                        'font-size:12px;color:var(--text-muted);')
                 ui.element('div').classes('flex-grow')
                 ui.button('Neues Projekt', icon='add',
                     on_click=lambda: _new_project(customer_name)).props(
@@ -144,7 +147,7 @@ def kunden_page():
                                 if n_src:
                                     parts.append(f'{n_src} Quell')
                                 if n_tgt:
-                                    parts.append(f'{n_tgt} Uebers.')
+                                    parts.append(f'{n_tgt} Übers.')
                                 parts.append(f'{total_files} Dateien')
                                 ui.label(' · '.join(parts)).style('font-size:12px;color:var(--text-muted);')
                             if n_src and n_tgt:

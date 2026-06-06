@@ -95,6 +95,16 @@ def kalender_page():
         if not cal_container:
             return
         cal_container.clear()
+        base = settings.get('projects_base_path', '')
+        if not base or not os.path.isdir(base):
+            with cal_container:
+                with ui.column().classes('w-full items-center').style('padding:64px 0;gap:12px;'):
+                    ui.icon('folder_off', size='2.5rem').style('color:var(--text-light)')
+                    ui.label('Kein Projektordner konfiguriert').style(
+                        'font-size:14px;font-weight:600;color:var(--text-muted);')
+                    ui.label('Bitte in den Einstellungen einen Projektbasispfad festlegen.').style(
+                        'font-size:12px;color:var(--text-light);text-align:center;')
+            return
         y, m = view['year'], view['month']
         project_dates = _scan_project_dates()
         month_name = MONTH_NAMES_DE.get(m, str(m))

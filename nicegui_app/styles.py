@@ -88,6 +88,16 @@ body{font-size:var(--fs-md)!important;line-height:var(--lh-normal);
 .q-btn:active{transform:translateY(0)!important}
 .q-badge{border-radius:var(--radius-pill)!important}
 
+/* ── Sichtbarer Tastatur-Fokus (Barrierefreiheit) ──
+   Nur bei Tastatur-Navigation (:focus-visible), nicht bei Maus-Klick.
+   !important, da Quasar/Browser-Defaults teils ueberschrieben werden. */
+*:focus-visible{outline:2px solid var(--info)!important;outline-offset:2px!important;
+    border-radius:var(--radius-sm)}
+/* Custom-klickbare Elemente (sofern fokussierbar) ebenfalls deutlich markieren */
+.stat-pill:focus-visible,.choice-card:focus-visible,.cust-card:focus-visible,
+.finding-card:focus-visible,.file-row:focus-visible{
+    outline:2px solid var(--info)!important;outline-offset:2px!important}
+
 /* Klickbare Kundenkarten — deutlicher Hover + Chevron-Verschiebung */
 .cust-card{transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease,background .15s ease}
 .cust-card:hover{transform:translateX(2px);

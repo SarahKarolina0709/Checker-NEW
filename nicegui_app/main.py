@@ -771,20 +771,23 @@ def index_page(kunde: str = '', auftrag: str = ''):
     # 'hide_done' Switch — separat damit Test-Restore möglich ist
     s.setdefault('score_history', [])
 
-    def _save_and_notify():
+    def _save_and_notify() -> bool:
+        """Speichert die Session. Liefert True bei Erfolg, False bei Fehler
+        (damit Aufrufer wie der Glossar-Editor ehrlich Fehler melden koennen)."""
         try:
             _save_session()
         except Exception:
-            return
+            return False
         ind = refs.get('save_indicator')
         if not ind:
-            return
+            return True
         try:
             ind.set_text(f'💾 Gespeichert {datetime.now().strftime("%H:%M:%S")}')
             ind.classes(add='visible')
             ui.timer(2.5, lambda: ind.classes(remove='visible'), once=True)
         except Exception:
             pass
+        return True
 
     # Debounced Save (verhindert IO-Storm bei schnellen Klicks)
     _save_timer_holder: Dict[str, Any] = {'t': None}

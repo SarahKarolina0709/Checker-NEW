@@ -23,7 +23,7 @@ LANGUAGES = ['Auto-Erkennung', 'Deutsch', 'Englisch', 'Franz\u00f6sisch', 'Spani
 
 def open_settings_dialog() -> None:
     """Öffnet den Einstellungen-Dialog (Projektpfad, Glossarpfad, Sprachen, Prüftiefe, Normzeile)."""
-    with ui.dialog() as dlg, ui.card().style('width:520px;'):
+    with ui.dialog().props('persistent') as dlg, ui.card().style('width:520px;'):
         ui.label('Einstellungen').classes('t-title')
         with ui.column().classes('w-full gap-4'):
 
@@ -301,7 +301,7 @@ def show_edit_customer_dialog(ctx: SimpleNamespace, customer: str) -> None:
     refresh_customer_info.
     """
     info = ctx.load_customer_info(customer)
-    with ui.dialog() as dlg, ui.card().style('width:480px;'):
+    with ui.dialog().props('persistent') as dlg, ui.card().style('width:480px;'):
         ui.label(f'Kunde bearbeiten: {customer}').classes('t-title')
         ui.separator()
         typ = info.get('typ', 'firma')
@@ -344,7 +344,7 @@ def show_new_customer_dialog(ctx: SimpleNamespace) -> None:
 
     ctx braucht: finalize_new_customer(name, info).
     """
-    with ui.dialog() as dlg, ui.card().style('width:520px;max-width:90vw;'):
+    with ui.dialog().props('persistent') as dlg, ui.card().style('width:520px;max-width:90vw;'):
         ui.label('Neuer Kunde').classes('t-title')
         ui.separator()
         with ui.tabs().classes('w-full') as tabs:
@@ -420,7 +420,7 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
     s = ctx.s
     refs = ctx.refs
     search_state = {'q': ''}
-    with ui.dialog() as dlg, ui.card().style('width:640px;max-width:90vw;'):
+    with ui.dialog().props('persistent') as dlg, ui.card().style('width:640px;max-width:90vw;'):
         ui.label('Glossar bearbeiten').style(
             'font-size:16px;font-weight:700;color:var(--text);')
         ui.label(
@@ -437,14 +437,17 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
             'border-radius:6px;padding:8px;background:var(--surface-alt);'
         )
 
-        def _commit(new_terms):
+        def _commit(new_terms) -> bool:
             s['manual_glossary_terms'] = new_terms
             if refs.get('glossary_count_label'):
                 refs['glossary_count_label'].set_text(f'{len(new_terms)} Begriffe')
             try:
-                ctx.save_and_notify()
+                ok = ctx.save_and_notify() is not False
             except Exception:
-                pass
+                ok = False
+            if not ok:
+                ui.notify('Speichern fehlgeschlagen', type='negative')
+            return ok
 
         def _redraw():
             list_container.clear()
@@ -480,8 +483,8 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
                             ns, nt = si_in.value.strip(), ti_in.value.strip()
                             if ns and nt:
                                 new[ns] = nt
-                            _commit(new)
-                            ui.notify('Gespeichert', type='positive')
+                            if _commit(new):
+                                ui.notify('Gespeichert', type='positive')
 
                         def _del_row(orig=src_term):
                             new = dict(s.get('manual_glossary_terms', {}) or {})
