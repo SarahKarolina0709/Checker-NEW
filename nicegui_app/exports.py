@@ -45,6 +45,19 @@ def _timestamp() -> str:
     return datetime.now().strftime('%Y%m%d_%H%M%S')
 
 
+def _truncate(text: str, limit: int = 600) -> str:
+    """Kuerzt Text auf `limit` Zeichen und macht das Kuerzen sichtbar.
+
+    Verhindert, dass sehr lange Segmente eine PDF-Karte ueber eine ganze Seite
+    aufblaehen. Leere/None-Eingaben bleiben leer (Aufrufer rendert das Feld dann
+    gar nicht).
+    """
+    text = text or ''
+    if len(text) > limit:
+        return text[:limit].rstrip() + ' … (gekürzt)'
+    return text
+
+
 # ---------------------------------------------------------------------------
 # TXT
 # ---------------------------------------------------------------------------
@@ -100,52 +113,181 @@ def export_excel(findings: list, output_dir: str) -> str:
 # PDF
 # ---------------------------------------------------------------------------
 def export_pdf(findings: list, score: int, output_dir: str) -> str:
-    """Schreibt einen PDF-Bericht. Wirft ImportError wenn reportlab fehlt."""
+    """Schreibt einen korrektur-tauglichen PDF-Bericht.
+
+    Aufbau: Titel + Zusammenfassung (Score, Anzahl je Schwere) und danach pro
+    Befund eine Karte mit Schwere, Code, Meldung, Quelltext und Uebersetzung —
+    gruppiert nach Schwere (Kritisch zuerst). So kann der Uebersetzer den
+    Bericht ohne Office/Excel oeffnen und direkt abarbeiten.
+
+    Wirft ImportError wenn reportlab fehlt.
+    """
     from reportlab.lib.pagesizes import A4  # noqa: PLC0415
     from reportlab.lib.units import cm
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.platypus import (
+        SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether,
+    )
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib import colors
+    from reportlab.lib.enums import TA_LEFT
+    from reportlab.pdfgen.canvas import Canvas as _Canvas
+
+    from nicegui_app.severity import normalize as _sev_norm, color as _sev_color
+
+    class _NumberedCanvas(_Canvas):
+        """Zeichnet 'Seite X von Y' unten rechts (Zwei-Pass: Gesamtzahl erst bei save bekannt)."""
+
+        def __init__(self, *a, **kw):
+            super().__init__(*a, **kw)
+            self._saved_states = []
+
+        def showPage(self):  # noqa: N802 (reportlab-API)
+            self._saved_states.append(dict(self.__dict__))
+            self._startPage()
+
+        def save(self):
+            total = len(self._saved_states)
+            for state in self._saved_states:
+                self.__dict__.update(state)
+                self.setFont('Helvetica', 7.5)
+                self.setFillColor(colors.HexColor('#94a3b8'))
+                self.drawRightString(A4[0] - 1.5 * cm, 1.0 * cm,
+                                     f'Seite {self._pageNumber} von {total}')
+                super().showPage()
+            super().save()
 
     os.makedirs(output_dir, exist_ok=True)
     path = os.path.join(output_dir, f'bericht_{_timestamp()}.pdf')
     doc = SimpleDocTemplate(path, pagesize=A4,
                             leftMargin=1.5 * cm, rightMargin=1.5 * cm,
-                            topMargin=1.5 * cm, bottomMargin=1.5 * cm)
+                            topMargin=1.5 * cm, bottomMargin=1.5 * cm,
+                            title='Qualitäts-Analysebericht')
     styles = getSampleStyleSheet()
+
+    label_style = ParagraphStyle(
+        'flabel', parent=styles['Normal'], fontSize=9.5, leading=13,
+        spaceAfter=2, textColor=colors.HexColor('#0f2744'),
+    )
+    field_label = ParagraphStyle(
+        'ffield', parent=styles['Normal'], fontSize=7.5, leading=10,
+        textColor=colors.HexColor('#64748b'), spaceBefore=3,
+    )
+    body_style = ParagraphStyle(
+        'fbody', parent=styles['Normal'], fontSize=8.5, leading=11,
+        alignment=TA_LEFT,
+    )
+    section_style = ParagraphStyle(
+        'fsection', parent=styles['Heading2'], fontSize=12, leading=15,
+        spaceBefore=10, spaceAfter=4, textColor=colors.white,
+    )
+
+    # Severities zu Anzeige-Gruppen zusammenfassen (minor + info = "Hinweis")
+    sev_de = {'critical': 'Kritisch', 'major': 'Wichtig', 'minor': 'Hinweis', 'info': 'Hinweis'}
+    display_groups = [
+        ('critical', 'Kritisch'),
+        ('major', 'Wichtig'),
+        ('hinweis', 'Hinweis'),
+    ]
+    _sev_to_group = {'critical': 'critical', 'major': 'major', 'minor': 'hinweis', 'info': 'hinweis'}
+    _group_accent = {'critical': 'critical', 'major': 'major', 'hinweis': 'minor'}
+    grouped: dict = {g: [] for g, _ in display_groups}
+    for f in findings:
+        grouped[_sev_to_group.get(_sev_norm(getattr(f, 'severity', None)), 'hinweis')].append(f)
+
+    counts = {g: len(grouped[g]) for g, _ in display_groups}
+
     story = [
-        Paragraph('Qualitäts-Framework -- Analysebericht', styles['Title']),
-        Spacer(1, 12),
+        Paragraph('Qualitäts-Analysebericht', styles['Title']),
+        Spacer(1, 6),
         Paragraph(
-            f'Score: {score}/100 | Findings: {len(findings)} | '
-            f'{datetime.now().strftime("%Y-%m-%d %H:%M")}',
+            f'Score: <b>{score}/100</b>&nbsp;&nbsp;|&nbsp;&nbsp;'
+            f'Befunde gesamt: <b>{len(findings)}</b>&nbsp;&nbsp;|&nbsp;&nbsp;'
+            f'{datetime.now().strftime("%d.%m.%Y %H:%M")}',
             styles['Normal'],
         ),
-        Spacer(1, 16),
+        Spacer(1, 4),
+        Paragraph(
+            f'Kritisch: <b>{counts["critical"]}</b>&nbsp;&nbsp;·&nbsp;&nbsp;'
+            f'Wichtig: <b>{counts["major"]}</b>&nbsp;&nbsp;·&nbsp;&nbsp;'
+            f'Hinweise: <b>{counts["hinweis"]}</b>',
+            styles['Normal'],
+        ),
+        Spacer(1, 4),
+        Paragraph(
+            'Bitte zuerst die kritischen, dann die wichtigen Befunde bearbeiten. '
+            'Hinweise (z.\u202fB. Quelltext-Qualität) betreffen den Ausgangstext '
+            'und sind optional.',
+            ParagraphStyle('hint', parent=styles['Normal'], fontSize=8,
+                           textColor=colors.HexColor('#64748b'), leading=11),
+        ),
+        Spacer(1, 10),
     ]
-    small_style = ParagraphStyle('small', parent=styles['Normal'], fontSize=7, leading=9)
-    data = [['Nr', 'Seg.', 'Schwere', 'Code', 'Nachricht']]
-    for i, f in enumerate(findings, 1):
-        msg = f.message[:110] + ('...' if len(f.message) > 110 else '')
-        seg = getattr(f, 'segment_index', -1)
-        data.append([
-            str(i),
-            str(seg) if seg >= 0 else '–',
-            severity_label(f.severity),
-            _xml_escape(str(f.code)),
-            Paragraph(_xml_escape(msg), small_style),
-        ])
-    table = Table(data, colWidths=[1 * cm, 1 * cm, 2 * cm, 3 * cm, 11 * cm], repeatRows=1)
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#0f2744')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('FONTSIZE', (0, 0), (-1, -1), 7),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
-    ]))
-    story.append(table)
-    doc.build(story)
+
+    if not findings:
+        story.append(Paragraph('Keine Befunde – die Übersetzung ist sauber.', body_style))
+        doc.build(story, canvasmaker=_NumberedCanvas)
+        return path
+
+    counter = 0
+    for group_key, group_label in display_groups:
+        items = grouped.get(group_key, [])
+        if not items:
+            continue
+        accent = colors.HexColor(_sev_color(_group_accent[group_key]))
+        header = Table(
+            [[Paragraph(f'{group_label} &nbsp;({len(items)})', section_style)]],
+            colWidths=[18 * cm],
+        )
+        header.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), accent),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        story.append(header)
+        story.append(Spacer(1, 4))
+
+        for f in items:
+            counter += 1
+            sev_label = sev_de[_sev_norm(getattr(f, 'severity', None))]
+            code = _xml_escape(str(getattr(f, 'code', '') or ''))
+            msg = _xml_escape(str(getattr(f, 'message', '') or ''))
+            rows = [[Paragraph(f'<b>[{counter}] {sev_label}</b> &nbsp;·&nbsp; '
+                               f'<font color="#64748b">{code}</font>', label_style)]]
+            rows.append([Paragraph(msg, body_style)])
+
+            src_file = getattr(f, 'source_file', '') or ''
+            tgt_file = getattr(f, 'target_file', '') or ''
+            if src_file or tgt_file:
+                fileinfo = _xml_escape(' → '.join(
+                    [os.path.basename(p) for p in (src_file, tgt_file) if p]
+                ))
+                rows.append([Paragraph(f'Datei: {fileinfo}', field_label)])
+
+            src_text = _truncate(getattr(f, 'source_text', '') or '')
+            tgt_text = _truncate(getattr(f, 'target_text', '') or '')
+            if src_text:
+                rows.append([Paragraph('Quelltext', field_label)])
+                rows.append([Paragraph(_xml_escape(src_text), body_style)])
+            if tgt_text:
+                rows.append([Paragraph('Übersetzung', field_label)])
+                rows.append([Paragraph(_xml_escape(tgt_text), body_style)])
+
+            card = Table(rows, colWidths=[17.6 * cm])
+            card.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+                ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+                ('LINEBEFORE', (0, 0), (0, -1), 3, accent),
+                ('LEFTPADDING', (0, 0), (-1, -1), 8),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+                ('TOPPADDING', (0, 0), (-1, -1), 2),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+                ('TOPPADDING', (0, 0), (0, 0), 5),
+                ('BOTTOMPADDING', (0, -1), (-1, -1), 5),
+            ]))
+            story.append(KeepTogether([card, Spacer(1, 6)]))
+
+    doc.build(story, canvasmaker=_NumberedCanvas)
     return path
 
 

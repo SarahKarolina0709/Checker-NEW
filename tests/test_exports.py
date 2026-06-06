@@ -53,6 +53,20 @@ class TestHelpers:
         assert E._xml_escape('') == ''
         assert E._xml_escape(None) == ''
 
+    def test_truncate_short_unchanged(self):
+        assert E._truncate('kurz') == 'kurz'
+
+    def test_truncate_empty_stays_empty(self):
+        # Aufrufer prueft `if text:` -> leeres Feld wird nicht gerendert
+        assert E._truncate('') == ''
+        assert E._truncate(None) == ''
+
+    def test_truncate_long_marks_cut(self):
+        out = E._truncate('A' * 1000, limit=600)
+        assert out.endswith('(gekürzt)')
+        assert len(out) < 1000
+        assert out.startswith('A' * 600)
+
 
 # ---------------------------------------------------------------------------
 # TXT
@@ -152,6 +166,61 @@ class TestPdf:
             pytest.skip('reportlab missing')
         path = E.export_pdf([_F('major', 'X<>&', 'a < b & c > d')], 50, self.tmp)
         assert os.path.isfile(path)
+
+    def test_empty_findings_no_crash(self):
+        try:
+            import reportlab  # noqa
+        except ImportError:
+            pytest.skip('reportlab missing')
+        path = E.export_pdf([], 100, self.tmp)
+        assert os.path.isfile(path)
+        with open(path, 'rb') as f:
+            assert f.read(4) == b'%PDF'
+
+    def test_all_severities_render(self):
+        try:
+            import reportlab  # noqa
+        except ImportError:
+            pytest.skip('reportlab missing')
+        findings = [
+            _F('critical', 'C', 'krit', 'Quelle A', 'Ziel A'),
+            _F('major', 'M', 'wichtig', 'Quelle B', 'Ziel B'),
+            _F('minor', 'm', 'klein', 'Quelle C', 'Ziel C'),
+            _F('info', 'i', 'hinweis', 'Quelle D', 'Ziel D'),
+        ]
+        path = E.export_pdf(findings, 30, self.tmp)
+        assert os.path.isfile(path)
+
+    def test_bilingual_content_grows_file(self):
+        """PDF mit Quell-/Zieltext ist groesser als ohne (Inhalt landet im PDF)."""
+        try:
+            import reportlab  # noqa
+        except ImportError:
+            pytest.skip('reportlab missing')
+        # Getrennte Verzeichnisse: _timestamp() hat nur Sekunden-Aufloesung,
+        # gleiche Sekunde -> gleicher Dateiname -> Kollision.
+        d1 = os.path.join(self.tmp, 'a')
+        d2 = os.path.join(self.tmp, 'b')
+        minimal = E.export_pdf([_F('major', 'X', 'kurz')], 80, d1)
+        with_text = E.export_pdf(
+            [_F('major', 'X', 'kurz', 'A' * 400, 'B' * 400)], 80, d2)
+        assert os.path.getsize(with_text) > os.path.getsize(minimal)
+
+    def test_multipage_build_no_crash(self):
+        """Viele lange Befunde -> mehrseitiger Bericht (uebt die Seiten-Fusszeile)."""
+        try:
+            import reportlab  # noqa
+        except ImportError:
+            pytest.skip('reportlab missing')
+        findings = [
+            _F('major', f'CODE_{i}', f'Befund Nummer {i} ' * 5,
+               'Q' * 700, 'Z' * 700)
+            for i in range(60)
+        ]
+        path = E.export_pdf(findings, 25, self.tmp)
+        assert os.path.isfile(path)
+        with open(path, 'rb') as f:
+            assert f.read(4) == b'%PDF'
 
 
 # ---------------------------------------------------------------------------

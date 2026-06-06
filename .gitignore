@@ -69,6 +69,12 @@ Desktop.ini
 coverage.xml
 *.coverage
 
+#############################
+# Lokale Scratch / Vorschau #
+#############################
+_pdftest.py
+_pdf_preview/
+
 # Alte CustomTkinter App (archiviert)
 _legacy/
 
