@@ -85,8 +85,20 @@ def kunden_page():
                         ui.label('Keine Kunden gefunden').style(
                             'font-size:12px;color:var(--text-light);padding:16px 0;text-align:center;')
 
-            search_inp.on('update:model-value', lambda e: _filter_list(
-                getattr(e, 'value', getattr(e, 'args', ''))))
+            # Suche entprellen: filtert erst 250 ms nach dem letzten Tastendruck,
+            # statt pro Anschlag N JSON-Reads + Verzeichnis-Scans auszuloesen.
+            _search_timer = {'t': None}
+
+            def _on_search(e):
+                val = getattr(e, 'value', getattr(e, 'args', '')) or ''
+                if _search_timer['t'] is not None:
+                    try:
+                        _search_timer['t'].cancel()
+                    except Exception:
+                        pass
+                _search_timer['t'] = ui.timer(0.25, lambda: _filter_list(val), once=True)
+
+            search_inp.on('update:model-value', _on_search)
             _filter_list()
 
         with ui.column().classes('flex-grow p-6 gap-4').style(

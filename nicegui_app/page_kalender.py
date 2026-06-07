@@ -29,6 +29,14 @@ def kalender_page():
     view = {'year': today.year, 'month': today.month}
     cal_container = None
     detail_container = None
+    # Projekt-Datums-Scan nur einmal pro Seitenaufruf (statt bei jedem
+    # Monatswechsel den ganzen Projektbaum erneut zu durchlaufen).
+    _dates_cache: dict = {}
+
+    def _project_dates():
+        if 'v' not in _dates_cache:
+            _dates_cache['v'] = _scan_project_dates()
+        return _dates_cache['v']
 
     def _nav_month(delta: int):
         m = view['month'] + delta
@@ -106,7 +114,7 @@ def kalender_page():
                         'font-size:12px;color:var(--text-light);text-align:center;')
             return
         y, m = view['year'], view['month']
-        project_dates = _scan_project_dates()
+        project_dates = _project_dates()
         month_name = MONTH_NAMES_DE.get(m, str(m))
         with cal_container:
             with ui.row().classes('w-full items-center justify-center gap-4').style('margin-bottom:16px;'):
