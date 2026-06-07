@@ -19,7 +19,7 @@ APP_CSS = '''<style>
   --role-source:#2563eb;
   --text:#0f172a;--text-muted:#64748b;--text-light:#94a3b8;
   /* Semantic text colors for colored backgrounds */
-  --text-body:#334155;
+  --text-body:#334155;--text-inverse:#ffffff;
   --success-text:#064e3b;--warning-text:#92400e;--error-text:#7f1d1d;
   --radius-sm:6px;--radius-md:10px;--radius-lg:14px;--radius-pill:50px;
   /* Typography scale (7 Stufen) */
@@ -184,7 +184,7 @@ body{font-size:var(--fs-md)!important;line-height:var(--lh-normal);
 .cat-row{transition:background .12s ease}
 .cat-row:hover{background:var(--bg-muted)}
 /* Klickbare Auswahl-Karten (Entfernen-Dialog) */
-.choice-card{cursor:pointer;border-radius:10px;border:1px solid var(--surface-border);
+.choice-card{cursor:pointer;border-radius:var(--radius-md);border:1px solid var(--surface-border);
     background:var(--surface);transition:border-color .12s ease,background .12s ease,
     box-shadow .12s ease,transform .06s ease}
 .choice-card:hover{border-color:var(--primary);background:var(--surface-alt);

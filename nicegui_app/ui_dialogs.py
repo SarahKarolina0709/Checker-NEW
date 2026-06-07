@@ -76,7 +76,7 @@ def open_settings_dialog() -> None:
                                     ti.value = current['path']
                                     bdlg.close()
                                 ui.button('Auswählen', on_click=_select).props('no-caps unelevated').style(
-                                    'background:var(--bg-primary);color:white;')
+                                    'background:var(--bg-primary);color:var(--text-inverse);')
                         bdlg.open()
 
                     ui.button(icon='folder_open', on_click=_browse).props('flat dense round color=primary')
@@ -117,7 +117,7 @@ def open_settings_dialog() -> None:
                     ui.notify('Einstellungen gespeichert', type='positive')
                     dlg.close()
                 ui.button('Speichern', on_click=_save).props('no-caps unelevated').style(
-                    'background:var(--bg-primary);color:white;')
+                    'background:var(--bg-primary);color:var(--text-inverse);')
     dlg.open()
 
 
@@ -234,7 +234,7 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
                 dlg.close()
                 ui.notify(f'{len(pairs)} Paare gespeichert', type='positive')
             ui.button('\u00dcbernehmen', icon='check', on_click=_save).props(
-                'no-caps unelevated').style('background:var(--bg-primary);color:white;')
+                'no-caps unelevated').style('background:var(--bg-primary);color:var(--text-inverse);')
     dlg.open()
 
 
@@ -335,7 +335,7 @@ def show_edit_customer_dialog(ctx: SimpleNamespace, customer: str) -> None:
                     dlg.close()
                     ctx.refresh_customer_info()
                 ui.button('Speichern', icon='save', on_click=_save).props('no-caps unelevated').style(
-                    'background:var(--bg-primary);color:white;')
+                    'background:var(--bg-primary);color:var(--text-inverse);')
     dlg.open()
 
 
@@ -379,7 +379,7 @@ def show_new_customer_dialog(ctx: SimpleNamespace) -> None:
                     ui.button('Abbrechen', on_click=dlg.close).props('flat no-caps')
                     ui.button('Firmenkunde anlegen', icon='business',
                               on_click=_save_firma).props('no-caps unelevated').style(
-                        'background:var(--bg-primary);color:white;')
+                        'background:var(--bg-primary);color:var(--text-inverse);')
             with ui.tab_panel(tab_privat):
                 with ui.row().classes('w-full gap-2'):
                     p_vorname = ui.input('Vorname').classes('flex-grow').props('dense outlined')
@@ -408,7 +408,7 @@ def show_new_customer_dialog(ctx: SimpleNamespace) -> None:
                     ui.button('Abbrechen', on_click=dlg.close).props('flat no-caps')
                     ui.button('Privatkunde anlegen', icon='person',
                               on_click=_save_privat).props('no-caps unelevated').style(
-                        'background:var(--bg-primary);color:white;')
+                        'background:var(--bg-primary);color:var(--text-inverse);')
     dlg.open()
 
 
@@ -434,7 +434,7 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
 
         list_container = ui.column().classes('w-full gap-1').style(
             'max-height:50vh;overflow-y:auto;border:1px solid var(--surface-border);'
-            'border-radius:6px;padding:8px;background:var(--surface-alt);'
+            'border-radius:var(--radius-sm);padding:8px;background:var(--surface-alt);'
         )
 
         def _commit(new_terms) -> bool:
@@ -526,7 +526,7 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
                 _redraw()
 
             ui.button(icon='add', on_click=_add_new).props(
-                'unelevated dense round size=sm').style('background:var(--bg-primary);color:white;')
+                'unelevated dense round size=sm').style('background:var(--bg-primary);color:var(--text-inverse);')
 
         with ui.row().classes('w-full justify-end gap-2').style('margin-top:8px;'):
             def _export_json():
@@ -542,6 +542,6 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
             ui.button('Als JSON exportieren', icon='download',
                 on_click=_export_json).props('outline dense no-caps size=sm')
             ui.button('Schließen', on_click=dlg.close).props(
-                'unelevated dense no-caps size=sm').style('background:var(--bg-primary);color:white;')
+                'unelevated dense no-caps size=sm').style('background:var(--bg-primary);color:var(--text-inverse);')
 
     dlg.open()

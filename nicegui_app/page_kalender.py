@@ -139,7 +139,7 @@ def kalender_page():
                             with make_keyboard_activatable(
                                 ui.card().style(
                                     f'width:14.28%;min-height:80px;padding:6px;cursor:pointer;'
-                                    f'border-radius:6px;border:1px solid;{bg}'
+                                    f'border-radius:var(--radius-sm);border:1px solid;{bg}'
                                 ).props('flat').on('click', lambda _, ds=day_str, cs=customers: _show_day(ds, cs)),
                                 lambda ds=day_str, cs=customers: _show_day(ds, cs),
                             ):
@@ -149,7 +149,7 @@ def kalender_page():
                                         f'color:{"var(--info)" if is_today else "var(--text)" if count == 0 else "var(--info)"};')
                                     if count > 0:
                                         ui.badge(str(count)).style(
-                                            'background:var(--info);color:white;font-size:12px;border-radius:20px;')
+                                            'background:var(--info);color:var(--text-inverse);font-size:12px;border-radius:20px;')
                                 if count > 0:
                                     for cust in customers[:2]:
                                         ui.label(_customers_mod.display_name(cust)).style(

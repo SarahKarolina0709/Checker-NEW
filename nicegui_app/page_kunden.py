@@ -27,7 +27,7 @@ def kunden_page():
     ):
         with ui.row().classes('w-full items-center gap-4'):
             ui.icon('business', size='md').style('color:var(--accent)')
-            ui.label('Kunden-Manager').style('font-size:14px;font-weight:700;color:white;')
+            ui.label('Kunden-Manager').style('font-size:14px;font-weight:700;color:var(--text-inverse);')
             ui.element('div').classes('flex-grow')
             ui.button('Zurück zur Analyse', icon='arrow_back',
                 on_click=lambda: ui.navigate.to('/')).props('flat no-caps text-color=white').style('font-size:12px;')
@@ -123,7 +123,7 @@ def kunden_page():
                 ui.element('div').classes('flex-grow')
                 ui.button('Neues Projekt', icon='add',
                     on_click=lambda: _new_project(customer_name)).props(
-                    'no-caps unelevated').style('background:var(--bg-primary);color:white;')
+                    'no-caps unelevated').style('background:var(--bg-primary);color:var(--text-inverse);')
                 cpath = _customers_mod.get_customer_path(base, customer_name)
                 ui.button('Ordner öffnen', icon='folder_open',
                     on_click=lambda: safe_open_folder(cpath)).props('flat no-caps')
@@ -157,7 +157,7 @@ def kunden_page():
                                 ui.button('Analyse', icon='play_arrow',
                                     on_click=lambda _, c=customer_name, p=proj: ui.navigate.to(
                                         f'/?kunde={c}&auftrag={p}')).props(
-                                    'dense no-caps unelevated size=sm').style('background:var(--bg-primary);color:white;')
+                                    'dense no-caps unelevated size=sm').style('background:var(--bg-primary);color:var(--text-inverse);')
                             ui.button(icon='folder_open',
                                 on_click=lambda _, p=proj_path: safe_open_folder(p)).props(
                                 'flat dense round size=sm').style('color:var(--text-light)')
@@ -177,7 +177,7 @@ def kunden_page():
                                             f'color:{"var(--text)" if count else "var(--text-muted)"};')
                                         if count:
                                             ui.badge(str(count)).style(
-                                                'background:var(--bg-primary);color:white;font-size:12px;border-radius:20px;')
+                                                'background:var(--bg-primary);color:var(--text-inverse);font-size:12px;border-radius:20px;')
                                         ui.element('div').classes('flex-grow')
                                         if os.path.isdir(folder_path):
                                             ui.button(icon='folder_open',
@@ -237,5 +237,5 @@ def kunden_page():
                         dlg.close()
                         _show_customer(customer_name)
                 ui.button('Anlegen', on_click=_do).props('no-caps unelevated').style(
-                    'background:var(--bg-primary);color:white;')
+                    'background:var(--bg-primary);color:var(--text-inverse);')
         dlg.open()

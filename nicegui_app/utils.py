@@ -55,7 +55,7 @@ def render_logo(clickable: bool = True, subtitle: bool = True) -> None:
         with ui.row().classes('items-center gap-3 flex-nowrap'):
             # QF-Badge: gold-border Karte mit translate-Icon
             badge = ui.element('div').style(
-                'width:38px;height:38px;flex-shrink:0;border-radius:10px;'
+                'width:38px;height:38px;flex-shrink:0;border-radius:var(--radius-md);'
                 'background:linear-gradient(145deg,#d4af37,#c49b28);'
                 'display:flex;align-items:center;justify-content:center;'
                 'box-shadow:0 2px 8px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.25);'
@@ -64,7 +64,7 @@ def render_logo(clickable: bool = True, subtitle: bool = True) -> None:
                 # innerer Glanz-Highlight
                 ui.element('div').style(
                     'position:absolute;top:0;left:0;right:0;height:50%;'
-                    'background:rgba(255,255,255,.18);border-radius:10px 10px 0 0;pointer-events:none;')
+                    'background:rgba(255,255,255,.18);border-radius:var(--radius-md) 10px 0 0;pointer-events:none;')
                 ui.icon('translate').style(
                     'font-size:20px;color:#0a1628;position:relative;z-index:1;')
             if clickable:
@@ -72,7 +72,7 @@ def render_logo(clickable: bool = True, subtitle: bool = True) -> None:
             # Text-Block
             with ui.column().classes('gap-0'):
                 ui.label('Qualitäts-Framework').style(
-                    'font-size:var(--fs-lg);font-weight:800;color:#fff;'
+                    'font-size:var(--fs-lg);font-weight:800;color:var(--text-inverse);'
                     'letter-spacing:-.3px;line-height:1.15;white-space:nowrap;')
                 if subtitle:
                     ui.label('PROFESSIONAL EDITION').classes('hdr-subtitle').style(

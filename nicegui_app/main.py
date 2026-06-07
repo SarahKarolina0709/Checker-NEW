@@ -821,7 +821,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
         stats = _get_text_stats(fp) if os.path.exists(fp) else {}
         color = 'var(--primary)' if role == 'source' else 'var(--success)'
         with ui.column().classes('w-full gap-0').style(
-            'padding:8px 12px;background:var(--surface-alt);border:1px solid var(--surface-border);border-radius:6px;margin-bottom:4px;'
+            'padding:8px 12px;background:var(--surface-alt);border:1px solid var(--surface-border);border-radius:var(--radius-sm);margin-bottom:4px;'
         ):
             with ui.row().classes('w-full items-center gap-2'):
                 ui.icon('description' if role == 'source' else 'translate',
@@ -1025,7 +1025,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
             ui.notify(f'„{fname}" gelöscht', type='warning')
 
         with ui.dialog() as dlg, ui.card().classes('q-pa-none').style(
-            'width:460px;border-radius:14px;overflow:hidden;'):
+            'width:460px;border-radius:var(--radius-lg);overflow:hidden;'):
             # Kopfbereich
             with ui.column().classes('w-full gap-1').style('padding:20px 22px 4px;'):
                 with ui.row().classes('w-full items-center gap-2'):
@@ -1122,7 +1122,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
         with container:
             if n_unmatched > 0:
                 with ui.element('div').style(
-                    'width:100%;border-radius:6px;background:var(--bg-warning-tint);'
+                    'width:100%;border-radius:var(--radius-sm);background:var(--bg-warning-tint);'
                     'border:1px solid var(--border-warning);padding:8px 12px;margin-bottom:8px;'
                 ):
                     with ui.row().classes('items-center gap-2'):
@@ -1329,7 +1329,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
         is_fav = info.get('favorit', False)
         with container:
             with ui.element('div').style(
-                'width:100%;border-radius:6px;border:1px solid var(--surface-border);'
+                'width:100%;border-radius:var(--radius-sm);border:1px solid var(--surface-border);'
                 'background:var(--surface-alt);padding:8px;margin-top:4px;'
             ):
                 with ui.row().classes('w-full items-center gap-1'):
@@ -1892,7 +1892,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     f'background:rgba(255,255,255,.1);border-radius:20px;padding:3px 10px 3px 7px;'
                     f'border:1px solid rgba(255,255,255,.15);">'
                     f'<div style="width:8px;height:8px;border-radius:50%;background:{hclr};flex-shrink:0;"></div>'
-                    f'<span style="font-size:var(--fs-sm);font-weight:700;color:white;">{current_score}</span>'
+                    f'<span style="font-size:var(--fs-sm);font-weight:700;color:var(--text-inverse);">{current_score}</span>'
                     f'</div>'
                 )
             else:
@@ -2056,7 +2056,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     )
                 refs['diff_badge'].set_content(
                     '<div style="font-size:var(--fs-xs);color:var(--text-muted);'
-                    'background:var(--surface-alt);padding:4px 8px;border-radius:6px;'
+                    'background:var(--surface-alt);padding:4px 8px;border-radius:var(--radius-sm);'
                     'border:1px solid var(--surface-border);display:inline-block;">'
                     'Vergleich zur letzten Analyse: ' + ' · '.join(parts) + '</div>'
                 )
@@ -2114,7 +2114,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         tip_parts.append(f'{hint} Hinweis')
                     tip = label_de + (' · ' + ' · '.join(tip_parts) if tip_parts else '')
                     with ui.row().classes('w-full items-center gap-2 cat-row cursor-pointer').style(
-                        'padding:3px 4px;border-radius:6px;'
+                        'padding:3px 4px;border-radius:var(--radius-sm);'
                     ).on('click', lambda _, c=label_de: (s.update({'search_text': c}),
                                                      refs.get('search_input') and refs['search_input'].set_value(c),
                                                      _refresh_results_area())).tooltip(tip):
@@ -2122,7 +2122,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                             'font-size:var(--fs-sm);color:var(--text-body);width:150px;flex-shrink:0;'
                             'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
                         with ui.element('div').style(
-                            'flex-grow:1;height:12px;border-radius:6px;background:var(--bg-muted);'
+                            'flex-grow:1;height:12px;border-radius:var(--radius-sm);background:var(--bg-muted);'
                             'border:1px solid var(--surface-border);position:relative;overflow:hidden;'
                         ):
                             seg_left = 0.0
@@ -2192,7 +2192,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                                + ('e' if n_find != 1 else '')
                                + (' (' + ', '.join(tip_parts) + ')' if tip_parts else ''))
                         with ui.row().classes('w-full items-center gap-2 cat-row cursor-pointer').style(
-                            'padding:3px 4px;border-radius:6px;'
+                            'padding:3px 4px;border-radius:var(--radius-sm);'
                         ).on('click', lambda _, n=nm: (s.update({'search_text': n}),
                                                         refs.get('search_input') and refs['search_input'].set_value(n),
                                                         _refresh_results_area())).tooltip(tip):
@@ -2200,7 +2200,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                                 'font-size:var(--fs-sm);color:var(--text-body);width:150px;flex-shrink:0;'
                                 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
                             with ui.element('div').style(
-                                'flex-grow:1;height:12px;border-radius:6px;'
+                                'flex-grow:1;height:12px;border-radius:var(--radius-sm);'
                                 'background:var(--bg-muted);border:1px solid var(--surface-border);'
                                 'position:relative;overflow:hidden;'
                             ):
@@ -2249,7 +2249,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                 pass
             if key == af:
                 btn.style(
-                    f'background:var(--bg-primary);color:white;'
+                    f'background:var(--bg-primary);color:var(--text-inverse);'
                     f'border-radius:20px;padding:3px 12px;'
                     f'border:1px solid var(--bg-primary);font-weight:700;font-size:var(--fs-sm);'
                 )
@@ -2710,7 +2710,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                 def _nav_style(path: str) -> str:
                     is_active = _current_path == path
                     return ('font-size:var(--fs-sm);padding:6px 12px;'
-                            + ('opacity:1;background:rgba(255,255,255,.12);border-radius:6px;' if is_active
+                            + ('opacity:1;background:rgba(255,255,255,.12);border-radius:var(--radius-sm);' if is_active
                                else 'opacity:.65;'))
                 def _mk_nav(label: str, icon: str, path: str):
                     b = ui.button(icon=icon,
@@ -2727,7 +2727,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
 
             # Save-Indicator (links neben Action-Gruppe, dezent)
             refs['save_indicator'] = ui.label('').classes('save-indicator').style(
-                'font-size:var(--fs-xs);color:white;opacity:0;padding:0 8px;')
+                'font-size:var(--fs-xs);color:var(--text-inverse);opacity:0;padding:0 8px;')
 
             # Score-Badge im Header (immer sichtbar)
             refs['header_score_badge'] = ui.html('').style('margin-right:4px;')
@@ -3072,12 +3072,12 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         'Analyse starten', icon='play_arrow', on_click=_start_analysis,
                     ).classes('flex-grow font-bold').props('no-caps size=lg unelevated').style(
                         'background:linear-gradient(135deg,#0f2744 0%,#1a365d 100%);'
-                        'color:white;height:48px;font-size:var(--fs-lg);border-radius:8px;')
+                        'color:var(--text-inverse);height:48px;font-size:var(--fs-lg);border-radius:8px;')
                     refs['start_btn'].tooltip('Tastenkürzel: Strg+Enter')
                     refs['cancel_btn'] = ui.button(
                         icon='stop', on_click=_request_cancel,
                     ).props('no-caps size=lg unelevated').style(
-                        'background:var(--error);color:white;height:48px;width:48px;border-radius:8px;')
+                        'background:var(--error);color:var(--text-inverse);height:48px;width:48px;border-radius:8px;')
                     refs['cancel_btn'].tooltip('Analyse abbrechen')
                     refs['cancel_btn'].visible = False
                 refs['path_label'] = ui.label('').style(
@@ -3125,7 +3125,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                                 ).classes('w-full').props('outlined dense').style('margin-top:12px;')
                                 if existing_today:
                                     with ui.column().classes('w-full gap-1').style(
-                                        'background:var(--bg-warning-soft);padding:10px 12px;border-radius:6px;margin-top:8px;'):
+                                        'background:var(--bg-warning-soft);padding:10px 12px;border-radius:var(--radius-sm);margin-top:8px;'):
                                         ui.label(f'Heute existieren bereits {len(existing_today)} Projekt(e):').style(
                                             'font-size:var(--fs-sm);font-weight:600;color:var(--warning-text);')
                                         for ep in existing_today[:3]:
@@ -3152,7 +3152,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                                         _select_auftrag(proj_name, project_path, 0, 0)
                                         _refresh_auftrag_list()
                                     ui.button('Anlegen', icon='add', on_click=_create).props(
-                                        'no-caps unelevated').style('background:var(--bg-primary);color:white;')
+                                        'no-caps unelevated').style('background:var(--bg-primary);color:var(--text-inverse);')
                                 desc_input.on('keydown.enter', _create)
                             adlg.open()
                         ui.button('Neues Projekt', icon='add', on_click=_new_auftrag).props(
@@ -3181,7 +3181,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                             ui.row().classes('w-full items-center gap-2 cursor-pointer cust-card').style(
                                 f'border-left:3px solid {"var(--primary)" if is_sel else "var(--surface-border)"};'
                                 f'padding:8px 12px;background:{"var(--bg-info-soft)" if is_sel else "transparent"};'
-                                f'border-radius:6px;transition:all .15s;flex-wrap:nowrap;'
+                                f'border-radius:var(--radius-sm);transition:all .15s;flex-wrap:nowrap;'
                                 f'{"box-shadow:0 1px 3px rgba(15,39,68,.08);" if is_sel else ""}'
                             ).on('click', lambda _, p=proj, pp=proj_path, ns=n_src, nt=n_tgt:
                                  _select_auftrag(p, pp, ns, nt)),
@@ -3205,12 +3205,12 @@ def index_page(kunde: str = '', auftrag: str = ''):
                                     f'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;')
                                 with ui.row().classes('items-center gap-1 flex-nowrap'):
                                     with ui.row().classes('items-center gap-1').style(
-                                        'background:var(--bg-info-tint);border-radius:10px;padding:1px 7px;'):
+                                        'background:var(--bg-info-tint);border-radius:var(--radius-md);padding:1px 7px;'):
                                         ui.icon('description', size='11px').style('color:var(--primary);')
                                         ui.label(str(n_src)).style(
                                             'font-size:var(--fs-xs);font-weight:600;color:var(--primary);')
                                     with ui.row().classes('items-center gap-1').style(
-                                        f'background:var(--bg-success-tint);border-radius:10px;padding:1px 7px;'
+                                        f'background:var(--bg-success-tint);border-radius:var(--radius-md);padding:1px 7px;'
                                         f'{"opacity:.45;" if n_tgt == 0 else ""}'):
                                         ui.icon('translate', size='11px').style('color:var(--success);')
                                         ui.label(str(n_tgt)).style(
@@ -3664,7 +3664,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     ui.button('Korrektur hochladen', icon='replay',
                         on_click=_start_correction_loop).props(
                         'unelevated dense no-caps size=sm').style(
-                        'background:var(--warning);color:white;')
+                        'background:var(--warning);color:var(--text-inverse);')
 
                 with ui.row().classes('w-full items-center gap-2 flex-wrap').style(
                     'padding:6px 0;border-bottom:1px solid var(--surface-border);margin-bottom:4px;'
@@ -3778,7 +3778,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
             ]:
                 with ui.row().classes('items-center gap-1'):
                     ui.label(keys).style(
-                        'font-family:monospace;font-weight:700;color:white;'
+                        'font-family:monospace;font-weight:700;color:var(--text-inverse);'
                         'background:rgba(255,255,255,0.12);padding:1px 6px;border-radius:3px;'
                         'font-size:var(--fs-xs);')
                     ui.label(desc).style('color:var(--text-muted);font-size:var(--fs-xs);')

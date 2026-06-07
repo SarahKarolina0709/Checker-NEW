@@ -78,7 +78,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
     mb = '4px' if compact else '8px'
     _sel = getattr(ctx, 'select_finding', None)
     card_style = (
-        f'border-left:5px solid {sev_clr};border-radius:6px;'
+        f'border-left:5px solid {sev_clr};border-radius:var(--radius-sm);'
         f'margin-bottom:{mb};padding:0;'
         f'background:{"var(--bg-muted)" if hint_only else "var(--surface)"};'
         f'{"opacity:.85;" if hint_only else ""}'
@@ -136,7 +136,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                 diff = s.get('analysis_diff', {}) or {}
                 if diff.get('has_prev') and idx in set(diff.get('new_idx', []) or []):
                     ui.badge('NEU').style(
-                        'background:var(--error);color:white;border-radius:20px;'
+                        'background:var(--error);color:var(--text-inverse);border-radius:20px;'
                         'font-weight:700;font-size:var(--fs-xs);')
                 ui.element('div').classes('flex-grow')
                 cb = ui.checkbox('Geprüft',
@@ -157,7 +157,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
             if suggestion:
                 with ui.row().classes('w-full items-start gap-2').style(
                     'background:var(--bg-success-soft);border-left:3px solid var(--success);'
-                    'padding:8px 12px;border-radius:6px;margin-top:8px;'
+                    'padding:8px 12px;border-radius:var(--radius-sm);margin-top:8px;'
                 ):
                     ui.icon('lightbulb', size='sm').style('color:var(--success);flex-shrink:0;margin-top:1px;')
                     with ui.column().classes('gap-0 flex-grow').style('min-width:0;'):
@@ -185,7 +185,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                                 if src_pos:
                                     ui.label(src_pos).style('font-size:var(--fs-xs);color:var(--text-light);')
                             with ui.row().classes('w-full items-start gap-2').style(
-                                'background:var(--surface-alt);padding:8px 12px;border-radius:6px;'
+                                'background:var(--surface-alt);padding:8px 12px;border-radius:var(--radius-sm);'
                                 'border-left:2px solid var(--bg-primary);'
                             ):
                                 ui.label(src_excerpt).style(
@@ -206,7 +206,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                                 if tgt_pos:
                                     ui.label(tgt_pos).style('font-size:var(--fs-xs);color:var(--text-light);')
                             with ui.row().classes('w-full items-start gap-2').style(
-                                'background:var(--bg-warning-soft);padding:8px 12px;border-radius:6px;'
+                                'background:var(--bg-warning-soft);padding:8px 12px;border-radius:var(--radius-sm);'
                                 'border-left:2px solid var(--warning);'
                             ):
                                 if error_span and error_span in f.target_text:
@@ -313,7 +313,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
     with ui.row().classes('w-full items-center gap-2 flex-wrap').style('margin-bottom:8px;'):
         ui.icon(severity_icon(f.severity), size='sm').style(f'color:{sev_clr};flex-shrink:0;')
         ui.badge(sev_lbl).style(
-            f'background:{sev_clr};color:white;border-radius:20px;font-size:var(--fs-sm);')
+            f'background:{sev_clr};color:var(--text-inverse);border-radius:20px;font-size:var(--fs-sm);')
         if phase_lbl:
             ui.badge(phase_lbl).style(
                 'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:20px;')
@@ -322,7 +322,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
         diff = s.get('analysis_diff', {}) or {}
         if diff.get('has_prev') and idx in set(diff.get('new_idx', []) or []):
             ui.badge('NEU').style(
-                'background:var(--error);color:white;border-radius:20px;font-weight:700;font-size:var(--fs-xs);')
+                'background:var(--error);color:var(--text-inverse);border-radius:20px;font-weight:700;font-size:var(--fs-xs);')
         ui.element('div').classes('flex-grow')
         cb = ui.checkbox('Geprüft',
             value=bool(s.get('checked_findings', {}).get(str(idx), False)),
@@ -354,7 +354,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
     if suggestion:
         with ui.row().classes('w-full items-start gap-2').style(
             'background:var(--bg-success-soft);border-left:3px solid var(--success);'
-            'padding:8px 10px;border-radius:6px;margin-bottom:8px;'
+            'padding:8px 10px;border-radius:var(--radius-sm);margin-bottom:8px;'
         ):
             ui.icon('lightbulb', size='sm').style('color:var(--success);flex-shrink:0;')
             with ui.column().classes('gap-0 flex-grow').style('min-width:0;'):
@@ -375,7 +375,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
                 if src_pos:
                     ui.label(src_pos).style('font-size:var(--fs-xs);color:var(--text-light);')
             with ui.row().classes('w-full items-start gap-1').style(
-                'background:var(--surface-alt);padding:8px;border-radius:6px;border-left:3px solid var(--bg-primary);'
+                'background:var(--surface-alt);padding:8px;border-radius:var(--radius-sm);border-left:3px solid var(--bg-primary);'
             ):
                 ui.label(src_excerpt).style(
                     'font-size:var(--fs-sm);color:var(--text-body);white-space:pre-wrap;word-break:break-word;flex-grow:1;')
@@ -392,7 +392,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
                 if tgt_pos:
                     ui.label(tgt_pos).style('font-size:var(--fs-xs);color:var(--text-light);')
             with ui.row().classes('w-full items-start gap-1').style(
-                'background:var(--bg-warning-soft);padding:8px;border-radius:6px;border-left:3px solid var(--warning);'
+                'background:var(--bg-warning-soft);padding:8px;border-radius:var(--radius-sm);border-left:3px solid var(--warning);'
             ):
                 if error_span and error_span in f.target_text:
                     err_pos = f.target_text.find(error_span)
@@ -698,7 +698,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                         except Exception:
                             pass
                         with ui.row().classes('w-full items-center gap-3 cursor-pointer').style(
-                            f'padding:6px 8px;border-radius:6px;'
+                            f'padding:6px 8px;border-radius:var(--radius-sm);'
                             f'{"background:var(--bg-info-soft);border:1px solid var(--border-info);" if is_active else "border:1px solid transparent;"}'
                         ).on('click', lambda _, p=proj, pp2=pp, ns=n_s, nt=n_t:
                              ctx.select_auftrag(p, pp2, ns, nt)):
@@ -752,21 +752,21 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                     with ui.row().classes('items-center gap-4').style('position:relative;z-index:1;'):
                         # Logo-Badge: identisch mit Header-Logo
                         with ui.element('div').style(
-                            'width:52px;height:52px;flex-shrink:0;border-radius:14px;'
+                            'width:52px;height:52px;flex-shrink:0;border-radius:var(--radius-lg);'
                             'background:linear-gradient(145deg,#d4af37,#c49b28);'
                             'display:flex;align-items:center;justify-content:center;'
                             'box-shadow:0 4px 16px rgba(0,0,0,.40),inset 0 1px 0 rgba(255,255,255,.25);'
                             'position:relative;overflow:hidden;'):
                             ui.element('div').style(
                                 'position:absolute;top:0;left:0;right:0;height:50%;'
-                                'background:rgba(255,255,255,.20);border-radius:14px 14px 0 0;'
+                                'background:rgba(255,255,255,.20);border-radius:var(--radius-lg) 14px 0 0;'
                                 'pointer-events:none;')
                             ui.icon('translate').style(
                                 'font-size:28px;color:#0a1628;position:relative;z-index:1;')
                         with ui.column().style('gap:4px;'):
                             with ui.row().classes('items-center gap-2'):
                                 ui.label('Qualitäts-Framework').style(
-                                    'font-size:21px;font-weight:800;color:#fff;'
+                                    'font-size:21px;font-weight:800;color:var(--text-inverse);'
                                     'letter-spacing:-.4px;line-height:1.15;')
                                 with ui.element('div').style(
                                     'padding:2px 8px;border-radius:20px;'
@@ -885,7 +885,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                                         _cust_name = ctx.display_name(cust)
                                         _initial = (_cust_name.strip()[:1] or '?').upper()
                                         with ui.row().classes('items-center gap-2 cursor-pointer act-row').style(
-                                            'padding:2px 5px;border-radius:6px;'
+                                            'padding:2px 5px;border-radius:var(--radius-sm);'
                                             'transition:background .15s;'
                                         ).on('click', lambda _, c=cust: ctx.on_customer_selected(c)):
                                             with ui.element('div').style(
@@ -989,7 +989,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                                 ).on('click', lambda _, c=cust: ctx.on_customer_selected(c)):
                                     with ui.row().classes('items-center gap-2').style('margin-bottom:4px;'):
                                         with ui.element('div').style(
-                                            'width:22px;height:22px;border-radius:6px;flex-shrink:0;'
+                                            'width:22px;height:22px;border-radius:var(--radius-sm);flex-shrink:0;'
                                             'background:linear-gradient(135deg,#0f2744,#1a365d);'
                                             'display:flex;align-items:center;justify-content:center;'
                                             'font-size:var(--fs-xs);font-weight:700;color:var(--accent);'):
