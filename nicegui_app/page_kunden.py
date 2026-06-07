@@ -39,7 +39,7 @@ def kunden_page():
     selected = {'name': ''}
     project_detail = None
 
-    with ui.row().classes('w-full gap-0').style('min-height:calc(100vh - 56px);'):
+    with ui.row().classes('w-full gap-0 qf-stack').style('min-height:calc(100vh - 56px);'):
         with ui.column().classes('w-[320px] p-4 gap-2').style(
             'background:var(--surface);border-right:1px solid var(--surface-border);overflow-y:auto;max-height:calc(100vh - 56px);'
         ):

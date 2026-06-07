@@ -2771,7 +2771,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         )
 
     # --- Main content ---
-    with ui.row().classes('w-full flex-nowrap items-start gap-0').style(
+    with ui.row().classes('w-full flex-nowrap items-start gap-0 qf-stack').style(
         'min-height:calc(100vh - 56px);background:var(--surface-alt);'
     ):
         # ============ LEFT PANEL (480px) ============

@@ -468,7 +468,7 @@ def render_findings_list(ctx: SimpleNamespace) -> None:
                         'font-size:var(--fs-sm);color:var(--text-light);text-align:center;')
             return
         if split_mode:
-            with ui.row().classes('w-full gap-0 items-start').style('min-height:300px;'):
+            with ui.row().classes('w-full gap-0 items-start qf-stack').style('min-height:300px;'):
                 list_col = ui.column().classes('gap-0').style(
                     'width:340px;min-width:300px;flex-shrink:0;'
                     'overflow-y:auto;max-height:calc(100vh - 420px);'

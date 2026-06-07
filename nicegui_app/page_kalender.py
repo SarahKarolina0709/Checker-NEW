@@ -176,7 +176,7 @@ def kalender_page():
                 on_click=lambda: ui.navigate.to('/')).props('flat no-caps text-color=white dense').style(
                 'font-size:var(--fs-sm);opacity:.7;')
 
-    with ui.row().classes('w-full flex-nowrap items-start gap-4 p-6').style(
+    with ui.row().classes('w-full flex-nowrap items-start gap-4 p-6 qf-stack').style(
         'min-height:calc(100vh - 56px);background:var(--surface-alt);'
     ):
         with ui.column().classes('flex-grow gap-0'):

@@ -229,4 +229,12 @@ body.body--dark [style*="background:linear-gradient(135deg,#0f2744"]{background:
   .hdr-label{display:none!important}
   .hdr-subtitle{display:none!important}
 }
+
+/* Responsive: Split-/Mehrspalten-Layouts unter 900px untereinander stapeln
+   (sonst werden feste Panel-Breiten — Sidebar, Detail-Panel — gequetscht). */
+@media (max-width:900px){
+  .qf-stack{flex-direction:column!important;flex-wrap:nowrap!important;gap:12px!important}
+  .qf-stack>*{width:100%!important;max-width:100%!important;min-width:0!important;
+      max-height:none!important;border-right:none!important}
+}
 </style>'''
