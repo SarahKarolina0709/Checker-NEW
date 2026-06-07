@@ -85,7 +85,9 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
         f'{"cursor:pointer;" if _sel else ""}'
         f'border-top:1px solid var(--surface-border);border-right:1px solid var(--surface-border);'
         f'border-bottom:1px solid var(--surface-border);'
-        f'{"box-shadow:0 0 0 2px var(--primary);" if is_selected else ""}'
+        # Auswahl via outline (box-shadow wird von der globalen .q-card-Regel
+        # mit !important ueberschrieben und waere unsichtbar)
+        f'{"outline:2px solid var(--info);outline-offset:-2px;" if is_selected else ""}'
     )
     with ui.card().classes('w-full finding-card').props('flat').style(card_style) as card_el:
         try:
@@ -240,7 +242,7 @@ def render_split_list(ctx: SimpleNamespace, filtered) -> None:
 
     ctx braucht: s, selected_idx, select_finding(idx).
     """
-    from nicegui_app.severity import severity_label, severity_color
+    from nicegui_app.severity import severity_label, severity_color, severity_icon
     s = ctx.s
     selected_idx = ctx.selected_idx
     _SEV_ORDER = [('Kritisch', 'var(--error)'), ('Wichtig', 'var(--warning)'), ('Hinweis', 'var(--text-muted)')]
@@ -257,8 +259,8 @@ def render_split_list(ctx: SimpleNamespace, filtered) -> None:
             _last_sev = sev_lbl
             clr = next((c for l, c in _SEV_ORDER if l == sev_lbl), 'var(--text-muted)')
             with ui.row().classes('w-full items-center gap-2').style('padding:4px 2px 2px;'):
-                ui.element('div').style(
-                    f'height:2px;width:10px;border-radius:2px;background:{clr};')
+                ui.icon(severity_icon(f.severity), size='xs').style(
+                    f'color:{clr};flex-shrink:0;')
                 ui.label(f'{sev_lbl}  ({_sev_counts[sev_lbl]})').style(
                     f'font-size:var(--fs-xs);font-weight:700;color:{clr};'
                     f'text-transform:uppercase;letter-spacing:0.6px;')
