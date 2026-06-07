@@ -67,7 +67,7 @@ def kunden_page():
                         ):
                             with ui.row().classes('items-center gap-4 w-full'):
                                 with ui.element('div').style(
-                                    'width:36px;height:36px;border-radius:8px;'
+                                    'width:36px;height:36px;border-radius:var(--radius-sm);'
                                     'background:var(--brand-grad-badge);'
                                     'display:flex;align-items:center;justify-content:center;'
                                 ):
@@ -122,7 +122,7 @@ def kunden_page():
         with project_detail:
             with ui.row().classes('w-full items-center gap-4'):
                 with ui.element('div').style(
-                    'width:48px;height:48px;border-radius:8px;'
+                    'width:48px;height:48px;border-radius:var(--radius-sm);'
                     'background:var(--brand-grad-badge);'
                     'display:flex;align-items:center;justify-content:center;'
                 ):
@@ -189,7 +189,7 @@ def kunden_page():
                                             f'color:{"var(--text)" if count else "var(--text-muted)"};')
                                         if count:
                                             ui.badge(str(count)).style(
-                                                'background:var(--bg-primary);color:var(--text-inverse);font-size:12px;border-radius:20px;')
+                                                'background:var(--bg-primary);color:var(--text-inverse);font-size:12px;border-radius:var(--radius-pill);')
                                         ui.element('div').classes('flex-grow')
                                         if os.path.isdir(folder_path):
                                             ui.button(icon='folder_open',

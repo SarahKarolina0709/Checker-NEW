@@ -48,7 +48,7 @@ def open_settings_dialog() -> None:
                                     parent = str(Path(p).parent)
                                     if parent != p:
                                         with ui.row().classes('w-full items-center cursor-pointer gap-2').style(
-                                            'padding:6px 8px;border-radius:4px;'
+                                            'padding:6px 8px;border-radius:var(--radius-xs);'
                                         ).on('click', lambda: _nav(parent)):
                                             ui.icon('arrow_upward', size='xs').style('color:var(--text-muted);')
                                             ui.label('..').style('font-size:12px;color:var(--text-muted);')
@@ -57,7 +57,7 @@ def open_settings_dialog() -> None:
                                             if os.path.isdir(os.path.join(p, d)) and not d.startswith('.')])
                                         for d in dirs[:30]:
                                             with ui.row().classes('w-full items-center cursor-pointer gap-2').style(
-                                                'padding:6px 8px;border-radius:4px;'
+                                                'padding:6px 8px;border-radius:var(--radius-xs);'
                                             ).on('click', lambda _, dd=d: _nav(os.path.join(current['path'], dd))):
                                                 ui.icon('folder', size='xs').style('color:var(--accent);')
                                                 ui.label(d).style('font-size:12px;color:var(--text);')
@@ -149,7 +149,7 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
                 for i, p in enumerate(pairs):
                     with ui.element('div').style(
                         'width:100%;padding:10px 14px;background:var(--bg-success-tint);border:1px solid var(--border-success);'
-                        'border-radius:8px;display:flex;align-items:center;gap:12px;'
+                        'border-radius:var(--radius-sm);display:flex;align-items:center;gap:12px;'
                     ):
                         ui.icon('check_circle', size='sm').style('color:var(--success);flex-shrink:0;')
                         with ui.column().classes('flex-grow gap-0 min-w-0'):
@@ -179,7 +179,7 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
                 for j, fp in enumerate(unmatched_src):
                     with ui.element('div').style(
                         'width:100%;padding:10px 14px;background:var(--bg-warning-tint);border:1px solid var(--border-warning);'
-                        'border-radius:8px;display:flex;align-items:center;gap:12px;'
+                        'border-radius:var(--radius-sm);display:flex;align-items:center;gap:12px;'
                     ):
                         ui.icon('description', size='sm').style('color:var(--primary);flex-shrink:0;')
                         ui.label(os.path.basename(fp)).style(
@@ -214,7 +214,7 @@ def show_pairing_dialog(ctx: SimpleNamespace) -> None:
                 for fp in unmatched_tgt:
                     with ui.element('div').style(
                         'width:100%;padding:10px 14px;background:var(--bg-warning-tint);border:1px solid var(--border-warning);'
-                        'border-radius:8px;display:flex;align-items:center;gap:8px;'
+                        'border-radius:var(--radius-sm);display:flex;align-items:center;gap:8px;'
                     ):
                         ui.icon('translate', size='sm').style('color:var(--success);')
                         ui.label(os.path.basename(fp)).style('font-size:13px;color:var(--text);')
@@ -260,7 +260,7 @@ def show_keyboard_help() -> None:
                 ui.label(keys).style(
                     'font-family:monospace;font-size:12px;font-weight:700;'
                     'color:var(--primary);background:var(--bg-muted);padding:3px 8px;'
-                    'border-radius:4px;min-width:140px;')
+                    'border-radius:var(--radius-xs);min-width:140px;')
                 ui.label(desc).style('font-size:13px;color:var(--text-muted);')
         ui.button('Schliessen', on_click=dlg.close).props(
             'flat dense no-caps').style('margin-top:12px;')
@@ -471,7 +471,7 @@ def open_glossary_editor(ctx: SimpleNamespace, tmp_dir: str) -> None:
                     tgt_term = cur[src_term]
                     with ui.row().classes('w-full items-center gap-2').style(
                         'background:var(--surface);border:1px solid var(--surface-border);'
-                        'border-radius:4px;padding:4px 8px;'
+                        'border-radius:var(--radius-xs);padding:4px 8px;'
                     ):
                         si = ui.input(value=src_term).props('dense outlined').classes('flex-1')
                         ui.icon('arrow_forward', size='xs').style('color:var(--accent);')

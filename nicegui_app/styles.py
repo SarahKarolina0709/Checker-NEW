@@ -21,7 +21,7 @@ APP_CSS = '''<style>
   /* Semantic text colors for colored backgrounds */
   --text-body:#334155;--text-inverse:#ffffff;
   --success-text:#064e3b;--warning-text:#92400e;--error-text:#7f1d1d;
-  --radius-sm:6px;--radius-md:10px;--radius-lg:14px;--radius-pill:50px;
+  --radius-xs:4px;--radius-sm:6px;--radius-md:10px;--radius-lg:14px;--radius-pill:50px;
   /* Typography scale (7 Stufen) */
   --fs-xs:11px;--fs-sm:12px;--fs-md:13px;--fs-lg:14px;
   --fs-xl:16px;--fs-2xl:18px;--fs-3xl:24px;
@@ -149,7 +149,7 @@ body{font-size:var(--fs-md)!important;line-height:var(--lh-normal);
 /* Scrollbar — thin & subtle */
 ::-webkit-scrollbar{width:5px}
 ::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12);border-radius:3px}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,.12);border-radius:var(--radius-xs)}
 ::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,.2)}
 
 /* Animations */

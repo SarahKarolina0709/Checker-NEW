@@ -103,7 +103,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
             tgt_f = getattr(f, 'target_file', '') or ''
             if (src_f or tgt_f) and not compact:
                 with ui.row().classes('w-full items-center gap-2 cursor-pointer').style(
-                    'padding:4px 8px;background:var(--bg-muted);border-radius:4px;'
+                    'padding:4px 8px;background:var(--bg-muted);border-radius:var(--radius-xs);'
                     'margin-bottom:4px;font-size:var(--fs-xs);'
                 ).on('click.stop', lambda _, sf=os.path.basename(src_f or tgt_f):
                      (s.update({'search_text': sf}),
@@ -122,21 +122,21 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                 ui.icon(sev_ico, size='xs').style(f'color:{sev_clr};flex-shrink:0;') \
                     .tooltip(sev_lbl)
                 ui.badge(sev_lbl).style(
-                    f'background:transparent;color:{sev_clr};border:1px solid {sev_clr};border-radius:20px;')
+                    f'background:transparent;color:{sev_clr};border:1px solid {sev_clr};border-radius:var(--radius-pill);')
                 if hint_only and not compact:
                     ui.badge('Kein Score-Abzug').style(
                         'background:transparent;color:var(--text-light);'
-                        'border:1px dashed var(--surface-border-strong);border-radius:20px;'
+                        'border:1px dashed var(--surface-border-strong);border-radius:var(--radius-pill);'
                         'font-size:var(--fs-xs);')
                 if phase_lbl and not compact:
                     ui.badge(phase_lbl).style(
-                        'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:20px;')
+                        'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:var(--radius-pill);')
                 ui.badge(f.code).style(
-                    'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:20px;')
+                    'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:var(--radius-pill);')
                 diff = s.get('analysis_diff', {}) or {}
                 if diff.get('has_prev') and idx in set(diff.get('new_idx', []) or []):
                     ui.badge('NEU').style(
-                        'background:var(--error);color:var(--text-inverse);border-radius:20px;'
+                        'background:var(--error);color:var(--text-inverse);border-radius:var(--radius-pill);'
                         'font-weight:700;font-size:var(--fs-xs);')
                 ui.element('div').classes('flex-grow')
                 cb = ui.checkbox('Geprüft',
@@ -222,7 +222,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                                         f'white-space:pre-wrap;word-break:break-word;">'
                                         f'{html_esc(before)}'
                                         f'<mark style="background:var(--bg-error-soft);color:var(--error-text);'
-                                        f'padding:1px 3px;border-radius:3px;font-weight:700;text-decoration:underline wavy;">'
+                                        f'padding:1px 3px;border-radius:var(--radius-xs);font-weight:700;text-decoration:underline wavy;">'
                                         f'{html_esc(error_span)}</mark>'
                                         f'{html_esc(after)}</span>'
                                     ).classes('flex-grow')
@@ -270,7 +270,7 @@ def render_split_list(ctx: SimpleNamespace, filtered) -> None:
         checked = s.get('checked_findings', {}).get(str(real_idx), False)
         with ui.row().classes('w-full items-center cursor-pointer gap-1').style(
             f'padding:6px 8px;border-left:4px solid {sev_clr};'
-            f'background:{row_bg};border-radius:4px;margin-bottom:3px;'
+            f'background:{row_bg};border-radius:var(--radius-xs);margin-bottom:3px;'
             f'{"opacity:.7;" if hint_only else ""}'
             f'{"box-shadow:0 0 0 1px var(--primary);" if is_sel else ""}'
         ).on('click', lambda _, i=real_idx: ctx.select_finding(i)):
@@ -313,16 +313,16 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
     with ui.row().classes('w-full items-center gap-2 flex-wrap').style('margin-bottom:8px;'):
         ui.icon(severity_icon(f.severity), size='sm').style(f'color:{sev_clr};flex-shrink:0;')
         ui.badge(sev_lbl).style(
-            f'background:{sev_clr};color:var(--text-inverse);border-radius:20px;font-size:var(--fs-sm);')
+            f'background:{sev_clr};color:var(--text-inverse);border-radius:var(--radius-pill);font-size:var(--fs-sm);')
         if phase_lbl:
             ui.badge(phase_lbl).style(
-                'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:20px;')
+                'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:var(--radius-pill);')
         ui.badge(f.code).style(
-            'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:20px;')
+            'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:var(--radius-pill);')
         diff = s.get('analysis_diff', {}) or {}
         if diff.get('has_prev') and idx in set(diff.get('new_idx', []) or []):
             ui.badge('NEU').style(
-                'background:var(--error);color:var(--text-inverse);border-radius:20px;font-weight:700;font-size:var(--fs-xs);')
+                'background:var(--error);color:var(--text-inverse);border-radius:var(--radius-pill);font-weight:700;font-size:var(--fs-xs);')
         ui.element('div').classes('flex-grow')
         cb = ui.checkbox('Geprüft',
             value=bool(s.get('checked_findings', {}).get(str(idx), False)),
@@ -334,7 +334,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
     n_pairs = len(s.get('paired_results', []) or [])
     if src_f or tgt_f:
         with ui.row().classes('items-center gap-1 flex-wrap').style(
-            'padding:4px 8px;background:var(--bg-muted);border-radius:4px;margin-bottom:8px;'
+            'padding:4px 8px;background:var(--bg-muted);border-radius:var(--radius-xs);margin-bottom:8px;'
         ):
             ui.icon('description', size='xs').style('color:var(--text-muted);')
             if src_f:
@@ -407,7 +407,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
                         f'white-space:pre-wrap;word-break:break-word;">'
                         f'{html_esc(before)}'
                         f'<mark style="background:var(--bg-error-soft);color:var(--error-text);'
-                        f'padding:1px 3px;border-radius:3px;font-weight:700;text-decoration:underline wavy;">'
+                        f'padding:1px 3px;border-radius:var(--radius-xs);font-weight:700;text-decoration:underline wavy;">'
                         f'{html_esc(error_span)}</mark>'
                         f'{html_esc(after)}</span>'
                     ).classes('flex-grow')
@@ -611,7 +611,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                 except Exception:
                     pass
                 with ui.row().classes('items-center gap-2').style(
-                    'background:var(--bg-info-soft);padding:6px 16px;border-radius:20px;margin-top:4px;'):
+                    'background:var(--bg-info-soft);padding:6px 16px;border-radius:var(--radius-pill);margin-top:4px;'):
                     ui.icon('folder_open', size='xs').style('color:var(--primary);')
                     ui.label(f'Projekt: {display}').style('font-size:var(--fs-md);font-weight:600;color:var(--primary);')
             if info.get('email') or info.get('telefon'):
@@ -778,7 +778,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                                     'font-size:21px;font-weight:800;color:var(--text-inverse);'
                                     'letter-spacing:-.4px;line-height:1.15;')
                                 with ui.element('div').style(
-                                    'padding:2px 8px;border-radius:20px;'
+                                    'padding:2px 8px;border-radius:var(--radius-pill);'
                                     'background:rgba(212,175,55,.18);'
                                     'border:1px solid rgba(212,175,55,.35);'):
                                     ui.label('PROFESSIONAL').style(
@@ -790,7 +790,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                                     'font-size:var(--fs-sm);color:rgba(255,255,255,.55);')
                                 for tag in ['Phase 1–4', 'KI-gestützt', 'PDF · DOCX · TXT']:
                                     with ui.element('div').style(
-                                        'padding:2px 8px;border-radius:20px;'
+                                        'padding:2px 8px;border-radius:var(--radius-pill);'
                                         'background:rgba(255,255,255,.07);'
                                         'border:1px solid rgba(255,255,255,.12);'):
                                         ui.label(tag).style(
@@ -898,7 +898,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                                             'transition:background .15s;'
                                         ).on('click', lambda _, c=cust: ctx.on_customer_selected(c)):
                                             with ui.element('div').style(
-                                                'width:20px;height:20px;border-radius:5px;flex-shrink:0;'
+                                                'width:20px;height:20px;border-radius:var(--radius-xs);flex-shrink:0;'
                                                 'background:var(--brand-grad-badge);'
                                                 'display:flex;align-items:center;justify-content:center;'
                                                 'font-size:var(--fs-xs);font-weight:700;color:var(--accent);'):

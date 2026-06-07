@@ -1889,7 +1889,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                 hclr = '#16a34a' if current_score >= 80 else '#d97706' if current_score >= 50 else '#dc2626'
                 refs['header_score_badge'].set_content(
                     f'<div style="display:flex;align-items:center;gap:5px;'
-                    f'background:rgba(255,255,255,.1);border-radius:20px;padding:3px 10px 3px 7px;'
+                    f'background:rgba(255,255,255,.1);border-radius:var(--radius-pill);padding:3px 10px 3px 7px;'
                     f'border:1px solid rgba(255,255,255,.15);">'
                     f'<div style="width:8px;height:8px;border-radius:50%;background:{hclr};flex-shrink:0;"></div>'
                     f'<span style="font-size:var(--fs-sm);font-weight:700;color:var(--text-inverse);">{current_score}</span>'
@@ -1984,7 +1984,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
             bar_clr = 'var(--success)' if pct_done == 100 else 'var(--primary)'
             refs['done_progress_bar'].style(
                 f'position:absolute;top:0;left:0;bottom:0;width:{pct_done}%;'
-                f'background:{bar_clr};border-radius:3px;transition:width 400ms ease;'
+                f'background:{bar_clr};border-radius:var(--radius-xs);transition:width 400ms ease;'
             )
         # Score-Historie als SVG-Sparkline
         if refs.get('history_chart'):
@@ -2030,7 +2030,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     val_str, bg = str(count), 'rgba(220,38,38,.14)'
                 parts.append(
                     f'<div title="{tip}" style="display:inline-flex;align-items:center;gap:3px;'
-                    f'background:{bg};border-radius:5px;padding:2px 7px;cursor:default;">'
+                    f'background:{bg};border-radius:var(--radius-xs);padding:2px 7px;cursor:default;">'
                     f'<span style="font-size:var(--fs-xs);font-weight:700;color:var(--text-muted);">{label}</span>'
                     f'<span style="font-size:var(--fs-xs);font-weight:600;color:var(--text);">{val_str}</span>'
                     f'</div>'
@@ -2250,12 +2250,12 @@ def index_page(kunde: str = '', auftrag: str = ''):
             if key == af:
                 btn.style(
                     f'background:var(--bg-primary);color:var(--text-inverse);'
-                    f'border-radius:20px;padding:3px 12px;'
+                    f'border-radius:var(--radius-pill);padding:3px 12px;'
                     f'border:1px solid var(--bg-primary);font-weight:700;font-size:var(--fs-sm);'
                 )
             else:
                 btn.style(
-                    f'border-radius:20px;padding:3px 12px;'
+                    f'border-radius:var(--radius-pill);padding:3px 12px;'
                     f'border:1px solid var(--surface-border);'
                     f'background:var(--surface);color:{dot_clr};'
                     f'font-weight:600;font-size:var(--fs-sm);'
@@ -2805,7 +2805,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     ):
                         with ui.row().classes('items-center gap-3 w-full flex-nowrap'):
                             with ui.element('div').style(
-                                'width:36px;height:36px;border-radius:8px;flex-shrink:0;'
+                                'width:36px;height:36px;border-radius:var(--radius-sm);flex-shrink:0;'
                                 'background:var(--brand-grad-badge);'
                                 'display:flex;align-items:center;justify-content:center;'
                             ):
@@ -3072,12 +3072,12 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         'Analyse starten', icon='play_arrow', on_click=_start_analysis,
                     ).classes('flex-grow font-bold').props('no-caps size=lg unelevated').style(
                         'background:var(--brand-grad-badge);'
-                        'color:var(--text-inverse);height:48px;font-size:var(--fs-lg);border-radius:8px;')
+                        'color:var(--text-inverse);height:48px;font-size:var(--fs-lg);border-radius:var(--radius-sm);')
                     refs['start_btn'].tooltip('Tastenkürzel: Strg+Enter')
                     refs['cancel_btn'] = ui.button(
                         icon='stop', on_click=_request_cancel,
                     ).props('no-caps size=lg unelevated').style(
-                        'background:var(--error);color:var(--text-inverse);height:48px;width:48px;border-radius:8px;')
+                        'background:var(--error);color:var(--text-inverse);height:48px;width:48px;border-radius:var(--radius-sm);')
                     refs['cancel_btn'].tooltip('Analyse abbrechen')
                     refs['cancel_btn'].visible = False
                 refs['path_label'] = ui.label('').style(
@@ -3549,11 +3549,11 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         refs['done_progress_label'] = ui.label('0 / 0').style(
                             'font-size:var(--fs-xs);color:var(--text-muted);font-weight:600;')
                     with ui.element('div').style(
-                        'width:100%;height:6px;border-radius:3px;background:var(--bg-muted);position:relative;overflow:hidden;'
+                        'width:100%;height:6px;border-radius:var(--radius-xs);background:var(--bg-muted);position:relative;overflow:hidden;'
                     ):
                         refs['done_progress_bar'] = ui.element('div').style(
                             'position:absolute;top:0;left:0;bottom:0;width:0%;'
-                            'background:var(--success);border-radius:3px;'
+                            'background:var(--success);border-radius:var(--radius-xs);'
                             'transition:width 400ms ease;')
                 ui.separator().style('margin:8px 0 6px;')
                 with ui.expansion('Top-Kategorien', icon='analytics',
@@ -3578,7 +3578,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
             refs['results_area'].visible = False
             with refs['results_area']:
                 with ui.row().classes('w-full gap-1 flex-wrap items-center').style(
-                    'padding:6px 8px;background:var(--surface);border-radius:8px;'
+                    'padding:6px 8px;background:var(--surface);border-radius:var(--radius-sm);'
                     'border:1px solid var(--surface-border);'
                 ):
                     ui.label('Export:').style(
@@ -3683,7 +3683,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                             (f'{dot} ' if dot else '') + label_text,
                             on_click=lambda _, k=key: _set_filter(k),
                         ).props('flat dense no-caps size=sm').style(
-                            f'border-radius:20px;padding:3px 12px;'
+                            f'border-radius:var(--radius-pill);padding:3px 12px;'
                             f'border:1px solid var(--surface-border);'
                             f'background:var(--surface);color:{dot_clr};'
                             f'font-weight:600;font-size:var(--fs-sm);transition:all .15s;')
@@ -3779,7 +3779,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                 with ui.row().classes('items-center gap-1'):
                     ui.label(keys).style(
                         'font-family:monospace;font-weight:700;color:var(--text-inverse);'
-                        'background:rgba(255,255,255,0.12);padding:1px 6px;border-radius:3px;'
+                        'background:rgba(255,255,255,0.12);padding:1px 6px;border-radius:var(--radius-xs);'
                         'font-size:var(--fs-xs);')
                     ui.label(desc).style('color:var(--text-muted);font-size:var(--fs-xs);')
 
