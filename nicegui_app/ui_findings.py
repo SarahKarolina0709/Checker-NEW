@@ -890,7 +890,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                                         ).on('click', lambda _, c=cust: ctx.on_customer_selected(c)):
                                             with ui.element('div').style(
                                                 'width:20px;height:20px;border-radius:5px;flex-shrink:0;'
-                                                'background:linear-gradient(135deg,#0f2744,#1a365d);'
+                                                'background:var(--brand-grad-badge);'
                                                 'display:flex;align-items:center;justify-content:center;'
                                                 'font-size:var(--fs-xs);font-weight:700;color:var(--accent);'):
                                                 ui.label(_initial)
@@ -990,7 +990,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                                     with ui.row().classes('items-center gap-2').style('margin-bottom:4px;'):
                                         with ui.element('div').style(
                                             'width:22px;height:22px;border-radius:var(--radius-sm);flex-shrink:0;'
-                                            'background:linear-gradient(135deg,#0f2744,#1a365d);'
+                                            'background:var(--brand-grad-badge);'
                                             'display:flex;align-items:center;justify-content:center;'
                                             'font-size:var(--fs-xs);font-weight:700;color:var(--accent);'):
                                             ui.label(_initial)

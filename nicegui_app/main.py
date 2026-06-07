@@ -2696,7 +2696,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
 
     # --- Header ---
     with ui.header().classes('items-center px-6 py-0').style(
-        'background:linear-gradient(135deg,#0a1628 0%,#0f2744 40%,#1a365d 100%);'
+        'background:var(--brand-grad);'
         'min-height:56px;box-shadow:0 2px 12px rgba(0,0,0,.15);'
     ):
         with ui.row().classes('w-full items-center gap-4 flex-nowrap'):
@@ -2806,7 +2806,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         with ui.row().classes('items-center gap-3 w-full flex-nowrap'):
                             with ui.element('div').style(
                                 'width:36px;height:36px;border-radius:8px;flex-shrink:0;'
-                                'background:linear-gradient(135deg,#0f2744,#1a365d);'
+                                'background:var(--brand-grad-badge);'
                                 'display:flex;align-items:center;justify-content:center;'
                             ):
                                 ui.label(initial).style('color:var(--accent);font-size:var(--fs-lg);font-weight:700;')
@@ -3071,7 +3071,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     refs['start_btn'] = ui.button(
                         'Analyse starten', icon='play_arrow', on_click=_start_analysis,
                     ).classes('flex-grow font-bold').props('no-caps size=lg unelevated').style(
-                        'background:linear-gradient(135deg,#0f2744 0%,#1a365d 100%);'
+                        'background:var(--brand-grad-badge);'
                         'color:var(--text-inverse);height:48px;font-size:var(--fs-lg);border-radius:8px;')
                     refs['start_btn'].tooltip('Tastenkürzel: Strg+Enter')
                     refs['cancel_btn'] = ui.button(

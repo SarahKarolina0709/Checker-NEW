@@ -23,7 +23,7 @@ from nicegui_app.utils import safe_open_folder, make_keyboard_activatable
 def kunden_page():
     ui.add_head_html(APP_CSS)
     with ui.header().classes('items-center px-6 py-0').style(
-        'background:linear-gradient(135deg,#0a1628 0%,#0f2744 40%,#1a365d 100%);min-height:56px;'
+        'background:var(--brand-grad);min-height:56px;'
     ):
         with ui.row().classes('w-full items-center gap-4'):
             ui.icon('business', size='md').style('color:var(--accent)')
@@ -68,7 +68,7 @@ def kunden_page():
                             with ui.row().classes('items-center gap-4 w-full'):
                                 with ui.element('div').style(
                                     'width:36px;height:36px;border-radius:8px;'
-                                    'background:linear-gradient(135deg,#0f2744,#1a365d);'
+                                    'background:var(--brand-grad-badge);'
                                     'display:flex;align-items:center;justify-content:center;'
                                 ):
                                     ui.label(initial).style('color:var(--accent);font-size:14px;font-weight:700;')
@@ -123,7 +123,7 @@ def kunden_page():
             with ui.row().classes('w-full items-center gap-4'):
                 with ui.element('div').style(
                     'width:48px;height:48px;border-radius:8px;'
-                    'background:linear-gradient(135deg,#0f2744,#1a365d);'
+                    'background:var(--brand-grad-badge);'
                     'display:flex;align-items:center;justify-content:center;'
                 ):
                     initial = customer_name[0].upper() if customer_name else '?'

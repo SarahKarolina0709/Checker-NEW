@@ -168,7 +168,7 @@ def kalender_page():
 
     ui.add_head_html(APP_CSS)
     with ui.header().classes('items-center px-6 py-0').style(
-        'background:linear-gradient(135deg,#0a1628 0%,#0f2744 40%,#1a365d 100%);min-height:56px;'
+        'background:var(--brand-grad);min-height:56px;'
         'box-shadow:0 2px 12px rgba(0,0,0,.15);'
     ):
         with ui.row().classes('w-full items-center gap-4'):

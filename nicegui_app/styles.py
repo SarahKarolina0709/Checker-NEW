@@ -33,6 +33,11 @@ APP_CSS = '''<style>
   --bg-warning-soft:#fef3c7;--bg-warning-tint:#fff7ed;
   --bg-success-soft:#ecfdf5;--bg-success-tint:#f0fdf4;
   --bg-error-soft:#fecaca;--bg-error-tint:#fef2f2;
+  /* Brand-Verlaeufe — zentral statt inline dupliziert; Badge-Variante wird
+     im Dark-Mode unten auf eine Volltonfarbe gesetzt (ersetzt den frueheren
+     fragilen [style*=...]-Override). */
+  --brand-grad:linear-gradient(135deg,#0a1628 0%,#0f2744 40%,#1a365d 100%);
+  --brand-grad-badge:linear-gradient(135deg,#0f2744,#1a365d);
 }
 html,body{overflow-x:hidden!important}
 
@@ -209,11 +214,11 @@ body.body--dark{--surface:#0f172a;--surface-alt:#1e293b;--surface-border:#334155
     --bg-info-soft:#0c1a2e;--bg-info-tint:#0c1827;
     --bg-warning-soft:#2d2006;--bg-warning-tint:#1f1505;
     --bg-success-soft:#052e16;--bg-success-tint:#031f0e;
-    --bg-error-soft:#3b0a0a;--bg-error-tint:#260606}
+    --bg-error-soft:#3b0a0a;--bg-error-tint:#260606;
+    /* Avatar-/Badge-Verlauf wird im Dark-Mode zu Vollton (wie zuvor) */
+    --brand-grad-badge:#0a1628}
 body.body--dark .score-inner{background:var(--surface)}
 body.body--dark .q-card{border-color:var(--surface-border)!important;background:var(--surface-alt)!important}
-/* Brand-/Header-Verlauf bleibt dunkel (einziger noch inline genutzter Hex-BG) */
-body.body--dark [style*="background:linear-gradient(135deg,#0f2744"]{background:#0a1628!important}
 
 /* Save indicator */
 .save-indicator{opacity:0;transition:opacity 300ms ease}
