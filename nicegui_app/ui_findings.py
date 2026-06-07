@@ -519,6 +519,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
     scan_project_dates, on_customer_selected, select_auftrag.
     """
     from datetime import datetime
+    from nicegui import run
     from nicegui_app.text_extraction import extract_text
     s = ctx.s
     customer = s.get('active_customer', '')
@@ -528,6 +529,28 @@ def render_welcome(ctx: SimpleNamespace) -> None:
 
     if has_files:
         # --- Zustand 3: Dateien geladen -> Textvorschau ---
+        def _safe_extract(path):
+            return extract_text(path)[:500] if os.path.exists(path) else ''
+
+        def _preview_label(fp):
+            """Zeigt sofort einen Platzhalter und laedt die Textvorschau dann
+            nicht-blockierend nach (run.io_bound im Threadpool), damit der
+            Render-Pfad nicht auf die Datei-Extraktion wartet."""
+            lbl = ui.label('Vorschau wird geladen …').style(
+                'font-size:var(--fs-sm);color:var(--text-light);white-space:pre-wrap;'
+                'max-height:150px;overflow:hidden;line-height:1.5;')
+
+            async def _fill(label=lbl, path=fp):
+                try:
+                    txt = await run.io_bound(_safe_extract, path)
+                except Exception:
+                    txt = None
+                label.set_text(txt or 'Vorschau nicht verfügbar')
+                if txt:
+                    label.style('color:var(--text-muted)')
+
+            ui.timer(0.05, _fill, once=True)
+
         with ui.column().classes('w-full gap-4'):
             ui.label('Textvorschau').style('font-size:var(--fs-xl);font-weight:700;color:var(--text);')
             with ui.row().classes('w-full gap-4').style('min-height:200px;'):
@@ -537,14 +560,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                     if src_files:
                         for fp in src_files[:3]:
                             ui.label(os.path.basename(fp)).style('font-size:var(--fs-sm);font-weight:600;color:var(--text);')
-                            try:
-                                text = extract_text(fp)[:500] if os.path.exists(fp) else ''
-                                if text:
-                                    ui.label(text).style(
-                                        'font-size:var(--fs-sm);color:var(--text-muted);white-space:pre-wrap;'
-                                        'max-height:150px;overflow:hidden;line-height:1.5;')
-                            except Exception:
-                                ui.label('Vorschau nicht verfügbar').style('font-size:var(--fs-sm);color:var(--text-light);')
+                            _preview_label(fp)
                             ui.separator().style('margin:4px 0;')
                     else:
                         ui.label('Keine Ausgangstexte').style('font-size:var(--fs-sm);color:var(--text-light);')
@@ -555,14 +571,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                     if tgt_files:
                         for fp in tgt_files[:3]:
                             ui.label(os.path.basename(fp)).style('font-size:var(--fs-sm);font-weight:600;color:var(--text);')
-                            try:
-                                text = extract_text(fp)[:500] if os.path.exists(fp) else ''
-                                if text:
-                                    ui.label(text).style(
-                                        'font-size:var(--fs-sm);color:var(--text-muted);white-space:pre-wrap;'
-                                        'max-height:150px;overflow:hidden;line-height:1.5;')
-                            except Exception:
-                                ui.label('Vorschau nicht verfügbar').style('font-size:var(--fs-sm);color:var(--text-light);')
+                            _preview_label(fp)
                             ui.separator().style('margin:4px 0;')
                     else:
                         ui.label('Keine Übersetzungen').style('font-size:var(--fs-sm);color:var(--text-light);')
