@@ -60,14 +60,14 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
     """
     # Lazy-Import um Zirkel-Importe mit main.py zu vermeiden
     from nicegui_app.severity import (
-        severity_label, severity_color, severity_icon, phase_from_code,
+        severity_label, severity_color, severity_icon, severity_css_color, phase_from_code,
     )
     s = ctx.s
     refs = ctx.refs
     selected_idx = ctx.selected_idx
 
     sev_lbl = severity_label(f.severity)
-    sev_clr = severity_color(f.severity)
+    sev_clr = severity_css_color(f.severity)
     sev_ico = severity_icon(f.severity)
     phase_lbl = phase_from_code(f.code)
     is_selected = idx == selected_idx['v']
@@ -247,7 +247,7 @@ def render_split_list(ctx: SimpleNamespace, filtered) -> None:
 
     ctx braucht: s, selected_idx, select_finding(idx).
     """
-    from nicegui_app.severity import severity_label, severity_color, severity_icon
+    from nicegui_app.severity import severity_label, severity_color, severity_icon, severity_css_color
     s = ctx.s
     selected_idx = ctx.selected_idx
     _SEV_ORDER = [('Kritisch', 'var(--error)'), ('Wichtig', 'var(--warning)'), ('Hinweis', 'var(--text-muted)')]
@@ -257,7 +257,7 @@ def render_split_list(ctx: SimpleNamespace, filtered) -> None:
     _show_headers = s.get('sort_mode', 'default') in ('default', 'severity')
     for real_idx, f in filtered:
         sev_lbl = severity_label(f.severity)
-        sev_clr = severity_color(f.severity)
+        sev_clr = severity_css_color(f.severity)
         is_sel = real_idx == selected_idx['v']
         hint_only = bool((getattr(f, 'meta', {}) or {}).get('hint_only'))
         if _show_headers and sev_lbl != _last_sev and _sev_counts.get(sev_lbl, 0) > 0:
@@ -294,7 +294,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
 
     ctx braucht: s, refs, selected_idx, toggle_checked, dict_to_finding.
     """
-    from nicegui_app.severity import severity_label, severity_color, severity_icon, phase_from_code
+    from nicegui_app.severity import severity_label, severity_color, severity_icon, severity_css_color, phase_from_code
     s = ctx.s
     selected_idx = ctx.selected_idx
     idx = selected_idx['v']
@@ -310,7 +310,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
         return
     f = ctx.dict_to_finding(findings[idx])
     sev_lbl = severity_label(f.severity)
-    sev_clr = severity_color(f.severity)
+    sev_clr = severity_css_color(f.severity)
     phase_lbl = phase_from_code(f.code)
     meta = getattr(f, 'meta', {}) or {}
     suggestion = (meta.get('suggestion') or '').strip()

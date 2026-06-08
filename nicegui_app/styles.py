@@ -14,6 +14,8 @@ APP_CSS = '''<style>
   /* Vollton-Varianten fuer weisse Schrift auf farbigem Grund — bleiben in
      beiden Modi gesaettigt (die Basis-Tokens werden im Dark-Mode aufgehellt) */
   --success-solid:#16a34a;--warning-solid:#d97706;--error-solid:#dc2626;
+  /* Severity-Farben (dark-aware Pendant zu severity._UI_COLORS — Light = identisch) */
+  --sev-critical:#dc2626;--sev-major:#ea580c;--sev-minor:#6b7280;
   --surface:#ffffff;--surface-alt:#f8fafc;--surface-border:#e2e8f0;
   --surface-border-light:#f1f5f9;--surface-border-strong:#d1d5db;
   /* Semantic tint borders */
@@ -217,6 +219,7 @@ body.body--dark{--surface:#0f172a;--surface-alt:#1e293b;--surface-border:#334155
     /* Semantische Farben als Text/Icon im Dark-Mode aufhellen (WCAG-AA);
        weisse Schrift auf farbigem Grund laeuft ueber die *-solid-Varianten */
     --success:#4ade80;--warning:#fbbf24;--error:#f87171;
+    --sev-critical:#f87171;--sev-major:#fb923c;--sev-minor:#9ca3af;
     --text-body:#cbd5e1;--success-text:#6ee7b7;--warning-text:#fbbf24;--error-text:#fca5a5;
     --bg-primary:#0a1628;--bg-muted:#1e293b;
     --bg-info-soft:#0c1a2e;--bg-info-tint:#0c1827;

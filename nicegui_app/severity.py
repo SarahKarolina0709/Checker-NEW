@@ -32,8 +32,12 @@ _SEVERITY_ALIASES = {
 # UI-Labels (deutsch)
 _UI_LABELS = {CRITICAL: 'Kritisch', MAJOR: 'Wichtig', MINOR: 'Hinweis', INFO: 'Hinweis'}
 
-# Farben
+# Farben (Hex) — fuer Nicht-CSS-Kontexte, z.B. reportlab/PDF-Export
 _UI_COLORS = {CRITICAL: '#dc2626', MAJOR: '#ea580c', MINOR: '#6b7280', INFO: '#6b7280'}
+# CSS-Token-Referenzen — dark-aware Pendant zu _UI_COLORS fuer UI-Inline-Styles
+# (die --sev-* Tokens sind in nicegui_app/styles.py je Modus definiert)
+_UI_CSS = {CRITICAL: 'var(--sev-critical)', MAJOR: 'var(--sev-major)',
+           MINOR: 'var(--sev-minor)', INFO: 'var(--sev-minor)'}
 
 # Material-Icons (Redundanz zur Farbe — Barrierefreiheit bei Rot-Gruen-Sehschwaeche)
 _UI_ICONS = {CRITICAL: 'error', MAJOR: 'warning', MINOR: 'info', INFO: 'info'}
@@ -67,6 +71,33 @@ def icon(sev: Any) -> str:
     return _UI_ICONS[normalize(sev)]
 
 
+def css_color(sev: Any) -> str:
+    """CSS-Variablen-Referenz fuer die Severity-Farbe (passt sich dem Dark-Mode an).
+
+    Fuer UI-Inline-Styles gedacht. color() liefert weiterhin den Hex-Wert, da
+    Nicht-CSS-Kontexte (PDF-Export) keine CSS-Variablen aufloesen koennen.
+    """
+    return _UI_CSS[normalize(sev)]
+
+
+def score_color(score: Any) -> str:
+    """CSS-Variablen-Referenz fuer einen Qualitaets-Score 0..100.
+
+    Gruen (>=80) / Orange (>=50) / Rot (<50) ueber --success/--warning/--error,
+    daher automatisch dark-aware. Ungueltige/None-Werte -> neutrale Farbe.
+    Einzige Quelle der Score-Farbbaender (zuvor ~6x in main.py dupliziert).
+    """
+    try:
+        s = int(score)
+    except (TypeError, ValueError):
+        return 'var(--text-light)'
+    if s >= 80:
+        return 'var(--success)'
+    if s >= 50:
+        return 'var(--warning)'
+    return 'var(--error)'
+
+
 def border(sev: Any) -> str:
     """CSS border-left fuer Severity-Cards."""
     return f'border-left:4px solid {color(sev)}'
@@ -84,6 +115,7 @@ def is_hint_only(finding: Any) -> bool:
 severity_label = label
 severity_color = color
 severity_icon = icon
+severity_css_color = css_color
 
 _PHASE_CODE_PREFIXES: dict[str, tuple[str, ...]] = {
     'Phase 1': (

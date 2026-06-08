@@ -568,6 +568,10 @@ def severity_border(sev: str) -> str:
     return _severity_mod.border(sev)
 
 
+def score_color(score) -> str:
+    return _severity_mod.score_color(score)
+
+
 _PHASE_CODE_PREFIXES = {
     'Phase 1': (
         'URL_', 'EMAIL_', 'WS_', 'ZERO_WIDTH', 'BRACKET_', 'QUOTE_',
@@ -1358,7 +1362,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     ui.label(f'{stats["auftraege"]} Aufträge').style('font-size:var(--fs-sm);color:var(--text-muted);')
                     ui.label(f'{stats["dateien"]} Dateien').style('font-size:var(--fs-sm);color:var(--text-muted);')
                     if stats['avg_score'] >= 0:
-                        clr = 'var(--success)' if stats['avg_score'] >= 80 else 'var(--warning)' if stats['avg_score'] >= 50 else 'var(--error)'
+                        clr = score_color(stats['avg_score'])
                         ui.label(f'Durchschnitt {stats["avg_score"]} Punkte').style(
                             f'font-size:var(--fs-sm);font-weight:600;color:{clr};')
 
@@ -1886,7 +1890,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
         # Header Score-Badge
         if refs.get('header_score_badge'):
             if current_score >= 0:
-                hclr = '#16a34a' if current_score >= 80 else '#d97706' if current_score >= 50 else '#dc2626'
+                hclr = score_color(current_score)
                 refs['header_score_badge'].set_content(
                     f'<div style="display:flex;align-items:center;gap:5px;'
                     f'background:rgba(255,255,255,.1);border-radius:var(--radius-pill);padding:3px 10px 3px 7px;'
@@ -1904,7 +1908,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                 refs['score_number'].style('color:var(--text-light);')
             else:
                 refs['score_number'].set_text(str(current_score))
-                clr = 'var(--success)' if current_score >= 80 else 'var(--warning)' if current_score >= 50 else 'var(--error)'
+                clr = score_color(current_score)
                 refs['score_number'].style(f'color:{clr};')
         # Score-Delta (Vergleich zur vorherigen Analyse)
         if refs.get('score_delta'):
@@ -1925,7 +1929,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                 refs['score_ring'].style('position:absolute;inset:0;--sc:var(--surface-border-strong);--pct:0%;')
             else:
                 pct = max(0, min(100, current_score))
-                rclr = 'var(--success)' if current_score >= 80 else 'var(--warning)' if current_score >= 50 else 'var(--error)'
+                rclr = score_color(current_score)
                 refs['score_ring'].style(f'position:absolute;inset:0;--sc:{rclr};--pct:{pct}%;')
         if refs['score_sublabel']:
             total_f = len(s.get('findings', []))
@@ -1997,7 +2001,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     for i, v in enumerate(hist)
                 )
                 last = hist[-1]
-                lc = 'var(--success)' if last >= 80 else 'var(--warning)' if last >= 50 else 'var(--error)'
+                lc = score_color(last)
                 avg = sum(hist) / len(hist)
                 refs['history_chart'].set_content(
                     f'<svg width="{w}" height="{h}" style="display:block;">'
@@ -2174,7 +2178,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         ui.label('· Zahl rechts = Befunde').style(
                             'font-size:var(--fs-xs);color:var(--text-light);')
                     for sp, tp, flist, sc in items[:10]:
-                        sclr = 'var(--success)' if sc >= 80 else 'var(--warning)' if sc >= 50 else 'var(--error)'
+                        sclr = score_color(sc)
                         nm = os.path.basename(sp or tp or '?')
                         sev_cnt = {'Kritisch': 0, 'Wichtig': 0, 'Hinweis': 0}
                         for ff in flist:

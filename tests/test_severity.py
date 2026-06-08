@@ -102,6 +102,28 @@ class TestUIHelpers:
     def test_severity_icon_alias(self):
         assert severity.severity_icon is severity.icon
 
+    def test_css_color_returns_tokens(self):
+        assert severity.css_color('critical') == 'var(--sev-critical)'
+        assert severity.css_color('major') == 'var(--sev-major)'
+        assert severity.css_color('minor') == 'var(--sev-minor)'
+        assert severity.css_color('info') == 'var(--sev-minor)'
+
+    def test_css_color_none_safe(self):
+        assert severity.css_color(None) == 'var(--sev-minor)'
+        assert severity.severity_css_color is severity.css_color
+
+    def test_score_color_bands(self):
+        assert severity.score_color(100) == 'var(--success)'
+        assert severity.score_color(80) == 'var(--success)'
+        assert severity.score_color(79) == 'var(--warning)'
+        assert severity.score_color(50) == 'var(--warning)'
+        assert severity.score_color(49) == 'var(--error)'
+        assert severity.score_color(0) == 'var(--error)'
+
+    def test_score_color_invalid_safe(self):
+        assert severity.score_color(None) == 'var(--text-light)'
+        assert severity.score_color('x') == 'var(--text-light)'
+
 
 # ---------------------------------------------------------------------------
 # compute_score
