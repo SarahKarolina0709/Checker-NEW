@@ -3491,8 +3491,10 @@ def index_page(kunde: str = '', auftrag: str = ''):
                 _refresh_auftrag_list()
 
         # ============ RIGHT PANEL ============
+        # Eigener Scroll-Container (wie die linke Sidebar), damit die Filter-
+        # Toolbar via position:sticky an der Oberkante kleben kann.
         with ui.column().classes('flex-grow gap-4 min-w-0 p-4').style(
-            'min-height:calc(100vh - 56px);'
+            'min-height:calc(100vh - 56px);max-height:calc(100vh - 56px);overflow-y:auto;'
         ):
             # Progress
             with ui.column().classes('w-full gap-1'):
@@ -3680,6 +3682,8 @@ def index_page(kunde: str = '', auftrag: str = ''):
 
                 with ui.row().classes('w-full items-center gap-2 flex-wrap').style(
                     'padding:6px 0;border-bottom:1px solid var(--surface-border);margin-bottom:4px;'
+                    # Sticky: bleibt beim Scrollen durch die Befundliste oben sichtbar
+                    'position:sticky;top:0;z-index:5;background:var(--surface-alt);'
                 ):
                     # Severity-Filter als Pill-Tabs mit Farb-Dot (Tokens -> dark-aware)
                     _SEV_DOT = {
@@ -3763,9 +3767,10 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         'Tastatur-Kürzel anzeigen (?)'
                     ).style('color:var(--text-muted);')
 
-            # Findings container
-            refs['findings_container'] = ui.column().classes('w-full gap-0').style(
-                'min-height:200px;')
+                # Findings container — INNERHALB von results_area, damit die
+                # Sticky-Toolbar oben genug Bezugshoehe hat (klebt durch die Liste)
+                refs['findings_container'] = ui.column().classes('w-full gap-0').style(
+                    'min-height:200px;')
 
             # Welcome / Preview area (dynamisch je nach Zustand)
             refs['welcome_area'] = ui.column().classes('w-full gap-4')
