@@ -27,9 +27,10 @@ APP_CSS = '''<style>
   --text-body:#334155;--text-inverse:#ffffff;
   --success-text:#064e3b;--warning-text:#92400e;--error-text:#7f1d1d;
   --radius-xs:4px;--radius-sm:6px;--radius-md:10px;--radius-lg:14px;--radius-pill:50px;
-  /* Typography scale (7 Stufen) */
-  --fs-xs:11px;--fs-sm:12px;--fs-md:13px;--fs-lg:14px;
-  --fs-xl:16px;--fs-2xl:18px;--fs-3xl:24px;
+  /* Typography scale — gespreizt fuer klarere Groessen-Hierarchie.
+     11/12 bleiben fuer Mini-Labels/Badges; ab Body (md) deutliche Spruenge. */
+  --fs-xs:11px;--fs-sm:12px;--fs-md:14px;--fs-lg:16px;
+  --fs-xl:18px;--fs-2xl:20px;--fs-3xl:28px;
   /* Lese-Stufe fuer das eigentliche Pruef-Artefakt (Quell-/Zieltext) */
   --fs-read:14px;
   --lh-tight:1.35;--lh-normal:1.5;--lh-loose:1.65;
