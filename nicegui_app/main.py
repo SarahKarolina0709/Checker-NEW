@@ -3536,9 +3536,12 @@ def index_page(kunde: str = '', auftrag: str = ''):
                             'font-size:var(--fs-sm);color:var(--text-light);')
                         refs['score_time_label'] = ui.label('').style(
                             'font-size:var(--fs-xs);color:var(--text-light);margin-top:1px;')
-                        refs['history_chart'] = ui.html('').style(
-                            'margin-top:6px;height:24px;')
-                        refs['phase_score_row'] = ui.html('').style('margin-top:2px;')
+                        # Keine feste Hoehe: der Inhalt ist SVG-Sparkline PLUS
+                        # eine Textzeile ("Verlauf · ⌀ … · N Analysen"). Eine
+                        # fixe height:24px wuerde den Text aus der Box laufen und
+                        # ueber die Phasen-Badges (gap-0-Spalte) ueberlappen lassen.
+                        refs['history_chart'] = ui.html('').style('margin-top:6px;')
+                        refs['phase_score_row'] = ui.html('').style('margin-top:4px;')
 
             # Summary cards
             refs['summary_card'] = ui.card().classes('w-full').props('flat bordered')
