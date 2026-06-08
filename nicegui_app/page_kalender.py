@@ -142,13 +142,21 @@ def kalender_page():
                             customers = project_dates.get(day_str, [])
                             count = len(customers)
                             is_today = (day_num == today.day and m == today.month and y == today.year)
+                            # !important noetig: die globale .q-card-Regel setzt
+                            # border/background mit !important (Light) bzw.
+                            # body--dark .q-card ueberschreibt background -> ohne
+                            # inline-!important verschwinden Heute-/Projekt-Tage.
+                            # Inline-!important schlaegt Stylesheet-!important.
                             if count > 0:
-                                bg = 'background:var(--bg-info-soft);border-color:var(--info);'
+                                bg = ('background:var(--bg-info-soft)!important;'
+                                      'border-color:var(--info)!important;')
                             elif is_today:
-                                bg = ('background:var(--bg-info-soft);border-color:var(--info);'
-                                      'box-shadow:0 0 0 1px var(--info) inset;')
+                                bg = ('background:var(--bg-info-soft)!important;'
+                                      'border-color:var(--info)!important;'
+                                      'box-shadow:0 0 0 1px var(--info) inset!important;')
                             else:
-                                bg = 'background:var(--surface);border-color:var(--surface-border);'
+                                bg = ('background:var(--surface)!important;'
+                                      'border-color:var(--surface-border)!important;')
                             with make_keyboard_activatable(
                                 ui.card().style(
                                     f'width:14.28%;min-height:80px;padding:6px;cursor:pointer;'

@@ -124,7 +124,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                     ui.icon('description', size='xs').style('color:var(--text-muted);')
                     if src_f:
                         ui.label(os.path.basename(src_f)).style(
-                            'color:var(--primary);font-weight:600;')
+                            'color:var(--role-source);font-weight:600;')
                     if src_f and tgt_f:
                         ui.icon('arrow_forward', size='xs').style('color:var(--accent);')
                     if tgt_f:
@@ -192,13 +192,13 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                         with ui.column().classes('w-full gap-0'):
                             with ui.row().classes('w-full items-center gap-1').style('margin-bottom:2px;'):
                                 ui.label('QUELLTEXT').style(
-                                    'font-size:var(--fs-xs);font-weight:700;color:var(--primary);'
+                                    'font-size:var(--fs-xs);font-weight:700;color:var(--role-source);'
                                     'text-transform:uppercase;letter-spacing:0.5px;')
                                 if src_pos:
                                     ui.label(src_pos).style('font-size:var(--fs-xs);color:var(--text-light);')
                             with ui.row().classes('w-full items-start gap-2').style(
                                 'background:var(--surface-alt);padding:8px 12px;border-radius:var(--radius-sm);'
-                                'border-left:2px solid var(--bg-primary);'
+                                'border-left:2px solid var(--role-source);'
                             ):
                                 ui.label(src_excerpt).style(
                                     'font-size:var(--fs-read);color:var(--text);line-height:1.55;'
@@ -382,12 +382,12 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
         src_excerpt, src_pos = _text_excerpt(f.source_text, error_span, window=350)
         with ui.column().classes('w-full gap-0').style('margin-bottom:6px;'):
             with ui.row().classes('w-full items-center gap-2').style('margin-bottom:2px;'):
-                ui.label('Quelltext').style('font-size:var(--fs-xs);font-weight:700;color:var(--primary);'
+                ui.label('Quelltext').style('font-size:var(--fs-xs);font-weight:700;color:var(--role-source);'
                     'text-transform:uppercase;letter-spacing:0.5px;')
                 if src_pos:
                     ui.label(src_pos).style('font-size:var(--fs-xs);color:var(--text-light);')
             with ui.row().classes('w-full items-start gap-1').style(
-                'background:var(--surface-alt);padding:8px;border-radius:var(--radius-sm);border-left:3px solid var(--bg-primary);'
+                'background:var(--surface-alt);padding:8px;border-radius:var(--radius-sm);border-left:3px solid var(--role-source);'
             ):
                 ui.label(src_excerpt).style(
                     'font-size:var(--fs-read);color:var(--text);line-height:1.55;white-space:pre-wrap;word-break:break-word;flex-grow:1;')
@@ -669,9 +669,9 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                     with ui.row().classes('w-full gap-4').style('margin-top:16px;'):
                         with ui.card().classes('flex-1').props('flat bordered').style('padding:12px;'):
                             with ui.row().classes('items-center gap-2').style('margin-bottom:8px;'):
-                                ui.element('div').style('width:4px;height:16px;border-radius:2px;background:var(--bg-primary);')
+                                ui.element('div').style('width:4px;height:16px;border-radius:2px;background:var(--role-source);')
                                 ui.label(f'Ausgangstexte ({len(src_files_list)})').style(
-                                    'font-size:var(--fs-md);font-weight:700;color:var(--primary);')
+                                    'font-size:var(--fs-md);font-weight:700;color:var(--role-source);')
                             if src_files_list:
                                 for fp in src_files_list:
                                     fname = os.path.basename(fp)
@@ -827,16 +827,19 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                         'letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px;display:block;')
 
                     # 3-Schritte-Karten
+                    # num_clr/num_bg dark-aware ueber Tokens (zuvor hartkodierte
+                    # Hex -> im Dark-Mode unangepasst): weisse/dunkle Surface-
+                    # Scheibe + farbiger Ring + farbige Zahl, in beiden Modi lesbar.
                     _steps = [
                         ('login',       '1', 'Kunde wählen',
                          'Links in der Seitenleiste auswählen oder neu anlegen',
-                         'var(--bg-info-soft)',    'var(--border-info)',    '#1e40af', '#dbeafe'),
+                         'var(--bg-info-soft)',    'var(--border-info)',    'var(--info)',          'var(--surface)'),
                         ('upload_file', '2', 'Dateien hochladen',
                          'Ausgangstext + Übersetzung per Klick oder Drag & Drop',
-                         'var(--bg-success-soft)', 'var(--border-success)', '#166534', '#dcfce7'),
+                         'var(--bg-success-soft)', 'var(--border-success)', 'var(--success-text)',  'var(--surface)'),
                         ('play_circle', '3', 'Analyse starten',
                          'Score, Befunde & Korrekturvorschläge erhalten',
-                         'var(--bg-warning-soft)', 'var(--border-warning)', '#92400e', '#fef3c7'),
+                         'var(--bg-warning-soft)', 'var(--border-warning)', 'var(--warning-text)',  'var(--surface)'),
                     ]
                     with ui.row().classes('w-full gap-3').style('flex-wrap:nowrap;margin-bottom:16px;'):
                         for icon, num, title, desc, bg, bdr, num_clr, num_bg in _steps:

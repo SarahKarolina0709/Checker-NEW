@@ -97,6 +97,11 @@ body{font-size:var(--fs-md)!important;line-height:var(--lh-normal);
     box-shadow:0 1px 3px rgba(0,0,0,.04)!important;transition:all .2s ease}
 .q-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)!important;
     border-color:rgba(0,0,0,.1)!important}
+/* Quasar-Primary an das App-Token binden: ohne ui.colors() rendert
+   color=primary sonst Quasar-Default-Blau statt --primary. Nur die TEXT-Farbe
+   (flache Buttons etc.) remappen; .bg-primary bleibt unangetastet, da
+   var(--primary) im Dark-Mode fast weiss ist (gefuellte Buttons blieben lesbar). */
+.text-primary{color:var(--primary)!important}
 
 /* Buttons — rounded, with hover */
 .q-btn{border-radius:var(--radius-sm)!important;font-weight:600!important;
