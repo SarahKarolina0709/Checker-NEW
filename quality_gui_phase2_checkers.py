@@ -265,7 +265,32 @@ def _load_phase2_config(path: str = 'checker_config.json') -> Dict[str, object]:
         _logger.warning("Phase 2 Config konnte nicht geladen werden: %s — nutze Defaults", e)
         return {}
 
-def check_coverage_ratio(src: str, tgt: str, *, min_ratio: float = 0.5, max_ratio: float = 2.0, min_src_len: int = 30) -> List[QAIssue]:
+# Erwartetes Zeichen-Laengenverhaeltnis Ziel/Quelle je Sprachrichtung. Sprachen
+# komprimieren/expandieren unterschiedlich (Englisch ist kuerzer als Deutsch,
+# Deutsch laenger als Englisch usw.) -> die Vollstaendigkeits-Schwellen werden
+# sprachpaar-gerecht statt einer starren festen Zahl. Unbekanntes/gleiches
+# Paar -> 1.0 (neutral, = bisheriges Verhalten).
+_EXPECTED_LEN_RATIO: Dict[Tuple[str, str], float] = {
+    ('de', 'en'): 0.90, ('en', 'de'): 1.15,
+    ('de', 'fr'): 1.05, ('fr', 'de'): 0.92,
+    ('en', 'fr'): 1.10, ('fr', 'en'): 0.90,
+    ('en', 'es'): 1.15, ('es', 'en'): 0.88,
+    ('de', 'es'): 1.05, ('es', 'de'): 1.00,
+    ('fr', 'es'): 1.05, ('es', 'fr'): 0.95,
+}
+
+
+def expected_length_ratio(src_lang: str, tgt_lang: str) -> float:
+    """Erwartetes Ziel/Quelle-Zeichenverhaeltnis fuer die Sprachrichtung (1.0 = neutral)."""
+    s = (src_lang or '').strip().lower()[:2]
+    t = (tgt_lang or '').strip().lower()[:2]
+    if not s or not t or s == t:
+        return 1.0
+    return _EXPECTED_LEN_RATIO.get((s, t), 1.0)
+
+
+def check_coverage_ratio(src: str, tgt: str, *, min_ratio: float = 0.5, max_ratio: float = 2.0,
+                         min_src_len: int = 30, src_lang: str = '', tgt_lang: str = '') -> List[QAIssue]:
     """Prüft Vollständigkeit: Zieltext sollte ähnliche Länge wie Quelle haben.
 
     Erkennt:
@@ -281,23 +306,30 @@ def check_coverage_ratio(src: str, tgt: str, *, min_ratio: float = 0.5, max_rati
         return issues
     
     ratio = len(tgt_plain) / max(1, len(src_plain))
-    
+    # Sprachpaar-gerecht: an der ERWARTETEN Laenge messen, nicht starr an der
+    # Quelllaenge. coverage = 1.0 -> Ziel hat genau die fuer die Richtung
+    # erwartete Laenge; < min_ratio -> deutlich zu kurz; > max_ratio -> zu lang.
+    expected = expected_length_ratio(src_lang, tgt_lang)
+    coverage = ratio / expected
+
     # Zu kurz → mögliche Auslassung
-    if ratio < min_ratio:
+    if coverage < min_ratio:
         diff_chars = len(src_plain) - len(tgt_plain)
         issues.append(QAIssue(
-            "COMPLETENESS_TOO_SHORT", "major", "completeness", 
+            "COMPLETENESS_TOO_SHORT", "major", "completeness",
             f"Übersetzung zu kurz ({ratio:.0%} der Quelle, {diff_chars} Zeichen fehlen) – mögliche Auslassung",
-            src, tgt, -1, {"ratio": round(ratio, 3), "missing_chars": diff_chars}
+            src, tgt, -1, {"ratio": round(ratio, 3), "missing_chars": diff_chars,
+                           "expected_ratio": round(expected, 2), "coverage": round(coverage, 3)}
         ))
-    
+
     # Zu lang → mögliche Hinzufügung
-    elif ratio > max_ratio:
+    elif coverage > max_ratio:
         diff_chars = len(tgt_plain) - len(src_plain)
         issues.append(QAIssue(
-            "COMPLETENESS_TOO_LONG", "minor", "completeness", 
+            "COMPLETENESS_TOO_LONG", "minor", "completeness",
             f"Übersetzung deutlich länger ({ratio:.0%} der Quelle, +{diff_chars} Zeichen) – prüfen",
-            src, tgt, -1, {"ratio": round(ratio, 3), "extra_chars": diff_chars}
+            src, tgt, -1, {"ratio": round(ratio, 3), "extra_chars": diff_chars,
+                           "expected_ratio": round(expected, 2), "coverage": round(coverage, 3)}
         ))
     
     # Zusätzlich: Wortanzahl vergleichen
@@ -1969,7 +2001,8 @@ def run_phase2_checks(
         _add_issues_with_index(check_numbers_units(src, tgt), idx)
         _add_issues_with_index(check_security(src, tgt), idx)
         if cov_enabled:
-            _add_issues_with_index(check_coverage_ratio(src, tgt, min_ratio=cov_min_ratio, min_src_len=cov_min_src_len), idx)
+            _add_issues_with_index(check_coverage_ratio(src, tgt, min_ratio=cov_min_ratio, min_src_len=cov_min_src_len,
+                                                        src_lang=src_lang_code, tgt_lang=tgt_lang_code), idx)
         if names_enabled:
             _add_issues_with_index(check_proper_names(src, tgt, glossary, whitelist=whitelist, dnt=dnt), idx)
         if locale_enabled:
