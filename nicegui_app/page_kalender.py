@@ -150,13 +150,15 @@ def kalender_page():
                             if count > 0:
                                 bg = ('background:var(--bg-info-soft)!important;'
                                       'border-color:var(--info)!important;')
-                            elif is_today:
-                                bg = ('background:var(--bg-info-soft)!important;'
-                                      'border-color:var(--info)!important;'
-                                      'box-shadow:0 0 0 1px var(--info) inset!important;')
                             else:
                                 bg = ('background:var(--surface)!important;'
                                       'border-color:var(--surface-border)!important;')
+                            # Heute IMMER mit Ring markieren (zuvor nur im
+                            # elif-Zweig -> verschwand, sobald heute Projekte hatte,
+                            # also genau im haeufigsten Fall). Ring unterscheidet
+                            # Heute eindeutig von normalen Projekt-Tagen.
+                            if is_today:
+                                bg += 'box-shadow:0 0 0 2px var(--info) inset!important;'
                             with make_keyboard_activatable(
                                 ui.card().style(
                                     f'width:14.28%;min-height:80px;padding:6px;cursor:pointer;'

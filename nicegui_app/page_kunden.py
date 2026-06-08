@@ -240,7 +240,13 @@ def kunden_page():
             # Closure-Liste in place aktualisieren, damit _filter_list den neuen Kunden sieht
             customers[:] = _customers_mod.load_customers(base)
             selected['name'] = folder
-            _filter_list(search_inp.value or '')
+            # Suchfeld leeren, sonst kann ein noch aktiver alter Suchbegriff den
+            # neuen Kunden aus der Liste filtern (wirkt wie ein Fehlschlag).
+            try:
+                search_inp.set_value('')
+            except Exception:
+                pass
+            _filter_list('')
             _show_customer(folder)
             ui.notify(f'Kunde "{name}" angelegt', type='positive')
 

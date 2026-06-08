@@ -151,8 +151,9 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                 if phase_lbl and not compact:
                     ui.badge(phase_lbl, color=None).style(
                         'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:var(--radius-pill);')
-                ui.badge(f.code, color=None).style(
-                    'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:var(--radius-pill);')
+                if f.code:
+                    ui.badge(f.code, color=None).style(
+                        'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:var(--radius-pill);')
                 diff = s.get('analysis_diff', {}) or {}
                 if diff.get('has_prev') and idx in set(diff.get('new_idx', []) or []):
                     ui.badge('NEU', color=None).style(
@@ -308,6 +309,40 @@ def render_split_list(ctx: SimpleNamespace, filtered) -> None:
                 ui.icon('check_circle', size='xs').style('color:var(--success);flex-shrink:0;')
 
 
+def _render_excerpt(text, error_span, fallback_excerpt, mark_bg, mark_color,
+                    underline=False):
+    """Rendert einen Text-Ausschnitt und hebt error_span hervor, falls er im
+    Text vorkommt — sonst den vorberechneten Ausschnitt als reines Label.
+
+    Vereinheitlicht Quell- und Zieltext: zuvor markierte nur der Zieltext den
+    Fehler-Span, der Quelltext nicht (Asymmetrie). Liegt der Span auch im
+    Quelltext (z.B. identische Namen/Zahlen), wird er dort ebenfalls markiert.
+    """
+    if error_span and error_span in text:
+        err_pos = text.find(error_span)
+        win = 350
+        start = max(0, err_pos - win // 2)
+        before = ('… ' if start > 0 else '') + text[start:err_pos]
+        end = err_pos + len(error_span)
+        after = text[end:end + win // 2]
+        if len(text) > end + win // 2:
+            after += ' …'
+        deco = 'text-decoration:underline wavy;' if underline else ''
+        ui.html(
+            f'<span style="font-size:var(--fs-read);color:var(--text);line-height:1.55;'
+            f'white-space:pre-wrap;word-break:break-word;">'
+            f'{html_esc(before)}'
+            f'<mark style="background:{mark_bg};color:{mark_color};'
+            f'padding:1px 3px;border-radius:var(--radius-xs);font-weight:700;{deco}">'
+            f'{html_esc(error_span)}</mark>'
+            f'{html_esc(after)}</span>'
+        ).classes('flex-grow')
+    else:
+        ui.label(fallback_excerpt).style(
+            'font-size:var(--fs-read);color:var(--text);line-height:1.55;'
+            'white-space:pre-wrap;word-break:break-word;flex-grow:1;')
+
+
 def render_detail_panel(ctx: SimpleNamespace) -> None:
     """Rechtes Detail-Panel im Split-Modus.
 
@@ -401,8 +436,8 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
             with ui.row().classes('w-full items-start gap-1').style(
                 'background:var(--surface-alt);padding:8px;border-radius:var(--radius-sm);border-left:3px solid var(--role-source);'
             ):
-                ui.label(src_excerpt).style(
-                    'font-size:var(--fs-read);color:var(--text);line-height:1.55;white-space:pre-wrap;word-break:break-word;flex-grow:1;')
+                _render_excerpt(f.source_text, error_span, src_excerpt,
+                                'var(--bg-info-soft)', 'var(--role-source)')
                 ui.button(icon='content_copy',
                     on_click=lambda _, t=f.source_text: copy_to_clipboard(t)
                 ).props('flat dense round size=xs').tooltip('Volltext kopieren').style(
@@ -418,26 +453,8 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
             with ui.row().classes('w-full items-start gap-1').style(
                 'background:var(--bg-warning-soft);padding:8px;border-radius:var(--radius-sm);border-left:3px solid var(--warning);'
             ):
-                if error_span and error_span in f.target_text:
-                    err_pos = f.target_text.find(error_span)
-                    win = 350
-                    start = max(0, err_pos - win // 2)
-                    before = ('… ' if start > 0 else '') + f.target_text[start:err_pos]
-                    after = f.target_text[err_pos + len(error_span):err_pos + len(error_span) + win // 2]
-                    if len(f.target_text) > err_pos + len(error_span) + win // 2:
-                        after += ' …'
-                    ui.html(
-                        f'<span style="font-size:var(--fs-read);color:var(--text);line-height:1.55;'
-                        f'white-space:pre-wrap;word-break:break-word;">'
-                        f'{html_esc(before)}'
-                        f'<mark style="background:var(--bg-error-soft);color:var(--error-text);'
-                        f'padding:1px 3px;border-radius:var(--radius-xs);font-weight:700;text-decoration:underline wavy;">'
-                        f'{html_esc(error_span)}</mark>'
-                        f'{html_esc(after)}</span>'
-                    ).classes('flex-grow')
-                else:
-                    ui.label(tgt_excerpt).style(
-                        'font-size:var(--fs-read);color:var(--text);line-height:1.55;white-space:pre-wrap;word-break:break-word;flex-grow:1;')
+                _render_excerpt(f.target_text, error_span, tgt_excerpt,
+                                'var(--bg-error-soft)', 'var(--error-text)', underline=True)
                 ui.button(icon='content_copy',
                     on_click=lambda _, t=f.target_text: copy_to_clipboard(t)
                 ).props('flat dense round size=xs').tooltip('Volltext kopieren').style(
