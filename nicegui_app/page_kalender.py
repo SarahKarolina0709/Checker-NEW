@@ -56,7 +56,7 @@ def kalender_page():
         detail_container.clear()
         with detail_container:
             ui.label('Klicken Sie auf einen Tag, um Projekte zu sehen').style(
-                'font-size:12px;color:var(--text-light);')
+                'font-size:var(--fs-sm);color:var(--text-light);')
 
     def _show_day(day_str: str, customers: List[str]):
         if not detail_container:
@@ -65,7 +65,7 @@ def kalender_page():
         with detail_container:
             ui.label(f'Projekte am {day_str}').classes('t-title').style('margin-bottom:12px;')
             if not customers:
-                ui.label('Keine Projekte an diesem Tag').style('font-size:12px;color:var(--text-light);padding:24px 0;')
+                ui.label('Keine Projekte an diesem Tag').style('font-size:var(--fs-sm);color:var(--text-light);padding:24px 0;')
                 return
             base = settings.get('projects_base_path', '')
             for cust in customers:
@@ -83,20 +83,20 @@ def kalender_page():
                 with ui.card().classes('w-full').props('flat bordered').style('margin-bottom:8px;padding:12px;'):
                     with ui.row().classes('items-center gap-2'):
                         ui.icon('business', size='sm').style('color:var(--primary)')
-                        ui.label(_customers_mod.display_name(cust)).style('font-size:13px;font-weight:600;')
+                        ui.label(_customers_mod.display_name(cust)).style('font-size:var(--fs-md);font-weight:600;')
                     with ui.row().classes('gap-4').style('margin-left:28px;'):
                         ui.label(f'{n_src} Ausgangstexte').style(
-                            f'font-size:12px;color:{"var(--text)" if n_src else "var(--text-light)"};')
+                            f'font-size:var(--fs-sm);color:{"var(--text)" if n_src else "var(--text-light)"};')
                         ui.label(f'{n_tgt} Übersetzungen').style(
-                            f'font-size:12px;color:{"var(--success)" if n_tgt else "var(--text-light)"};')
+                            f'font-size:var(--fs-sm);color:{"var(--success)" if n_tgt else "var(--text-light)"};')
                     with ui.row().classes('gap-2').style('margin-left:28px;margin-top:4px;'):
                         ui.button('Analyse starten', icon='play_arrow',
                             on_click=lambda _, c=cust, d=day_str: ui.navigate.to(f'/?kunde={c}&auftrag={d}')
-                        ).props('flat dense no-caps size=sm').style('color:var(--primary);font-size:12px;')
+                        ).props('flat dense no-caps size=sm').style('color:var(--primary);font-size:var(--fs-sm);')
                         if os.path.isdir(proj_path):
                             ui.button('Ordner öffnen', icon='folder_open',
                                 on_click=lambda _, p=proj_path: safe_open_folder(p)
-                            ).props('flat dense no-caps size=sm').style('color:var(--text-muted);font-size:12px;')
+                            ).props('flat dense no-caps size=sm').style('color:var(--text-muted);font-size:var(--fs-sm);')
 
     def _render_calendar():
         nonlocal cal_container
@@ -109,9 +109,9 @@ def kalender_page():
                 with ui.column().classes('w-full items-center').style('padding:64px 0;gap:12px;'):
                     ui.icon('folder_off', size='2.5rem').style('color:var(--text-light)')
                     ui.label('Kein Projektordner konfiguriert').style(
-                        'font-size:14px;font-weight:600;color:var(--text-muted);')
+                        'font-size:var(--fs-lg);font-weight:600;color:var(--text-muted);')
                     ui.label('Bitte in den Einstellungen einen Projektbasispfad festlegen.').style(
-                        'font-size:12px;color:var(--text-light);text-align:center;')
+                        'font-size:var(--fs-sm);color:var(--text-light);text-align:center;')
             return
         y, m = view['year'], view['month']
         project_dates = _project_dates()
@@ -120,12 +120,12 @@ def kalender_page():
             with ui.row().classes('w-full items-center justify-center gap-4').style('margin-bottom:16px;'):
                 ui.button(icon='chevron_left', on_click=lambda: _nav_month(-1)).props('flat round')
                 ui.label(f'{month_name} {y}').style(
-                    'font-size:16px;font-weight:700;color:var(--text);min-width:200px;text-align:center;')
+                    'font-size:var(--fs-xl);font-weight:700;color:var(--text);min-width:200px;text-align:center;')
                 ui.button(icon='chevron_right', on_click=lambda: _nav_month(1)).props('flat round')
             with ui.row().classes('w-full gap-0'):
                 for wd in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']:
                     ui.label(wd).style(
-                        'width:14.28%;text-align:center;font-size:12px;font-weight:700;color:var(--text-muted);padding:4px 0;')
+                        'width:14.28%;text-align:center;font-size:var(--fs-sm);font-weight:700;color:var(--text-muted);padding:4px 0;')
             cal = _calendar_mod.Calendar(firstweekday=0)
             for week in cal.monthdayscalendar(y, m):
                 with ui.row().classes('w-full gap-0'):
@@ -153,18 +153,18 @@ def kalender_page():
                             ):
                                 with ui.row().classes('items-center gap-1'):
                                     ui.label(str(day_num)).style(
-                                        f'font-size:13px;font-weight:700;'
+                                        f'font-size:var(--fs-md);font-weight:700;'
                                         f'color:{"var(--info)" if is_today else "var(--text)" if count == 0 else "var(--info)"};')
                                     if count > 0:
                                         ui.badge(str(count)).style(
-                                            'background:var(--info);color:var(--text-inverse);font-size:12px;border-radius:var(--radius-pill);')
+                                            'background:var(--info);color:var(--text-inverse);font-size:var(--fs-sm);border-radius:var(--radius-pill);')
                                 if count > 0:
                                     for cust in customers[:2]:
                                         ui.label(_customers_mod.display_name(cust)).style(
-                                            'font-size:12px;color:var(--info);overflow:hidden;'
+                                            'font-size:var(--fs-sm);color:var(--info);overflow:hidden;'
                                             'text-overflow:ellipsis;white-space:nowrap;line-height:1.2;')
                                     if count > 2:
-                                        ui.label(f'+{count-2} weitere').style('font-size:12px;color:var(--text-light);')
+                                        ui.label(f'+{count-2} weitere').style('font-size:var(--fs-sm);color:var(--text-light);')
 
     ui.add_head_html(APP_CSS)
     with ui.header().classes('items-center px-6 py-0').style(
