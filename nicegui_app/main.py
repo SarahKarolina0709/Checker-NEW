@@ -2003,7 +2003,10 @@ def index_page(kunde: str = '', auftrag: str = ''):
         if refs.get('score_time_label'):
             elapsed = s.get('last_analysis_elapsed')
             if elapsed is not None:
-                refs['score_time_label'].set_text(f'Letzte Analyse: {elapsed:.1f}s')
+                # "Analysedauer" statt "Letzte Analyse: …s" (las sich wie eine
+                # Zeitangabe "vor X s"); deutsches Zahlenformat (Komma + Leerz.).
+                refs['score_time_label'].set_text(
+                    f'Analysedauer: {elapsed:.1f} s'.replace('.', ','))
             else:
                 refs['score_time_label'].set_text('')
         # Counts
