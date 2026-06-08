@@ -55,8 +55,13 @@ def kalender_page():
             return
         detail_container.clear()
         with detail_container:
-            ui.label('Klicken Sie auf einen Tag, um Projekte zu sehen').style(
-                'font-size:var(--fs-sm);color:var(--text-light);')
+            with ui.column().classes('w-full items-center justify-center').style(
+                'min-height:60vh;gap:12px;padding:32px 12px;'):
+                ui.icon('event', size='2.75rem').style('color:var(--text-light);')
+                ui.label('Tag auswählen').style(
+                    'font-size:var(--fs-lg);font-weight:600;color:var(--text-muted);')
+                ui.label('Klicken Sie im Kalender auf einen Tag, um dessen Projekte zu sehen.').style(
+                    'font-size:var(--fs-sm);color:var(--text-light);text-align:center;max-width:240px;')
 
     def _show_day(day_str: str, customers: List[str]):
         if not detail_container:

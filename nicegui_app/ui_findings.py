@@ -102,6 +102,9 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
             # (aktiviert den :focus-visible-Ring). NUR Enter — Leertaste ist global
             # mit "Geprueft umschalten" belegt. Schnellnavigation bleibt j/k.
             card_el.props('tabindex=0 role=button')
+            # Praegnanter Screenreader-Name statt Vorlesen des ganzen Karteninhalts
+            _aria = f'Befund {sev_lbl}: {getattr(f, "code", "") or ""}'.replace('"', "'")
+            card_el.props(f'aria-label="{_aria}"')
             card_el.on('keydown.enter', lambda _, i=idx: _sel(i))
         with ui.column().classes('w-full gap-1').style(f'padding:{pad};'):
             src_f = getattr(f, 'source_file', '') or ''

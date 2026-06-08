@@ -106,10 +106,12 @@ def kunden_page():
         ):
             project_detail = ui.column().classes('w-full gap-4')
             with project_detail:
-                with ui.column().classes('w-full items-center').style('padding:64px 0;gap:16px;'):
+                with ui.column().classes('w-full items-center justify-center').style(
+                    'min-height:65vh;gap:14px;'):
                     ui.icon('business', size='3rem').style('color:var(--text-light)')
                     ui.label('Kunde auswählen').style('font-size:var(--fs-lg);font-weight:600;color:var(--text-muted);')
-                    ui.label('Klicken Sie links auf einen Kunden').style('font-size:var(--fs-sm);color:var(--text-light);')
+                    ui.label('Wählen Sie links einen Kunden, um Projekte und Dateien zu sehen.').style(
+                        'font-size:var(--fs-sm);color:var(--text-light);text-align:center;max-width:280px;')
 
     def _show_customer(customer_name: str):
         selected['name'] = customer_name
