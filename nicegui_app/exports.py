@@ -256,8 +256,13 @@ def export_pdf(findings: list, score: int, output_dir: str) -> str:
                                f'<font color="#64748b">{code}</font>', label_style)]]
             rows.append([Paragraph(msg, body_style)])
 
+            # Defensive: source_file/target_file koennen je nach Aufrufpfad ein
+            # Nicht-String enthalten (z.B. wenn die Per-Datei-Attribution nicht
+            # lief). Dann keine Datei-Zeile statt eines os.path.basename-Crashs.
             src_file = getattr(f, 'source_file', '') or ''
             tgt_file = getattr(f, 'target_file', '') or ''
+            src_file = src_file if isinstance(src_file, str) else ''
+            tgt_file = tgt_file if isinstance(tgt_file, str) else ''
             if src_file or tgt_file:
                 fileinfo = _xml_escape(' → '.join(
                     [os.path.basename(p) for p in (src_file, tgt_file) if p]
