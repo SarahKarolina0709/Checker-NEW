@@ -11,6 +11,9 @@ APP_CSS = '''<style>
 :root{
   --primary:#0a1628;--primary-light:#1a365d;--accent:#d4af37;
   --success:#16a34a;--warning:#d97706;--error:#dc2626;--info:#2563eb;
+  /* Vollton-Varianten fuer weisse Schrift auf farbigem Grund — bleiben in
+     beiden Modi gesaettigt (die Basis-Tokens werden im Dark-Mode aufgehellt) */
+  --success-solid:#16a34a;--warning-solid:#d97706;--error-solid:#dc2626;
   --surface:#ffffff;--surface-alt:#f8fafc;--surface-border:#e2e8f0;
   --surface-border-light:#f1f5f9;--surface-border-strong:#d1d5db;
   /* Semantic tint borders */
@@ -25,6 +28,8 @@ APP_CSS = '''<style>
   /* Typography scale (7 Stufen) */
   --fs-xs:11px;--fs-sm:12px;--fs-md:13px;--fs-lg:14px;
   --fs-xl:16px;--fs-2xl:18px;--fs-3xl:24px;
+  /* Lese-Stufe fuer das eigentliche Pruef-Artefakt (Quell-/Zieltext) */
+  --fs-read:14px;
   --lh-tight:1.35;--lh-normal:1.5;--lh-loose:1.65;
   --fw-regular:400;--fw-medium:500;--fw-semibold:600;--fw-bold:700;
   /* Background tints (soft = light tint, tint = noch heller) */
@@ -209,6 +214,9 @@ body.body--dark{--surface:#0f172a;--surface-alt:#1e293b;--surface-border:#334155
     /* --primary dient app-weit als Vordergrund/Textfarbe → im Dark-Mode hell
        (Hintergruende laufen ueber --bg-primary, das dunkel bleibt) */
     --primary:#e8eef8;--accent:#d4af37;--info:#60a5fa;
+    /* Semantische Farben als Text/Icon im Dark-Mode aufhellen (WCAG-AA);
+       weisse Schrift auf farbigem Grund laeuft ueber die *-solid-Varianten */
+    --success:#4ade80;--warning:#fbbf24;--error:#f87171;
     --text-body:#cbd5e1;--success-text:#6ee7b7;--warning-text:#fbbf24;--error-text:#fca5a5;
     --bg-primary:#0a1628;--bg-muted:#1e293b;
     --bg-info-soft:#0c1a2e;--bg-info-tint:#0c1827;
@@ -241,5 +249,12 @@ body.body--dark .q-card{border-color:var(--surface-border)!important;background:
   .qf-stack{flex-direction:column!important;flex-wrap:nowrap!important;gap:12px!important}
   .qf-stack>*{width:100%!important;max-width:100%!important;min-width:0!important;
       max-height:none!important;border-right:none!important}
+}
+
+/* Touch/grobe Zeiger: Hover-Reveal-Aktionen (Datei loeschen, Zuordnung loesen,
+   Ordner-Aktion) dauerhaft sichtbar — sonst opacity:0 und funktional
+   unerreichbar auf dem Handy-Layout. */
+@media (hover:none),(pointer:coarse){
+  .file-del,.pair-del,.folder-up,.folder-empty .folder-up{opacity:1!important}
 }
 </style>'''

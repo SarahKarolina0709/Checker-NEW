@@ -2082,7 +2082,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
             _SEV_STYLE = [
                 ('Kritisch', 'var(--error)'),
                 ('Wichtig', 'var(--warning)'),
-                ('Hinweis', 'var(--info)'),
+                ('Hinweis', 'var(--text-muted)'),  # grau wie in den Karten (nicht blau=Quelltext)
             ]
             with cont:
                 if not top:
@@ -3077,7 +3077,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     refs['cancel_btn'] = ui.button(
                         icon='stop', on_click=_request_cancel,
                     ).props('no-caps size=lg unelevated').style(
-                        'background:var(--error);color:var(--text-inverse);height:48px;width:48px;border-radius:var(--radius-sm);')
+                        'background:var(--error-solid);color:var(--text-inverse);height:48px;width:48px;border-radius:var(--radius-sm);')
                     refs['cancel_btn'].tooltip('Analyse abbrechen')
                     refs['cancel_btn'].visible = False
                 refs['path_label'] = ui.label('').style(
@@ -3664,7 +3664,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     ui.button('Korrektur hochladen', icon='replay',
                         on_click=_start_correction_loop).props(
                         'unelevated dense no-caps size=sm').style(
-                        'background:var(--warning);color:var(--text-inverse);')
+                        'background:var(--warning-solid);color:var(--text-inverse);')
 
                 with ui.row().classes('w-full items-center gap-2 flex-wrap').style(
                     'padding:6px 0;border-bottom:1px solid var(--surface-border);margin-bottom:4px;'

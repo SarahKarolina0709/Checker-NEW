@@ -98,6 +98,11 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
         # interaktive Kinder (Datei-Zeile, Checkbox) stoppen via .stop die Weiterleitung.
         if _sel:
             card_el.on('click', lambda _, i=idx: _sel(i))
+            # Tastatur-Zugang: Karte in die Tab-Reihenfolge + Enter selektiert
+            # (aktiviert den :focus-visible-Ring). NUR Enter — Leertaste ist global
+            # mit "Geprueft umschalten" belegt. Schnellnavigation bleibt j/k.
+            card_el.props('tabindex=0 role=button')
+            card_el.on('keydown.enter', lambda _, i=idx: _sel(i))
         with ui.column().classes('w-full gap-1').style(f'padding:{pad};'):
             src_f = getattr(f, 'source_file', '') or ''
             tgt_f = getattr(f, 'target_file', '') or ''
@@ -136,7 +141,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                 diff = s.get('analysis_diff', {}) or {}
                 if diff.get('has_prev') and idx in set(diff.get('new_idx', []) or []):
                     ui.badge('NEU').style(
-                        'background:var(--error);color:var(--text-inverse);border-radius:var(--radius-pill);'
+                        'background:var(--error-solid);color:var(--text-inverse);border-radius:var(--radius-pill);'
                         'font-weight:700;font-size:var(--fs-xs);')
                 ui.element('div').classes('flex-grow')
                 cb = ui.checkbox('Geprüft',
@@ -189,7 +194,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                                 'border-left:2px solid var(--bg-primary);'
                             ):
                                 ui.label(src_excerpt).style(
-                                    'font-size:var(--fs-sm);color:var(--text-body);'
+                                    'font-size:var(--fs-read);color:var(--text);line-height:1.55;'
                                     'white-space:pre-wrap;word-break:break-word;flex-grow:1;')
                                 ui.button(icon='content_copy',
                                     on_click=lambda _, t=f.source_text: copy_to_clipboard(t)
@@ -218,7 +223,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                                     if len(f.target_text) > pos + len(error_span) + win:
                                         after += ' …'
                                     ui.html(
-                                        f'<span style="font-size:var(--fs-sm);color:var(--text-body);'
+                                        f'<span style="font-size:var(--fs-read);color:var(--text);line-height:1.55;'
                                         f'white-space:pre-wrap;word-break:break-word;">'
                                         f'{html_esc(before)}'
                                         f'<mark style="background:var(--bg-error-soft);color:var(--error-text);'
@@ -228,7 +233,7 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
                                     ).classes('flex-grow')
                                 else:
                                     ui.label(tgt_excerpt).style(
-                                        'font-size:var(--fs-sm);color:var(--text-body);'
+                                        'font-size:var(--fs-read);color:var(--text);line-height:1.55;'
                                         'white-space:pre-wrap;word-break:break-word;flex-grow:1;')
                                 ui.button(icon='content_copy',
                                     on_click=lambda _, t=f.target_text: copy_to_clipboard(t)
@@ -322,7 +327,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
         diff = s.get('analysis_diff', {}) or {}
         if diff.get('has_prev') and idx in set(diff.get('new_idx', []) or []):
             ui.badge('NEU').style(
-                'background:var(--error);color:var(--text-inverse);border-radius:var(--radius-pill);font-weight:700;font-size:var(--fs-xs);')
+                'background:var(--error-solid);color:var(--text-inverse);border-radius:var(--radius-pill);font-weight:700;font-size:var(--fs-xs);')
         ui.element('div').classes('flex-grow')
         cb = ui.checkbox('Geprüft',
             value=bool(s.get('checked_findings', {}).get(str(idx), False)),
@@ -378,7 +383,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
                 'background:var(--surface-alt);padding:8px;border-radius:var(--radius-sm);border-left:3px solid var(--bg-primary);'
             ):
                 ui.label(src_excerpt).style(
-                    'font-size:var(--fs-sm);color:var(--text-body);white-space:pre-wrap;word-break:break-word;flex-grow:1;')
+                    'font-size:var(--fs-read);color:var(--text);line-height:1.55;white-space:pre-wrap;word-break:break-word;flex-grow:1;')
                 ui.button(icon='content_copy',
                     on_click=lambda _, t=f.source_text: copy_to_clipboard(t)
                 ).props('flat dense round size=xs').tooltip('Volltext kopieren').style(
@@ -403,7 +408,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
                     if len(f.target_text) > err_pos + len(error_span) + win // 2:
                         after += ' …'
                     ui.html(
-                        f'<span style="font-size:var(--fs-sm);color:var(--text-body);'
+                        f'<span style="font-size:var(--fs-read);color:var(--text);line-height:1.55;'
                         f'white-space:pre-wrap;word-break:break-word;">'
                         f'{html_esc(before)}'
                         f'<mark style="background:var(--bg-error-soft);color:var(--error-text);'
@@ -413,7 +418,7 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
                     ).classes('flex-grow')
                 else:
                     ui.label(tgt_excerpt).style(
-                        'font-size:var(--fs-sm);color:var(--text-body);white-space:pre-wrap;word-break:break-word;flex-grow:1;')
+                        'font-size:var(--fs-read);color:var(--text);line-height:1.55;white-space:pre-wrap;word-break:break-word;flex-grow:1;')
                 ui.button(icon='content_copy',
                     on_click=lambda _, t=f.target_text: copy_to_clipboard(t)
                 ).props('flat dense round size=xs').tooltip('Volltext kopieren').style(
