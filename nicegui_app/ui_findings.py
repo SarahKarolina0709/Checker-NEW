@@ -442,6 +442,12 @@ def render_findings_list(ctx: SimpleNamespace) -> None:
     s = ctx.s
     refs = ctx.refs
     container = refs['findings_container']
+    welcome = refs.get('welcome_area')
+    # Welcome/Onboarding rendert in welcome_area (Sibling von results_area).
+    # findings_container liegt INNERHALB results_area, die bei current_score<0
+    # versteckt wird -> Welcome dorthin zu rendern ergaebe ein leeres Dashboard.
+    if welcome is not None:
+        welcome.clear()
     if not container:
         return
     container.clear()
@@ -449,10 +455,12 @@ def render_findings_list(ctx: SimpleNamespace) -> None:
     filtered = ctx.filtered_findings()
     split_mode = s.get('view_mode', 'normal') == 'split'
     refs['detail_panel'] = None  # reset for this render
+    if current_score < 0:
+        if welcome is not None:
+            with welcome:
+                ctx.render_welcome()
+        return
     with container:
-        if current_score < 0:
-            ctx.render_welcome()
-            return
         if not filtered:
             total_findings = len(s.get('findings', []))
             if total_findings == 0:
