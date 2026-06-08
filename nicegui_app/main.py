@@ -2018,53 +2018,71 @@ def index_page(kunde: str = '', auftrag: str = ''):
         if refs.get('history_chart'):
             hist = list(s.get('score_history', []) or [])
             if len(hist) >= 2:
-                w, h = 180, 24
+                w, h, pad = 180, 26, 4
                 step = w / (len(hist) - 1) if len(hist) > 1 else w
-                pts = ' '.join(
-                    f'{i*step:.1f},{h - (max(0,min(100,v))/100.0)*h:.1f}'
-                    for i, v in enumerate(hist)
-                )
+                # y mit Rand (pad), damit Punkte bei hohen Scores (~95-100) nicht
+                # am oberen SVG-Rand abgeschnitten werden.
+                def _y(v):
+                    return pad + (1 - max(0, min(100, v)) / 100.0) * (h - 2 * pad)
+                pts = ' '.join(f'{i*step:.1f},{_y(v):.1f}' for i, v in enumerate(hist))
                 last = hist[-1]
                 lc = score_color(last)
                 avg = sum(hist) / len(hist)
+                # Punkte je Messung -> die Linie ist als kleines Verlaufs-
+                # Diagramm erkennbar (statt als zusammenhangslose Linie).
+                dots = ''.join(
+                    f'<circle cx="{i*step:.1f}" cy="{_y(v):.1f}" r="2" fill="{lc}"/>'
+                    for i, v in enumerate(hist)
+                )
                 refs['history_chart'].set_content(
+                    f'<div style="font-size:var(--fs-xs);color:var(--text-muted);margin-bottom:2px;">'
+                    f'Score-Verlauf · Ø {avg:.0f} · {len(hist)} Analysen</div>'
                     f'<svg width="{w}" height="{h}" style="display:block;">'
                     f'<polyline fill="none" stroke="{lc}" stroke-width="1.5" '
-                    f'points="{pts}"/></svg>'
-                    f'<div style="font-size:var(--fs-xs);color:var(--text-light);margin-top:2px;">'
-                    f'Verlauf · ⌀ {avg:.0f} · {len(hist)} Analysen</div>'
+                    f'points="{pts}"/>{dots}</svg>'
                 )
             else:
                 refs['history_chart'].set_content('')
-        # Phase-Findings-Aufschlüsselung
+        # Phase-Findings-Aufschlüsselung — lesbare Phasennamen + Zahl der Befunde
+        # je Phase (zuvor kryptische P1–P4 mit gemischten Werten ✓/—/Zahl).
         if refs.get('phase_score_row'):
             pc = s.get('phase_finding_counts', {}) or {}
             _phase_defs = [
-                ('P1', 'phase1', 'Zahlen & Formate'),
-                ('P2', 'phase2', 'Inhalt & Konsistenz'),
-                ('P3', 'phase3', 'Grammatik & Stil'),
-                ('P4', 'phase4', 'KI-Prüfung'),
+                ('Zahlen', 'phase1', 'Zahlen & Formate'),
+                ('Inhalt', 'phase2', 'Inhalt & Konsistenz'),
+                ('Grammatik', 'phase3', 'Grammatik & Stil'),
+                ('KI', 'phase4', 'KI-Prüfung'),
             ]
             parts = []
-            for label, pkey, tip in _phase_defs:
+            for label, pkey, full in _phase_defs:
                 count = pc.get(pkey)
                 if count is None:
-                    val_str, bg = '—', 'var(--bg-muted)'
+                    # Phase nicht ausgefuehrt (z.B. KI ohne Ollama)
+                    val_str, bg = '–', 'var(--bg-muted)'
+                    tip = f'{full}: nicht ausgeführt'
                 elif count == 0:
-                    val_str, bg = '✓', 'rgba(22,163,74,.18)'
+                    # 0 Befunde -> sauber. Zahl (statt ✓) ist konsistent + klar.
+                    val_str, bg = '0', 'rgba(22,163,74,.18)'
+                    tip = f'{full}: keine Befunde'
                 elif count <= 3:
                     val_str, bg = str(count), 'rgba(234,88,12,.14)'
+                    tip = f'{full}: {count} Befund' + ('e' if count != 1 else '')
                 else:
                     val_str, bg = str(count), 'rgba(220,38,38,.14)'
+                    tip = f'{full}: {count} Befunde'
                 parts.append(
-                    f'<div title="{tip}" style="display:inline-flex;align-items:center;gap:3px;'
-                    f'background:{bg};border-radius:var(--radius-xs);padding:2px 7px;cursor:default;">'
-                    f'<span style="font-size:var(--fs-xs);font-weight:700;color:var(--text-muted);">{label}</span>'
-                    f'<span style="font-size:var(--fs-xs);font-weight:600;color:var(--text);">{val_str}</span>'
+                    f'<div title="{tip}" style="display:inline-flex;align-items:center;gap:4px;'
+                    f'background:{bg};border-radius:var(--radius-xs);padding:2px 8px;cursor:default;">'
+                    f'<span style="font-size:var(--fs-xs);font-weight:600;color:var(--text-muted);">{label}</span>'
+                    f'<span style="font-size:var(--fs-xs);font-weight:800;color:var(--text);">{val_str}</span>'
                     f'</div>'
                 )
             refs['phase_score_row'].set_content(
-                '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">'
+                '<div style="font-size:var(--fs-xs);color:var(--text-muted);margin-bottom:3px;">'
+                'Befunde je Prüfphase'
+                '<span style="color:var(--text-light);"> · 0 = sauber · – = übersprungen</span>'
+                '</div>'
+                '<div style="display:flex;gap:5px;flex-wrap:wrap;">'
                 + ''.join(parts) + '</div>'
             )
         # Diff-Badge: 'X neu seit letzter Analyse, Y behoben'
