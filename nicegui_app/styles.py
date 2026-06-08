@@ -22,7 +22,11 @@ APP_CSS = '''<style>
   --border-warning:#fed7aa;--border-success:#bbf7d0;--border-info:#93c5fd;
   /* Rollen-Farben (Datei-Zuordnung) — Quelle weicher als --primary */
   --role-source:#2563eb;
-  --text:#0f172a;--text-muted:#64748b;--text-light:#94a3b8;
+  /* --text-light auf den AA-Wert (= --text-muted) angehoben: #94a3b8 ergab auf
+     Weiss nur ~2.5:1 (WCAG-AA verfehlt). Auf Weiss ist kein helleres Slate
+     AA-konform, daher Gleichstand mit --muted. Rein dekorative/faint Elemente
+     nutzen zusaetzlich opacity und bleiben subtil. */
+  --text:#0f172a;--text-muted:#64748b;--text-light:#64748b;
   /* Semantic text colors for colored backgrounds */
   --text-body:#334155;--text-inverse:#ffffff;
   --success-text:#064e3b;--warning-text:#92400e;--error-text:#7f1d1d;
@@ -213,7 +217,7 @@ body.body--dark{--surface:#0f172a;--surface-alt:#1e293b;--surface-border:#334155
     --surface-border-light:#273449;--surface-border-strong:#475569;
     --border-warning:#78350f;--border-success:#14532d;--border-info:#1e3a5f;
     --role-source:#60a5fa;
-    --text:#e2e8f0;--text-muted:#94a3b8;--text-light:#64748b;
+    --text:#e2e8f0;--text-muted:#94a3b8;--text-light:#94a3b8;
     /* --primary dient app-weit als Vordergrund/Textfarbe → im Dark-Mode hell
        (Hintergruende laufen ueber --bg-primary, das dunkel bleibt) */
     --primary:#e8eef8;--accent:#d4af37;--info:#60a5fa;

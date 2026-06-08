@@ -1987,10 +1987,15 @@ def index_page(kunde: str = '', auftrag: str = ''):
                 if _cnt:
                     _clr = getattr(_pill, '_sev_clr', 'var(--text-muted)')
                     _bg = getattr(_pill, '_tint', 'var(--bg-muted)')
+                    _pill.style(f'padding:10px 4px;border-radius:var(--radius-sm);'
+                                f'border:1px solid transparent;background:{_bg};color:{_clr};')
                 else:
-                    _clr, _bg = 'var(--text-light)', 'var(--bg-muted)'
-                _pill.style(f'padding:10px 4px;border-radius:var(--radius-sm);'
-                            f'background:{_bg};color:{_clr};')
+                    # Null = leerer Slot: transparent + gestrichelt, klar vom
+                    # aktiven (getoenten) Zustand unterscheidbar (Hinweise-Pill
+                    # nutzte aktiv UND null denselben --bg-muted -> unsichtbar).
+                    _pill.style('padding:10px 4px;border-radius:var(--radius-sm);'
+                                'background:transparent;color:var(--text-muted);'
+                                'border:1px dashed var(--surface-border-strong);')
         # Aktiven Severity-Filter auf den Stat-Pills hervorheben
         _active_filter = s.get('active_filter', 'all')
         for _pill_key, _filt in (('critical_count_pill', 'critical'),
@@ -2238,7 +2243,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                                 'background:var(--bg-muted);'
                             ).tooltip('Anzahl Befunde'):
                                 ui.label(str(n_find)).style(
-                                    'font-size:var(--fs-xs);font-weight:700;color:var(--text-muted);line-height:1;')
+                                    'font-size:var(--fs-xs);font-weight:700;color:var(--text-body);line-height:1;')
         # Visibility
         for key in ('results_area', 'score_card', 'summary_card'):
             if refs[key]:
@@ -3586,8 +3591,10 @@ def index_page(kunde: str = '', auftrag: str = ''):
                                 ui.icon(icon, size='16px').style('color:inherit;opacity:.85;')
                                 refs[ref_key] = ui.label('0').style(
                                     'font-size:var(--fs-3xl);font-weight:800;color:inherit;line-height:1;')
+                            # Label in dunklem Body-Ton (AA-lesbar) statt im
+                            # gedaempften Severity-Ton; Zahl/Icon tragen die Farbe.
                             ui.label(sev_name).style(
-                                'font-size:var(--fs-sm);color:inherit;opacity:.8;font-weight:600;margin-top:3px;')
+                                'font-size:var(--fs-sm);color:var(--text-body);font-weight:600;margin-top:3px;')
                 # Erledigt-Fortschrittsbalken
                 with ui.column().classes('w-full gap-0').style('margin-top:8px;'):
                     with ui.row().classes('w-full items-center justify-between').style('margin-bottom:3px;'):
@@ -3813,7 +3820,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
     # Beim Seitenaufruf: Vorhandenen State wiederherstellen
     # Footer mit Tastatur-Quick-Reference (sticky am Bildschirm-Boden)
     with ui.footer().classes('items-center justify-center').style(
-        'background:rgba(15,39,68,0.95);color:var(--text-muted);padding:4px 16px;'
+        'background:rgba(15,39,68,0.95);color:rgba(255,255,255,.72);padding:4px 16px;'
         'font-size:var(--fs-xs);min-height:24px;'
     ):
         with ui.row().classes('items-center gap-3 flex-wrap justify-center'):
@@ -3830,7 +3837,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         'font-family:monospace;font-weight:700;color:var(--text-inverse);'
                         'background:rgba(255,255,255,0.12);padding:1px 6px;border-radius:var(--radius-xs);'
                         'font-size:var(--fs-xs);')
-                    ui.label(desc).style('color:var(--text-muted);font-size:var(--fs-xs);')
+                    ui.label(desc).style('color:rgba(255,255,255,.72);font-size:var(--fs-xs);')
 
     _refresh_file_list()
     _refresh_pairing_display()
