@@ -1873,6 +1873,24 @@ def index_page(kunde: str = '', auftrag: str = ''):
     # ------------------------------------------------------------------
     # Results rendering
     # ------------------------------------------------------------------
+    def _update_done_progress():
+        """Aktualisiert NUR den 'X von Y erledigt'-Counter + Fortschrittsbalken
+        (ohne Score/Heatmap/Karten neu zu bauen — fuer schnelle Teil-Updates)."""
+        total_f2 = len(s.get('findings', []))
+        checked = s.get('checked_findings', {}) or {}
+        done = sum(1 for k, v in checked.items()
+                   if v and isinstance(k, str) and k.isdigit() and int(k) < total_f2)
+        if refs.get('done_counter'):
+            refs['done_counter'].set_text(f'{done} von {total_f2} erledigt' if total_f2 else '')
+        if refs.get('done_progress_label'):
+            refs['done_progress_label'].set_text(f'{done} / {total_f2}' if total_f2 else '0 / 0')
+        if refs.get('done_progress_bar'):
+            pct_done = int(done / total_f2 * 100) if total_f2 else 0
+            bar_clr = 'var(--success)' if pct_done == 100 else 'var(--primary)'
+            refs['done_progress_bar'].style(
+                f'position:absolute;top:0;left:0;bottom:0;width:{pct_done}%;'
+                f'background:{bar_clr};border-radius:var(--radius-xs);transition:width 400ms ease;')
+
     def _refresh_results_area():
         current_score = s.get('current_score', -1)
         has_results = current_score >= 0
@@ -1975,21 +1993,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                 except Exception:
                     pass
         # "X von Y erledigt" Counter + Fortschrittsbalken
-        total_f2 = len(s.get('findings', []))
-        checked = s.get('checked_findings', {}) or {}
-        done = sum(1 for k, v in checked.items()
-                   if v and isinstance(k, str) and k.isdigit() and int(k) < total_f2)
-        if refs.get('done_counter'):
-            refs['done_counter'].set_text(f'{done} von {total_f2} erledigt' if total_f2 else '')
-        if refs.get('done_progress_label'):
-            refs['done_progress_label'].set_text(f'{done} / {total_f2}' if total_f2 else '0 / 0')
-        if refs.get('done_progress_bar'):
-            pct_done = int(done / total_f2 * 100) if total_f2 else 0
-            bar_clr = 'var(--success)' if pct_done == 100 else 'var(--primary)'
-            refs['done_progress_bar'].style(
-                f'position:absolute;top:0;left:0;bottom:0;width:{pct_done}%;'
-                f'background:{bar_clr};border-radius:var(--radius-xs);transition:width 400ms ease;'
-            )
+        _update_done_progress()
         # Score-Historie als SVG-Sparkline
         if refs.get('history_chart'):
             hist = list(s.get('score_history', []) or [])
@@ -2381,11 +2385,15 @@ def index_page(kunde: str = '', auftrag: str = ''):
         checked = dict(prev)
         checked[str(idx)] = val
         s['checked_findings'] = checked
-        _push_undo(prev, 'Erledigt-Markierung')
+        _push_undo(prev, 'Erledigt-Markierung')  # aktiviert auch den Undo-Button
         # Persistent speichern, debounced (vermeidet IO-Storm bei vielen Klicks)
         _schedule_save()
-        # Refresh damit Counter / "Erledigte ausblenden" sofort wirken
-        _refresh_results_area()
+        # Teil-Update statt Voll-Rebuild: ein Haekchen aendert nur den Erledigt-
+        # Counter. Score/Heatmap/Severity-Counts bleiben gleich. Die Liste nur
+        # neu bauen, wenn erledigte Befunde ausgeblendet werden (Karte muss weg).
+        _update_done_progress()
+        if s.get('hide_done'):
+            _render_findings_list()
 
     def _bulk_mark_filtered(done: bool):
         """Markiert alle aktuell sichtbaren (gefilterten) Findings als done/undone."""
@@ -3673,12 +3681,12 @@ def index_page(kunde: str = '', auftrag: str = ''):
                 with ui.row().classes('w-full items-center gap-2 flex-wrap').style(
                     'padding:6px 0;border-bottom:1px solid var(--surface-border);margin-bottom:4px;'
                 ):
-                    # Severity-Filter als Pill-Tabs mit Farb-Dot
+                    # Severity-Filter als Pill-Tabs mit Farb-Dot (Tokens -> dark-aware)
                     _SEV_DOT = {
                         'all': ('', 'var(--primary)'),
-                        'critical': ('●', '#dc2626'),
-                        'major': ('●', '#ea580c'),
-                        'minor': ('●', '#6b7280'),
+                        'critical': ('●', 'var(--sev-critical)'),
+                        'major': ('●', 'var(--sev-major)'),
+                        'minor': ('●', 'var(--sev-minor)'),
                     }
                     for key, label_text in [('all', 'Alle'), ('critical', 'Kritisch'),
                                              ('major', 'Wichtig'), ('minor', 'Hinweise')]:
