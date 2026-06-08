@@ -61,6 +61,23 @@ class TestWhitespace:
         issues = check_whitespace_and_zero_width("Ein Text", "Ein  Text", 0)
         assert has_code(issues, "WS_DOUBLE_SPACE")
 
+    def test_source_cosmetic_whitespace_ignored(self):
+        # Quell-seitige kosmetische Whitespace-Befunde werden NICHT gemeldet
+        # (Original-Formatierung, nicht vom Uebersetzer verursacht/korrigierbar).
+        issues = check_whitespace_and_zero_width("  Ein  Text ", "Sauber sauber", 0)
+        assert not has_code(issues, "WS_DOUBLE_SPACE")
+        assert not has_code(issues, "WS_TRAILING")
+        assert not has_code(issues, "WS_LEADING")
+
+    def test_target_trailing_space_still_flagged(self):
+        issues = check_whitespace_and_zero_width("Text", "Text ", 0)
+        assert has_code(issues, "WS_TRAILING")
+
+    def test_source_zero_width_still_flagged(self):
+        # Zero-Width-Zeichen bleiben beidseitig (andere, relevantere Pruefung)
+        issues = check_whitespace_and_zero_width("Nor​mal", "Normal", 0)
+        assert has_code(issues, "ZERO_WIDTH_CHAR")
+
 
 class TestBoundaryWhitespace:
     def test_clean(self):

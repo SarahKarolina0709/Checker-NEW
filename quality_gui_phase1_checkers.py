@@ -166,13 +166,21 @@ def check_urls_emails(src: str, tgt: str, segment_index: int = -1) -> List[QAIss
 def check_whitespace_and_zero_width(src: str, tgt: str, segment_index: int = -1) -> List[QAIssue]:
     """Prüft Whitespace und unsichtbare Zeichen mit verbesserter NBSP-Erkennung."""
     issues: List[QAIssue] = []
-    for loc, text in (("im Ausgangstext", src), ("in der Übersetzung", tgt)):
-        if DUP_SPACE_PATTERN.search(text):
-            issues.append(QAIssue("WS_DOUBLE_SPACE", "minor", "whitespace", f"Doppelte Leerzeichen {loc}", src, tgt, segment_index))
-        if TRAIL_SPACE_PATTERN.search(text):
-            issues.append(QAIssue("WS_TRAILING", "minor", "whitespace", f"Leerzeichen am Zeilenende {loc}", src, tgt, segment_index))
-        if LEAD_SPACE_PATTERN.search(text):
-            issues.append(QAIssue("WS_LEADING", "minor", "whitespace", f"Führende Leerzeichen {loc}", src, tgt, segment_index))
+    for loc, text, check_spaces in (("im Ausgangstext", src, False),
+                                    ("in der Übersetzung", tgt, True)):
+        # Kosmetische Whitespace-Befunde (doppelt/Zeilenende/fuehrend) nur fuer
+        # die UEBERSETZUNG. Im Ausgangstext ist das die Formatierung des
+        # Originals — nicht vom Uebersetzer verursacht, nicht korrigierbar und
+        # ohnehin unsichtbar; als Befund waere es reines Rauschen.
+        if check_spaces:
+            if DUP_SPACE_PATTERN.search(text):
+                issues.append(QAIssue("WS_DOUBLE_SPACE", "minor", "whitespace", f"Doppelte Leerzeichen {loc}", src, tgt, segment_index))
+            if TRAIL_SPACE_PATTERN.search(text):
+                issues.append(QAIssue("WS_TRAILING", "minor", "whitespace", f"Leerzeichen am Zeilenende {loc}", src, tgt, segment_index))
+            if LEAD_SPACE_PATTERN.search(text):
+                issues.append(QAIssue("WS_LEADING", "minor", "whitespace", f"Führende Leerzeichen {loc}", src, tgt, segment_index))
+        # Zero-Width-/geschuetzte Zeichen bleiben beidseitig (andere, relevantere
+        # Pruefung: unsichtbare Zeichen koennen Matching/Anzeige stoeren).
         zw = extract_zero_width(text)
         if zw:
             # VERBESSERT: Nur NBSP/NNBSP ignorieren die IN französischen Mustern vorkommen
