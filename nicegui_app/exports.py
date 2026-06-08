@@ -316,6 +316,154 @@ def _add_files_unique(zf: zipfile.ZipFile, file_paths: Iterable[str], archive_di
         zf.write(fp, f'{archive_dir}/{name}')
 
 
+# ---------------------------------------------------------------------------
+# Korrekturpaket — uebersetzerfreundliche Aufbereitung
+# ---------------------------------------------------------------------------
+# Prioritaets-Gruppen. Reihenfolge = Wichtigkeit fuer den Uebersetzer:
+# Namen -> Zahlen -> Vollstaendigkeit -> Sonstiges (die drei wichtigsten
+# Fehlertypen zuerst).
+_GRP_NAMEN = 'NAMEN'
+_GRP_ZAHLEN = 'ZAHLEN'
+_GRP_VOLLST = 'VOLLSTAENDIGKEIT'
+_GRP_SONST = 'SONSTIGES'
+_GROUP_ORDER = [_GRP_NAMEN, _GRP_ZAHLEN, _GRP_VOLLST, _GRP_SONST]
+
+_GROUP_TITLE = {
+    _GRP_NAMEN: 'NAMEN & EIGENNAMEN',
+    _GRP_ZAHLEN: 'ZAHLEN, BETRÄGE & DATEN',
+    _GRP_VOLLST: 'VOLLSTÄNDIGKEIT',
+    _GRP_SONST: 'WEITERE PUNKTE',
+}
+# Konkreter Handlungshinweis je Gruppe (steht im Gruppen-Kopf).
+_GROUP_HINT = {
+    _GRP_NAMEN: ('Namen, Firmen und Rechtsformen exakt wie im Ausgangstext '
+                 'übernehmen — nicht übersetzen.'),
+    _GRP_ZAHLEN: ('Zahlen, Beträge und Daten 1:1 mit dem Ausgangstext abgleichen '
+                  '(auch Tausender-/Dezimaltrennung und Jahreszahlen).'),
+    _GRP_VOLLST: ('Prüfen, ob Textteile fehlen, und die Übersetzung vollständig '
+                  'ergänzen.'),
+    _GRP_SONST: 'Die folgenden Punkte bitte ebenfalls prüfen.',
+}
+_SEV_RANK = {'critical': 0, 'major': 1, 'minor': 2, 'info': 3}
+_SEV_UPPER = {'critical': 'KRITISCH', 'major': 'WICHTIG', 'minor': 'HINWEIS', 'info': 'HINWEIS'}
+
+
+def _priority_group(f) -> str:
+    """Ordnet ein Finding einer der vier Prioritaets-Gruppen zu."""
+    code = (getattr(f, 'code', '') or '').upper()
+    cat = (getattr(f, 'category', '') or '').lower()
+    if code.startswith(('NUMBER_', 'NUM_', 'UNIT_')):
+        return _GRP_ZAHLEN
+    if code.startswith(('COMPANY_', 'NAME_', 'GLOSSARY_', 'TERM_', 'TERMINOLOGY_')):
+        return _GRP_NAMEN
+    if cat == 'completeness' or 'LANGUAGE_MIX' in code or code.startswith(
+            ('COMPLETENESS_', 'EMPTY_', 'UNTRANSLATED_', 'TRANSLATION_TOO_', 'OMISSION_')):
+        return _GRP_VOLLST
+    return _GRP_SONST
+
+
+def _severity_summary(findings) -> str:
+    """Kurze Zusammenfassung 'X kritisch · Y wichtig · Z Hinweise'."""
+    from nicegui_app.severity import normalize  # noqa: PLC0415
+    n = {'critical': 0, 'major': 0, 'minor': 0, 'info': 0}
+    for f in findings:
+        n[normalize(getattr(f, 'severity', None))] += 1
+    hinweise = n['minor'] + n['info']
+    hint_word = 'Hinweis' if hinweise == 1 else 'Hinweise'
+    return (f"{n['critical']} kritisch · {n['major']} wichtig · "
+            f"{hinweise} {hint_word}")
+
+
+def _build_cover_note(findings, score: int) -> str:
+    """Erzeugt das Begleitschreiben (ANSCHREIBEN.txt) fuer den Uebersetzer."""
+    date = datetime.now().strftime('%d.%m.%Y')
+    lines = [
+        'QUALITÄTSPRÜFUNG IHRER ÜBERSETZUNG',
+        '=' * 66,
+        f'Datum:   {date}',
+        f'Score:   {score}/100',
+        f'Befunde: {len(findings)}   ({_severity_summary(findings)})',
+        '',
+        'Guten Tag,',
+        '',
+        'vielen Dank für Ihre Übersetzung. Bei der Qualitätsprüfung sind die',
+        'beigefügten Punkte aufgefallen. Bitte sehen Sie diese durch und passen',
+        'Sie die Übersetzung entsprechend an.',
+        '',
+        'Schwerpunkte der Prüfung (die wichtigsten Fehlertypen):',
+        '  • NAMEN          – Firmen-/Eigennamen exakt übernehmen, nicht übersetzen',
+        '  • ZAHLEN         – Zahlen, Beträge und Daten müssen exakt übereinstimmen',
+        '  • VOLLSTÄNDIGKEIT – es darf nichts ausgelassen werden',
+        '',
+        'So lesen Sie dieses Paket:',
+        '  1. KORREKTUREN.txt   – die konkreten Punkte, nach Wichtigkeit sortiert',
+        '  2. 01_Ausgangstexte/ – das Original (Ausgangstext)',
+        '  3. 02_Uebersetzungen/ – Ihre eingereichte Übersetzung',
+        '  4. bericht/          – vollständiger Bericht als Referenz',
+        '',
+        'Bei Rückfragen melden Sie sich gerne.',
+        '',
+        'Mit freundlichen Grüßen',
+    ]
+    return '\n'.join(lines)
+
+
+def _build_corrections(findings, score: int) -> str:
+    """Erzeugt die nach Wichtigkeit gruppierte Korrekturliste (KORREKTUREN.txt)."""
+    from nicegui_app.severity import normalize  # noqa: PLC0415
+    date = datetime.now().strftime('%d.%m.%Y %H:%M')
+    out = [
+        'KORREKTUREN ZU IHRER ÜBERSETZUNG',
+        '=' * 66,
+        f'Datum: {date}   ·   Score: {score}/100   ·   {len(findings)} Befunde',
+        f'({_severity_summary(findings)})',
+        '',
+        'Die Punkte sind nach Wichtigkeit gruppiert — bitte von oben nach unten',
+        'durcharbeiten.',
+    ]
+    # In Gruppen einsortieren
+    groups: dict = {g: [] for g in _GROUP_ORDER}
+    for f in findings:
+        groups[_priority_group(f)].append(f)
+
+    counter = 0
+    for grp in _GROUP_ORDER:
+        items = groups[grp]
+        if not items:
+            continue
+        items.sort(key=lambda x: _SEV_RANK.get(normalize(getattr(x, 'severity', None)), 3))
+        out += [
+            '', '',
+            '#' * 66,
+            f'#  {_GROUP_TITLE[grp]}  ({len(items)})',
+            f'#  → {_GROUP_HINT[grp]}',
+            '#' * 66,
+        ]
+        for f in items:
+            counter += 1
+            sev = normalize(getattr(f, 'severity', None))
+            seg = getattr(f, 'segment_index', -1)
+            head = f'[{counter}]  {_SEV_UPPER[sev]}'
+            if isinstance(seg, int) and seg >= 0:
+                head += f'   ·   Segment {seg + 1}'
+            out += ['', head, f'     {getattr(f, "message", "") or ""}']
+
+            meta = getattr(f, 'meta', None)
+            err = (meta.get('error_text') if isinstance(meta, dict) else '') or ''
+            sug = (meta.get('suggestion') if isinstance(meta, dict) else '') or ''
+            src = (getattr(f, 'source_text', '') or '')[:300]
+            tgt = (getattr(f, 'target_text', '') or '')[:300]
+            if err.strip():
+                out.append(f'     Betroffen:    {err.strip()[:200]}')
+            if src:
+                out.append(f'     Ausgangstext: {src}')
+            if tgt:
+                out.append(f'     Übersetzung:  {tgt}')
+            if sug.strip():
+                out.append(f'     Vorschlag:    {sug.strip()[:300]}')
+    return '\n'.join(out)
+
+
 def export_correction_package(
     findings: list,
     score: int,
@@ -323,13 +471,14 @@ def export_correction_package(
     translation_files: List[str],
     output_dir: str,
 ) -> Optional[str]:
-    """Baut ein Korrekturpaket-ZIP.
+    """Baut ein uebersetzerfreundliches Korrekturpaket-ZIP.
 
     Inhalt:
+      - ANSCHREIBEN.txt    (Begleitschreiben — was ist das, wie lesen)
+      - KORREKTUREN.txt    (Befunde nach Wichtigkeit: Namen/Zahlen/Vollst./Rest)
       - 01_Ausgangstexte/<source files>
       - 02_Uebersetzungen/<translation files>
-      - corrections.txt (Befundliste)
-      - bericht/<txt-Bericht>
+      - bericht/<txt-Bericht> (+ Excel, falls openpyxl verfuegbar)
 
     Liefert ZIP-Pfad oder None bei Fehler.
     """
@@ -337,28 +486,13 @@ def export_correction_package(
     ts = _timestamp()
     zip_path = os.path.join(output_dir, f'korrekturpaket_{ts}.zip')
 
-    # Befundliste
-    corrections_lines = [
-        'Korrekturpaket -- Befundliste',
-        f'Datum: {datetime.now().strftime("%Y-%m-%d %H:%M")}',
-        f'Score: {score}/100',
-        f'Anzahl Befunde: {len(findings)}',
-        '', '=' * 60,
-    ]
-    for i, f in enumerate(findings, 1):
-        corrections_lines.extend([
-            f'\n--- Befund {i} ---',
-            f'Schwere: {severity_label(f.severity)}',
-            f'Code:    {f.code}',
-            f'Meldung: {f.message}',
-        ])
-        if getattr(f, 'source_text', ''):
-            corrections_lines.append(f'Quelltext:     {f.source_text[:300]}')
-        if getattr(f, 'target_text', ''):
-            corrections_lines.append(f'Übersetzung:  {f.target_text[:300]}')
-    corrections_path = os.path.join(output_dir, f'corrections_{ts}.txt')
+    cover_path = os.path.join(output_dir, f'anschreiben_{ts}.txt')
+    with open(cover_path, 'w', encoding='utf-8') as fh:
+        fh.write(_build_cover_note(findings, score))
+
+    corrections_path = os.path.join(output_dir, f'korrekturen_{ts}.txt')
     with open(corrections_path, 'w', encoding='utf-8') as fh:
-        fh.write('\n'.join(corrections_lines))
+        fh.write(_build_corrections(findings, score))
 
     # Optionalen TXT-Bericht beilegen
     try:
@@ -366,14 +500,23 @@ def export_correction_package(
     except Exception as exc:
         _logger.warning('TXT-Bericht fuer Korrekturpaket fehlgeschlagen: %s', exc)
         report_path = ''
+    # Optionalen Excel-Bericht beilegen (zum Abhaken; nur falls openpyxl da ist)
+    try:
+        excel_path = export_excel(findings, output_dir)
+    except Exception as exc:
+        _logger.info('Excel fuer Korrekturpaket uebersprungen: %s', exc)
+        excel_path = ''
 
     try:
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            zf.write(cover_path, 'ANSCHREIBEN.txt')
+            zf.write(corrections_path, 'KORREKTUREN.txt')
             _add_files_unique(zf, source_files or [], '01_Ausgangstexte')
             _add_files_unique(zf, translation_files or [], '02_Uebersetzungen')
-            zf.write(corrections_path, 'corrections.txt')
             if report_path and os.path.exists(report_path):
                 zf.write(report_path, f'bericht/{os.path.basename(report_path)}')
+            if excel_path and os.path.exists(excel_path):
+                zf.write(excel_path, f'bericht/{os.path.basename(excel_path)}')
         return zip_path
     except Exception as exc:
         _logger.warning('Korrekturpaket-Export fehlgeschlagen: %s', exc)

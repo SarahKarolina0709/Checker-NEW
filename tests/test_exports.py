@@ -249,7 +249,8 @@ class TestZipPackage:
             names = zf.namelist()
             assert any(n.startswith('01_Ausgangstexte/') for n in names)
             assert any(n.startswith('02_Uebersetzungen/') for n in names)
-            assert 'corrections.txt' in names
+            assert 'ANSCHREIBEN.txt' in names
+            assert 'KORREKTUREN.txt' in names
             assert any(n.startswith('bericht/') for n in names)
 
     def test_filename_collision_dedup(self):
@@ -278,4 +279,42 @@ class TestZipPackage:
         out = E.export_correction_package(_findings(), 50, [], [], self.tmp)
         assert out and os.path.isfile(out)
         with zipfile.ZipFile(out) as zf:
-            assert 'corrections.txt' in zf.namelist()
+            assert 'KORREKTUREN.txt' in zf.namelist()
+            assert 'ANSCHREIBEN.txt' in zf.namelist()
+
+
+class TestCorrectionGrouping:
+    """Prioritaets-Gruppierung der Korrekturliste (Namen/Zahlen/Vollst./Rest)."""
+
+    def test_priority_group_mapping(self):
+        assert E._priority_group(_F(code='NUMBER_MISSING')) == E._GRP_ZAHLEN
+        assert E._priority_group(_F(code='COMPANY_SUFFIX_TRANSLATED')) == E._GRP_NAMEN
+        assert E._priority_group(_F(code='GLOSSARY_VIOLATION')) == E._GRP_NAMEN
+        assert E._priority_group(
+            _F(code='COMPLETENESS_TOO_SHORT', category='completeness')) == E._GRP_VOLLST
+        assert E._priority_group(
+            _F(code='UNTRANSLATED_SEGMENT', category='completeness')) == E._GRP_VOLLST
+        assert E._priority_group(_F(code='STYLE_PASSIVE')) == E._GRP_SONST
+
+    def test_groups_ordered_by_priority(self):
+        findings = [
+            _F('minor', 'STYLE_X', 'stil', category='style'),
+            _F('major', 'COMPLETENESS_TOO_SHORT', 'kurz', category='completeness'),
+            _F('major', 'NUMBER_MISSING', 'zahl'),
+            _F('critical', 'COMPANY_NAME_MISSING', 'name'),
+        ]
+        txt = E._build_corrections(findings, 50)
+        i_namen = txt.index('NAMEN & EIGENNAMEN')
+        i_zahlen = txt.index('ZAHLEN')
+        i_vollst = txt.index('VOLLSTÄNDIGKEIT')
+        i_sonst = txt.index('WEITERE PUNKTE')
+        assert i_namen < i_zahlen < i_vollst < i_sonst
+
+    def test_cover_note_lists_priorities(self):
+        note = E._build_cover_note(_findings(), 70)
+        assert 'NAMEN' in note and 'ZAHLEN' in note and 'VOLLSTÄNDIGKEIT' in note
+        assert 'KORREKTUREN.txt' in note
+
+    def test_severity_summary_singular_plural(self):
+        assert E._severity_summary([_F('minor')]).endswith('1 Hinweis')
+        assert E._severity_summary([_F('minor'), _F('info')]).endswith('2 Hinweise')
