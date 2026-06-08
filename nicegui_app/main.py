@@ -31,6 +31,26 @@ import atexit
 from nicegui import app, events, ui
 
 # ---------------------------------------------------------------------------
+# Quasar-Default color='primary' neutralisieren
+# ---------------------------------------------------------------------------
+# ui.button() setzt per Default color='primary'. Quasar erzwingt diese Farbe
+# dann via .bg-primary/.text-primary mit !important und uebersteuert JEDE inline
+# gesetzte Button-Farbe -> die App (faerbt Buttons durchgaengig ueber Tokens im
+# inline-Style) erschien flaechendeckend Quasar-blau. Default auf color=None
+# setzen, damit die Inline-Farben greifen. Buttons mit explizitem color=... (z.B.
+# color=negative/green) behalten ihre Farbe; betrifft alle Module, da sie sich
+# `ui.button` zur Aufrufzeit am gemeinsamen ui-Modul holen.
+_orig_ui_button = ui.button
+
+
+def _ui_button_no_default_color(*args, **kwargs):
+    kwargs.setdefault('color', None)
+    return _orig_ui_button(*args, **kwargs)
+
+
+ui.button = _ui_button_no_default_color
+
+# ---------------------------------------------------------------------------
 # Temp directory & cleanup
 # ---------------------------------------------------------------------------
 _tmp_dir = tempfile.mkdtemp(prefix='qf_uploads_')
