@@ -1609,7 +1609,24 @@ def index_page(kunde: str = '', auftrag: str = ''):
                             _logger.warning('Phase 4 Datei %d fehlgeschlagen: %s', fi + 1, exc)
                 else:
                     single['_text_pairs'] = text_pairs
-                    result = await loop.run_in_executor(None, run_analysis_sync, single)
+                    _fut = loop.run_in_executor(None, run_analysis_sync, single)
+                    # Live-Ticker: die KI-Phase laeuft lange (lokales Modell auf
+                    # CPU, ~1-2 Min). Ohne Bewegung wirkt das wie ein Haenger ->
+                    # Sekundenzaehler + animierter (indeterminater) Balken zeigen,
+                    # dass sichtbar gearbeitet wird.
+                    _is_ki = (phase_key == 'phase4')
+                    if _is_ki and refs.get('progress_bar'):
+                        refs['progress_bar'].props('indeterminate')
+                    while not _fut.done():
+                        await asyncio.sleep(0.5)
+                        if _is_ki and refs.get('progress_text'):
+                            _el = time.monotonic() - phase_start
+                            refs['progress_text'].set_text(
+                                f'{phase_dots}  {phase_name} läuft (lokales Modell, CPU) · {_el:.0f}s …'
+                            )
+                    if _is_ki and refs.get('progress_bar'):
+                        refs['progress_bar'].props(remove='indeterminate')
+                    result = await _fut
                     phase_count = len(result)
                     all_results.extend(result)
             except Exception as exc:
