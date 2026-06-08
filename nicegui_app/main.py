@@ -2315,6 +2315,12 @@ def index_page(kunde: str = '', auftrag: str = ''):
 
     def _render_findings_list():
         filtered = _filtered_findings()
+        # Roving-Tabindex-Eintrittspunkt: ist nichts (Sichtbares) selektiert, die
+        # erste sichtbare Karte vorselektieren, damit Tab in die Liste fuehrt und
+        # der Fokusring eine definierte Startkarte hat.
+        _vis = [ri for ri, _ in filtered]
+        if _vis and selected_idx['v'] not in _vis:
+            selected_idx['v'] = _vis[0]
         # Suchfeld-Treffer-Zähler aktualisieren
         if refs.get('search_counter'):
             st = s.get('search_text', '') or ''
@@ -2435,7 +2441,10 @@ def index_page(kunde: str = '', auftrag: str = ''):
         try:
             ui.run_javascript(
                 f"var el=document.getElementById('finding-card-{idx}');"
-                f"if(el)el.scrollIntoView({{behavior:'smooth',block:'center'}});"
+                f"if(el){{el.scrollIntoView({{behavior:'smooth',block:'center'}});"
+                # Fokus folgt der Selektion -> der :focus-visible-Ring wandert bei
+                # j/k mit (preventScroll, da scrollIntoView den Scroll uebernimmt).
+                f"el.focus({{preventScroll:true}});}}"
             )
         except Exception:
             pass

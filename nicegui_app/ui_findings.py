@@ -101,7 +101,11 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
             # Tastatur-Zugang: Karte in die Tab-Reihenfolge + Enter selektiert
             # (aktiviert den :focus-visible-Ring). NUR Enter — Leertaste ist global
             # mit "Geprueft umschalten" belegt. Schnellnavigation bleibt j/k.
-            card_el.props('tabindex=0 role=button')
+            # Roving-Tabindex: nur die selektierte Karte ist tab-fokussierbar,
+            # damit 50+ Karten nicht 50+ Tab-Stopps erzeugen. Eintrittspunkt: die
+            # Liste selektiert beim Rendern die erste sichtbare Karte vor; j/k
+            # verschiebt die Selektion (und den Fokus, siehe _scroll_to_selected).
+            card_el.props(f'tabindex={"0" if is_selected else "-1"} role=button')
             # Praegnanter Screenreader-Name statt Vorlesen des ganzen Karteninhalts
             _aria = f'Befund {sev_lbl}: {getattr(f, "code", "") or ""}'.replace('"', "'")
             card_el.props(f'aria-label="{_aria}"')
