@@ -1890,6 +1890,8 @@ def index_page(kunde: str = '', auftrag: str = ''):
             refs['done_progress_bar'].style(
                 f'position:absolute;top:0;left:0;bottom:0;width:{pct_done}%;'
                 f'background:{bar_clr};border-radius:var(--radius-xs);transition:width 400ms ease;')
+            if refs.get('done_progress_track'):
+                refs['done_progress_track'].props(f'aria-valuenow={pct_done}')
 
     def _refresh_results_area():
         current_score = s.get('current_score', -1)
@@ -2115,7 +2117,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     ui.label('Keine Befunde').style('font-size:var(--fs-xs);color:var(--text-light);')
                 else:
                     # Severity-Legende, damit die Balkenfarben verständlich sind
-                    with ui.row().classes('items-center gap-3').style('margin:0 0 8px 2px;'):
+                    with ui.row().classes('items-center gap-3').style('margin:0 0 8px 2px;flex-wrap:wrap;'):
                         for sev_lbl, sev_clr in _SEV_STYLE:
                             tot = sum(d.get(sev_lbl, 0) for _, d in top)
                             if tot <= 0:
@@ -2139,11 +2141,15 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     if hint:
                         tip_parts.append(f'{hint} Hinweis')
                     tip = label_de + (' · ' + ' · '.join(tip_parts) if tip_parts else '')
-                    with ui.row().classes('w-full items-center gap-2 cat-row cursor-pointer').style(
-                        'padding:3px 4px;border-radius:var(--radius-sm);'
-                    ).on('click', lambda _, c=label_de: (s.update({'search_text': c}),
-                                                     refs.get('search_input') and refs['search_input'].set_value(c),
-                                                     _refresh_results_area())).tooltip(tip):
+                    _cat_act = lambda c=label_de: (s.update({'search_text': c}),
+                                                   refs.get('search_input') and refs['search_input'].set_value(c),
+                                                   _refresh_results_area())
+                    with _kb_activate(
+                        ui.row().classes('w-full items-center gap-2 cat-row cursor-pointer').style(
+                            'padding:3px 4px;border-radius:var(--radius-sm);'
+                        ).on('click', lambda _, a=_cat_act: a()).tooltip(tip),
+                        _cat_act,
+                    ):
                         ui.label(label_de[:34] + ('…' if len(label_de) > 34 else '')).style(
                             'font-size:var(--fs-sm);color:var(--text-body);width:150px;flex-shrink:0;'
                             'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
@@ -2217,11 +2223,15 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         tip = (f'{nm} · Score {sc}/100 · {n_find} Befund'
                                + ('e' if n_find != 1 else '')
                                + (' (' + ', '.join(tip_parts) + ')' if tip_parts else ''))
-                        with ui.row().classes('w-full items-center gap-2 cat-row cursor-pointer').style(
-                            'padding:3px 4px;border-radius:var(--radius-sm);'
-                        ).on('click', lambda _, n=nm: (s.update({'search_text': n}),
-                                                        refs.get('search_input') and refs['search_input'].set_value(n),
-                                                        _refresh_results_area())).tooltip(tip):
+                        _file_act = lambda n=nm: (s.update({'search_text': n}),
+                                                  refs.get('search_input') and refs['search_input'].set_value(n),
+                                                  _refresh_results_area())
+                        with _kb_activate(
+                            ui.row().classes('w-full items-center gap-2 cat-row cursor-pointer').style(
+                                'padding:3px 4px;border-radius:var(--radius-sm);'
+                            ).on('click', lambda _, a=_file_act: a()).tooltip(tip),
+                            _file_act,
+                        ):
                             ui.label(nm[:32] + ('…' if len(nm) > 32 else '')).style(
                                 'font-size:var(--fs-sm);color:var(--text-body);width:150px;flex-shrink:0;'
                                 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
@@ -3601,9 +3611,13 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         ui.label('Fortschritt').style('font-size:var(--fs-xs);color:var(--text-muted);')
                         refs['done_progress_label'] = ui.label('0 / 0').style(
                             'font-size:var(--fs-xs);color:var(--text-muted);font-weight:600;')
-                    with ui.element('div').style(
+                    with ui.element('div').props(
+                        'role=progressbar aria-label="Erledigt-Fortschritt" '
+                        'aria-valuemin=0 aria-valuemax=100 aria-valuenow=0'
+                    ).style(
                         'width:100%;height:6px;border-radius:var(--radius-xs);background:var(--bg-muted);position:relative;overflow:hidden;'
-                    ):
+                    ) as _done_track:
+                        refs['done_progress_track'] = _done_track
                         refs['done_progress_bar'] = ui.element('div').style(
                             'position:absolute;top:0;left:0;bottom:0;width:0%;'
                             'background:var(--success);border-radius:var(--radius-xs);'

@@ -60,27 +60,33 @@ def kunden_page():
                         n_proj = len(_customers_mod.list_projects(base, cust))
                         is_sel = selected.get('name') == cust
                         with make_keyboard_activatable(
-                            ui.card().classes('w-full cursor-pointer').props('flat bordered').style(
+                            ui.card().classes('w-full cursor-pointer cust-card').props('flat bordered').style(
                                 f'padding:8px 12px;{"background:var(--bg-info-soft);border-color:var(--border-info);" if is_sel else ""}'
                             ).on('click', lambda _, c=cust: _show_customer(c)),
                             lambda c=cust: _show_customer(c),
                         ):
-                            with ui.row().classes('items-center gap-4 w-full'):
+                            with ui.row().classes('items-center gap-4 w-full flex-nowrap'):
                                 with ui.element('div').style(
-                                    'width:36px;height:36px;border-radius:var(--radius-sm);'
+                                    'width:36px;height:36px;flex-shrink:0;border-radius:var(--radius-sm);'
                                     'background:var(--brand-grad-badge);'
                                     'display:flex;align-items:center;justify-content:center;'
                                 ):
                                     ui.label(initial).style('color:var(--accent);font-size:var(--fs-lg);font-weight:700;')
-                                with ui.column().classes('gap-0 flex-grow'):
-                                    ui.label(_customers_mod.display_name(cust)).style('font-size:var(--fs-md);font-weight:600;')
+                                with ui.column().classes('gap-0 flex-grow').style('min-width:0;'):
+                                    ui.label(_customers_mod.display_name(cust)).style(
+                                        'font-size:var(--fs-md);font-weight:600;max-width:100%;'
+                                        'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+                                    ).tooltip(_customers_mod.display_name(cust))
                                     parts = []
                                     if n_proj:
                                         parts.append(f'{n_proj} {"Projekt" if n_proj == 1 else "Projekte"}')
                                     if info.get('branche'):
                                         parts.append(info['branche'])
                                     ui.label(' · '.join(parts) if parts else 'Kein Projekt').style(
-                                        'font-size:var(--fs-sm);color:var(--text-muted);')
+                                        'font-size:var(--fs-sm);color:var(--text-muted);max-width:100%;'
+                                        'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;')
+                                ui.icon('chevron_right', size='sm').classes('cust-chevron').style(
+                                    'color:var(--text-light);flex-shrink:0;')
                     if not filtered:
                         ui.label('Keine Kunden gefunden').style(
                             'font-size:var(--fs-sm);color:var(--text-light);padding:16px 0;text-align:center;')
@@ -158,8 +164,10 @@ def kunden_page():
                     with ui.card().classes('w-full').props('flat bordered'):
                         with ui.row().classes('w-full items-center gap-4').style('padding:12px;'):
                             ui.icon('folder', size='sm').style('color:var(--accent)')
-                            with ui.column().classes('gap-0 flex-grow'):
-                                ui.label(proj).style('font-size:var(--fs-lg);font-weight:600;')
+                            with ui.column().classes('gap-0 flex-grow').style('min-width:0;'):
+                                ui.label(proj).style(
+                                    'font-size:var(--fs-lg);font-weight:600;max-width:100%;'
+                                    'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;').tooltip(proj)
                                 parts = []
                                 if n_src:
                                     parts.append(f'{n_src} Quell')
@@ -209,8 +217,10 @@ def kunden_page():
                                             ext = os.path.splitext(fname)[1].lower()
                                             with ui.row().classes('w-full items-center gap-1').style('padding:2px 0 2px 24px;'):
                                                 ui.icon(icon_map.get(ext, 'insert_drive_file'), size='xs').style('color:var(--text-light)')
-                                                ui.label(fname).style('font-size:var(--fs-sm);color:var(--text);flex-grow:1;')
-                                                ui.label(sz).style('font-size:var(--fs-sm);color:var(--text-light);')
+                                                ui.label(fname).style(
+                                                    'font-size:var(--fs-sm);color:var(--text);flex-grow:1;min-width:0;'
+                                                    'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;').tooltip(fname)
+                                                ui.label(sz).style('font-size:var(--fs-sm);color:var(--text-light);flex-shrink:0;')
 
     def _new_customer():
         from types import SimpleNamespace

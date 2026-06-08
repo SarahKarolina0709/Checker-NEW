@@ -175,7 +175,8 @@ def kalender_page():
                                     for cust in customers[:2]:
                                         ui.label(_customers_mod.display_name(cust)).style(
                                             'font-size:var(--fs-sm);color:var(--info);overflow:hidden;'
-                                            'text-overflow:ellipsis;white-space:nowrap;line-height:1.2;')
+                                            'text-overflow:ellipsis;white-space:nowrap;line-height:1.2;'
+                                        ).tooltip(_customers_mod.display_name(cust))
                                     if count > 2:
                                         ui.label(f'+{count-2} weitere').style('font-size:var(--fs-sm);color:var(--text-light);')
 

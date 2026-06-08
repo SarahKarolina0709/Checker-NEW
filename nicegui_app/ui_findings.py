@@ -114,13 +114,21 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
             src_f = getattr(f, 'source_file', '') or ''
             tgt_f = getattr(f, 'target_file', '') or ''
             if (src_f or tgt_f) and not compact:
-                with ui.row().classes('w-full items-center gap-2 cursor-pointer').style(
+                _ffname = os.path.basename(src_f or tgt_f)
+                _ff_act = (lambda sf=_ffname: (s.update({'search_text': sf}),
+                           refs.get('search_input') and refs['search_input'].set_value(sf),
+                           ctx.refresh_results()))
+                # Klickbare Datei-Filterzeile auch per Tastatur bedienbar
+                # (tabindex/role + Enter/Space); .stop verhindert, dass Enter
+                # zusaetzlich die umgebende Karte selektiert.
+                _ffrow = ui.row().classes('w-full items-center gap-2 cursor-pointer').style(
                     'padding:4px 8px;background:var(--bg-muted);border-radius:var(--radius-xs);'
                     'margin-bottom:4px;font-size:var(--fs-xs);'
-                ).on('click.stop', lambda _, sf=os.path.basename(src_f or tgt_f):
-                     (s.update({'search_text': sf}),
-                      refs.get('search_input') and refs['search_input'].set_value(sf),
-                      ctx.refresh_results())):
+                ).props('tabindex=0 role=button')
+                _ffrow.on('click.stop', lambda _, a=_ff_act: a())
+                _ffrow.on('keydown.enter.stop', lambda _, a=_ff_act: a())
+                _ffrow.on('keydown.space.stop.prevent', lambda _, a=_ff_act: a())
+                with _ffrow:
                     ui.icon('description', size='xs').style('color:var(--text-muted);')
                     if src_f:
                         ui.label(os.path.basename(src_f)).style(
@@ -161,8 +169,10 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
             msg_fs = '12px' if compact else '13px'
             msg_text = (f.message[:120] + '…' if compact and len(f.message) > 120
                         else f.message)
-            ui.label(msg_text).style(
+            _msg_lbl = ui.label(msg_text).style(
                 f'font-size:{msg_fs};color:var(--text);line-height:1.4;font-weight:500;')
+            if compact and len(f.message) > 120:
+                _msg_lbl.tooltip(f.message)
             if compact:
                 return
             suggestion = (meta.get('suggestion') or '').strip()
@@ -287,8 +297,10 @@ def render_split_list(ctx: SimpleNamespace, filtered) -> None:
             f'{"box-shadow:0 0 0 1px var(--primary);" if is_sel else ""}'
         ).on('click', lambda _, i=real_idx: ctx.select_finding(i)):
             with ui.column().classes('gap-0 flex-grow').style('min-width:0;'):
-                ui.label(f.message[:80] + ('…' if len(f.message) > 80 else '')).style(
+                _sl_msg = ui.label(f.message[:80] + ('…' if len(f.message) > 80 else '')).style(
                     'font-size:var(--fs-xs);color:var(--text);line-height:1.35;font-weight:500;')
+                if len(f.message) > 80:
+                    _sl_msg.tooltip(f.message)
                 ui.badge(f.code, color=None).style(
                     'background:transparent;color:var(--text-light);border:none;'
                     'font-size:var(--fs-xs);padding:0;')
@@ -573,7 +585,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
 
         with ui.column().classes('w-full gap-4'):
             ui.label('Textvorschau').style('font-size:var(--fs-xl);font-weight:700;color:var(--text);')
-            with ui.row().classes('w-full gap-4').style('min-height:200px;'):
+            with ui.row().classes('w-full gap-4 qf-stack').style('min-height:200px;'):
                 with ui.card().classes('flex-1').props('flat bordered').style('padding:12px;'):
                     ui.label('Ausgangstext').style(
                         'font-size:var(--fs-sm);font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:1px;')
@@ -666,7 +678,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                 tgt_files_list = ctx.list_files_in_folder(tgt_dir) if tgt_dir else []
 
                 if src_files_list or tgt_files_list:
-                    with ui.row().classes('w-full gap-4').style('margin-top:16px;'):
+                    with ui.row().classes('w-full gap-4 qf-stack').style('margin-top:16px;'):
                         with ui.card().classes('flex-1').props('flat bordered').style('padding:12px;'):
                             with ui.row().classes('items-center gap-2').style('margin-bottom:8px;'):
                                 ui.element('div').style('width:4px;height:16px;border-radius:2px;background:var(--role-source);')
@@ -744,7 +756,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
 
         _DE_WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
 
-        with ui.row().classes('w-full gap-4 items-start animate-in').style('padding:4px 0;'):
+        with ui.row().classes('w-full gap-4 items-start animate-in qf-stack').style('padding:4px 0;'):
 
             # ── Linke Spalte: Unified Card ───────────────────────────────────
             with ui.element('div').style(
@@ -841,10 +853,10 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                          'Score, Befunde & Korrekturvorschläge erhalten',
                          'var(--bg-warning-soft)', 'var(--border-warning)', 'var(--warning-text)',  'var(--surface)'),
                     ]
-                    with ui.row().classes('w-full gap-3').style('flex-wrap:nowrap;margin-bottom:16px;'):
+                    with ui.row().classes('w-full gap-3').style('flex-wrap:wrap;margin-bottom:16px;'):
                         for icon, num, title, desc, bg, bdr, num_clr, num_bg in _steps:
                             with ui.element('div').style(
-                                f'flex:1 1 0;min-width:0;border-radius:var(--radius-md);'
+                                f'flex:1 1 160px;border-radius:var(--radius-md);'
                                 f'background:{bg};border:1px solid {bdr};padding:14px 14px 12px;'):
                                 with ui.row().classes('items-center gap-2').style('margin-bottom:7px;'):
                                     with ui.element('div').style(
@@ -967,7 +979,7 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                         'font-size:var(--fs-xs);color:var(--text-muted);')
 
             # 2-Spalten: Kalender links, Tages-Preview rechts
-            with ui.row().classes('w-full items-start').style(
+            with ui.row().classes('w-full items-start qf-stack').style(
                 'gap:0;background:var(--surface);'):
 
                 # Kalender-Grid (flexibel)
