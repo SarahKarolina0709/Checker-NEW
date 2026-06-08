@@ -1972,12 +1972,25 @@ def index_page(kunde: str = '', auftrag: str = ''):
         for fd in s.get('findings', []):
             lbl = severity_label(_dict_to_finding(fd).severity)
             counts[lbl] = counts.get(lbl, 0) + 1
-        if refs['critical_count']:
-            refs['critical_count'].set_text(str(counts['Kritisch']))
-        if refs['major_count']:
-            refs['major_count'].set_text(str(counts['Wichtig']))
-        if refs['minor_count']:
-            refs['minor_count'].set_text(str(counts['Hinweis']))
+        # Counts setzen + Zustandsfarbe: 0 Befunde = gut -> neutral/gedaempft
+        # (grau), damit die Aufmerksamkeit auf die echten Probleme faellt.
+        for _rk, _pk, _cnt in (
+            ('critical_count', 'critical_count_pill', counts['Kritisch']),
+            ('major_count', 'major_count_pill', counts['Wichtig']),
+            ('minor_count', 'minor_count_pill', counts['Hinweis']),
+        ):
+            _lbl = refs.get(_rk)
+            if _lbl:
+                _lbl.set_text(str(_cnt))
+            _pill = refs.get(_pk)
+            if _pill:
+                if _cnt:
+                    _clr = getattr(_pill, '_sev_clr', 'var(--text-muted)')
+                    _bg = getattr(_pill, '_tint', 'var(--bg-muted)')
+                else:
+                    _clr, _bg = 'var(--text-light)', 'var(--bg-muted)'
+                _pill.style(f'padding:10px 4px;border-radius:var(--radius-sm);'
+                            f'background:{_bg};color:{_clr};')
         # Aktiven Severity-Filter auf den Stat-Pills hervorheben
         _active_filter = s.get('active_filter', 'all')
         for _pill_key, _filt in (('critical_count_pill', 'critical'),
@@ -3550,24 +3563,31 @@ def index_page(kunde: str = '', auftrag: str = ''):
                 # Diff-Badge zur vorherigen Analyse
                 refs['diff_badge'] = ui.html('').style('margin-bottom:6px;')
                 with ui.row().classes('w-full items-stretch gap-2'):
-                    for sev_clr, sev_name, ref_key, filt_key, icon, bg in [
+                    for sev_clr, sev_name, ref_key, filt_key, icon, tint in [
                         ('var(--error)', 'Kritisch', 'critical_count', 'critical', 'error', 'var(--bg-error-tint)'),
                         ('var(--warning)', 'Wichtig', 'major_count', 'major', 'warning', 'var(--bg-warning-tint)'),
                         ('var(--text-muted)', 'Hinweise', 'minor_count', 'minor', 'info', 'var(--bg-muted)'),
                     ]:
                         with _kb_activate(
                             ui.column().classes('items-center gap-0 flex-1 stat-pill').style(
-                                f'padding:8px 4px;background:{bg};color:{sev_clr};'
+                                f'padding:10px 4px;border-radius:var(--radius-sm);'
+                                f'background:{tint};color:{sev_clr};'
                             ).on('click', lambda _, k=filt_key: _set_filter(k)),
                             lambda k=filt_key: _set_filter(k),
                         ) as _pill:
                             refs[f'{ref_key}_pill'] = _pill
+                            # Aktiv-/Null-Farben merken: die Pill wird in
+                            # _refresh_results_area je nach Anzahl umgefaerbt
+                            # (0 Befunde = gut -> neutral; >0 -> Severity-Farbe).
+                            # Kinder erben via color:inherit -> 1 Style-Call genuegt.
+                            _pill._sev_clr = sev_clr
+                            _pill._tint = tint
                             with ui.row().classes('items-center gap-1'):
-                                ui.icon(icon, size='14px').style(f'color:{sev_clr};opacity:.8;')
+                                ui.icon(icon, size='16px').style('color:inherit;opacity:.85;')
                                 refs[ref_key] = ui.label('0').style(
-                                    f'font-size:var(--fs-3xl);font-weight:800;color:{sev_clr};line-height:1;')
+                                    'font-size:var(--fs-3xl);font-weight:800;color:inherit;line-height:1;')
                             ui.label(sev_name).style(
-                                f'font-size:var(--fs-sm);color:{sev_clr};opacity:.75;font-weight:600;margin-top:2px;')
+                                'font-size:var(--fs-sm);color:inherit;opacity:.8;font-weight:600;margin-top:3px;')
                 # Erledigt-Fortschrittsbalken
                 with ui.column().classes('w-full gap-0').style('margin-top:8px;'):
                     with ui.row().classes('w-full items-center justify-between').style('margin-bottom:3px;'):
