@@ -2102,15 +2102,24 @@ def index_page(kunde: str = '', auftrag: str = ''):
                 lbl = severity_label(f.severity)
                 d = cat_counts.setdefault(cat, {'Kritisch': 0, 'Wichtig': 0, 'Hinweis': 0})
                 d[lbl] = d.get(lbl, 0) + 1
+            # Balkenlaenge + Sortierung severity-GEWICHTET (Kritisch>>Hinweis,
+            # analog SCORE_WEIGHTS): die staerkste visuelle Gewichtung soll auf
+            # den riskantesten Kategorien liegen, nicht auf der mit den meisten
+            # (oft harmlosen) Hinweisen.
+            _CAT_W = {'Kritisch': 8, 'Wichtig': 3, 'Hinweis': 1}
+
+            def _cat_weight(dd):
+                return sum(dd.get(k, 0) * w for k, w in _CAT_W.items())
+
             top = sorted(
                 cat_counts.items(),
-                key=lambda kv: (-sum(kv[1].values()), kv[0]),
+                key=lambda kv: (-_cat_weight(kv[1]), kv[0]),
             )[:6]
-            max_total = max((sum(d.values()) for _, d in top), default=1) or 1
+            max_weight = max((_cat_weight(d) for _, d in top), default=1) or 1
             _SEV_STYLE = [
                 ('Kritisch', 'var(--error)'),
                 ('Wichtig', 'var(--warning)'),
-                ('Hinweis', 'var(--text-muted)'),  # grau wie in den Karten (nicht blau=Quelltext)
+                ('Hinweis', 'var(--sev-minor)'),  # Severity-Grau (nicht muted/disabled-Text-Token)
             ]
             with cont:
                 if not top:
@@ -2130,7 +2139,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                                     'font-size:var(--fs-xs);color:var(--text-muted);')
                 for cat, d in top:
                     total = sum(d.values())
-                    width_pct = max(8, int(total / max_total * 100))
+                    width_pct = max(8, int(_cat_weight(d) / max_weight * 100))
                     label_de = category_label_de(cat)
                     crit, warn, hint = d.get('Kritisch', 0), d.get('Wichtig', 0), d.get('Hinweis', 0)
                     tip_parts = []
@@ -3655,7 +3664,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     ui.button('Excel', icon='table_chart',
                         on_click=lambda: _do_export('excel')).props('outline dense no-caps size=sm')
                     ui.button('TXT', icon='text_snippet',
-                        on_click=lambda: _do_export('txt')).props('flat dense no-caps size=sm')
+                        on_click=lambda: _do_export('txt')).props('outline dense no-caps size=sm')
                     ui.button('ZIP', icon='archive',
                         on_click=lambda: _do_export('zip')).props('outline dense no-caps size=sm').tooltip(
                         'Korrekturpaket als ZIP')

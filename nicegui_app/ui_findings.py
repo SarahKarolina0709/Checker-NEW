@@ -348,7 +348,8 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
 
     ctx braucht: s, refs, selected_idx, toggle_checked, dict_to_finding.
     """
-    from nicegui_app.severity import severity_label, severity_color, severity_icon, severity_css_color, phase_from_code
+    from nicegui_app.severity import (severity_label, severity_color, severity_icon,
+                                      severity_css_color, severity_css_color_solid, phase_from_code)
     s = ctx.s
     selected_idx = ctx.selected_idx
     idx = selected_idx['v']
@@ -372,7 +373,8 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
     with ui.row().classes('w-full items-center gap-2 flex-wrap').style('margin-bottom:8px;'):
         ui.icon(severity_icon(f.severity), size='sm').style(f'color:{sev_clr};flex-shrink:0;')
         ui.badge(sev_lbl, color=None).style(
-            f'background:{sev_clr};color:var(--text-inverse);border-radius:var(--radius-pill);font-size:var(--fs-sm);')
+            f'background:{severity_css_color_solid(f.severity)};color:var(--text-inverse);'
+            f'border-radius:var(--radius-pill);font-size:var(--fs-sm);')
         if phase_lbl:
             ui.badge(phase_lbl, color=None).style(
                 'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:var(--radius-pill);')
@@ -785,8 +787,10 @@ def render_welcome(ctx: SimpleNamespace) -> None:
                 with ui.element('div').style(
                     'background:linear-gradient(135deg,#0a1628 0%,#0f2744 45%,#1a3a5c 100%);'
                     'padding:24px 28px;position:relative;overflow:hidden;'):
-                    # Hintergrund-Schrift (Wasserzeichen-Style)
-                    ui.element('div').style(
+                    # Hintergrund-Schrift (Wasserzeichen) — zuvor ein leeres,
+                    # unsichtbares div (toter Code); jetzt mit Inhalt (ui.label),
+                    # damit das vorgesehene Wasserzeichen tatsaechlich erscheint.
+                    ui.label('QF').style(
                         'position:absolute;right:-10px;top:50%;transform:translateY(-50%);'
                         'font-size:96px;font-weight:900;color:rgba(255,255,255,.03);'
                         'letter-spacing:-4px;pointer-events:none;user-select:none;'

@@ -16,6 +16,10 @@ APP_CSS = '''<style>
   --success-solid:#16a34a;--warning-solid:#d97706;--error-solid:#dc2626;
   /* Severity-Farben (dark-aware Pendant zu severity._UI_COLORS — Light = identisch) */
   --sev-critical:#dc2626;--sev-major:#ea580c;--sev-minor:#6b7280;
+  /* Vollton-Severity fuer GEFUELLTE Badges (weisse Schrift) — bewusst dunkel,
+     damit weiss in BEIDEN Modi AA besteht (die hellen --sev-* reissen sonst:
+     Hinweis weiss-auf-grau nur ~2.5:1 im Dark-Mode). Modusunabhaengig. */
+  --sev-critical-solid:#b91c1c;--sev-major-solid:#b45309;--sev-minor-solid:#4b5563;
   --surface:#ffffff;--surface-alt:#f8fafc;--surface-border:#e2e8f0;
   --surface-border-light:#f1f5f9;--surface-border-strong:#d1d5db;
   /* Semantic tint borders */

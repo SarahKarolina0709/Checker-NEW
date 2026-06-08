@@ -127,16 +127,20 @@ def kalender_page():
                 ui.label(f'{month_name} {y}').style(
                     'font-size:var(--fs-xl);font-weight:700;color:var(--text);min-width:200px;text-align:center;')
                 ui.button(icon='chevron_right', on_click=lambda: _nav_month(1)).props('flat round')
-            with ui.row().classes('w-full gap-0'):
+            # Echtes CSS-Grid statt 7x width:14.28% in Flex-Rows: garantiert
+            # identische, fluchtende Spaltenbreiten fuer Header UND Zellen ohne
+            # kumulative Rundungsdrift.
+            _GRID = 'display:grid;grid-template-columns:repeat(7,1fr);gap:6px;'
+            with ui.row().classes('w-full').style(_GRID):
                 for wd in ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']:
                     ui.label(wd).style(
-                        'width:14.28%;text-align:center;font-size:var(--fs-sm);font-weight:700;color:var(--text-muted);padding:4px 0;')
+                        'text-align:center;font-size:var(--fs-sm);font-weight:700;color:var(--text-muted);padding:4px 0;')
             cal = _calendar_mod.Calendar(firstweekday=0)
             for week in cal.monthdayscalendar(y, m):
-                with ui.row().classes('w-full gap-0'):
+                with ui.row().classes('w-full').style(_GRID):
                     for day_num in week:
                         if day_num == 0:
-                            ui.element('div').style('width:14.28%;height:80px;')
+                            ui.element('div').style('height:80px;')
                         else:
                             day_str = f'{y}-{m:02d}-{day_num:02d}'
                             customers = project_dates.get(day_str, [])
@@ -161,7 +165,7 @@ def kalender_page():
                                 bg += 'box-shadow:0 0 0 2px var(--info) inset!important;'
                             with make_keyboard_activatable(
                                 ui.card().style(
-                                    f'width:14.28%;min-height:80px;padding:6px;cursor:pointer;'
+                                    f'min-height:80px;padding:6px;cursor:pointer;'
                                     f'border-radius:var(--radius-sm);border:1px solid;{bg}'
                                 ).props('flat').on('click', lambda _, ds=day_str, cs=customers: _show_day(ds, cs)),
                                 lambda ds=day_str, cs=customers: _show_day(ds, cs),

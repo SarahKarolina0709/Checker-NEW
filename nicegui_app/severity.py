@@ -38,6 +38,9 @@ _UI_COLORS = {CRITICAL: '#dc2626', MAJOR: '#ea580c', MINOR: '#6b7280', INFO: '#6
 # (die --sev-* Tokens sind in nicegui_app/styles.py je Modus definiert)
 _UI_CSS = {CRITICAL: 'var(--sev-critical)', MAJOR: 'var(--sev-major)',
            MINOR: 'var(--sev-minor)', INFO: 'var(--sev-minor)'}
+# Vollton-Variante fuer GEFUELLTE Badges mit weisser Schrift (AA in beiden Modi)
+_UI_CSS_SOLID = {CRITICAL: 'var(--sev-critical-solid)', MAJOR: 'var(--sev-major-solid)',
+                 MINOR: 'var(--sev-minor-solid)', INFO: 'var(--sev-minor-solid)'}
 
 # Material-Icons (Redundanz zur Farbe — Barrierefreiheit bei Rot-Gruen-Sehschwaeche)
 _UI_ICONS = {CRITICAL: 'error', MAJOR: 'warning', MINOR: 'info', INFO: 'info'}
@@ -80,6 +83,15 @@ def css_color(sev: Any) -> str:
     return _UI_CSS[normalize(sev)]
 
 
+def css_color_solid(sev: Any) -> str:
+    """Dunkle Vollton-Severity fuer gefuellte Badges mit weisser Schrift.
+
+    Die hellen --sev-* reissen als Badge-Fond unter weisser Schrift WCAG-AA
+    (v.a. 'minor' im Dark-Mode); diese Variante ist garantiert dunkel genug.
+    """
+    return _UI_CSS_SOLID[normalize(sev)]
+
+
 def score_color(score: Any) -> str:
     """CSS-Variablen-Referenz fuer einen Qualitaets-Score 0..100.
 
@@ -116,6 +128,7 @@ severity_label = label
 severity_color = color
 severity_icon = icon
 severity_css_color = css_color
+severity_css_color_solid = css_color_solid
 
 _PHASE_CODE_PREFIXES: dict[str, tuple[str, ...]] = {
     'Phase 1': (
