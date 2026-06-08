@@ -161,7 +161,7 @@ def kalender_page():
                                         f'font-size:var(--fs-md);font-weight:700;'
                                         f'color:{"var(--info)" if is_today else "var(--text)" if count == 0 else "var(--info)"};')
                                     if count > 0:
-                                        ui.badge(str(count)).style(
+                                        ui.badge(str(count), color=None).style(
                                             'background:var(--info);color:var(--text-inverse);font-size:var(--fs-sm);border-radius:var(--radius-pill);')
                                 if count > 0:
                                     for cust in customers[:2]:

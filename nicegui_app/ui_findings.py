@@ -133,21 +133,21 @@ def render_finding_card(ctx: SimpleNamespace, idx: int, f) -> None:
             with ui.row().classes('w-full items-center gap-2 flex-wrap'):
                 ui.icon(sev_ico, size='xs').style(f'color:{sev_clr};flex-shrink:0;') \
                     .tooltip(sev_lbl)
-                ui.badge(sev_lbl).style(
+                ui.badge(sev_lbl, color=None).style(
                     f'background:transparent;color:{sev_clr};border:1px solid {sev_clr};border-radius:var(--radius-pill);')
                 if hint_only and not compact:
-                    ui.badge('Kein Score-Abzug').style(
+                    ui.badge('Kein Score-Abzug', color=None).style(
                         'background:transparent;color:var(--text-light);'
                         'border:1px dashed var(--surface-border-strong);border-radius:var(--radius-pill);'
                         'font-size:var(--fs-xs);')
                 if phase_lbl and not compact:
-                    ui.badge(phase_lbl).style(
+                    ui.badge(phase_lbl, color=None).style(
                         'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:var(--radius-pill);')
-                ui.badge(f.code).style(
+                ui.badge(f.code, color=None).style(
                     'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:var(--radius-pill);')
                 diff = s.get('analysis_diff', {}) or {}
                 if diff.get('has_prev') and idx in set(diff.get('new_idx', []) or []):
-                    ui.badge('NEU').style(
+                    ui.badge('NEU', color=None).style(
                         'background:var(--error-solid);color:var(--text-inverse);border-radius:var(--radius-pill);'
                         'font-weight:700;font-size:var(--fs-xs);')
                 ui.element('div').classes('flex-grow')
@@ -289,7 +289,7 @@ def render_split_list(ctx: SimpleNamespace, filtered) -> None:
             with ui.column().classes('gap-0 flex-grow').style('min-width:0;'):
                 ui.label(f.message[:80] + ('…' if len(f.message) > 80 else '')).style(
                     'font-size:var(--fs-xs);color:var(--text);line-height:1.35;font-weight:500;')
-                ui.badge(f.code).style(
+                ui.badge(f.code, color=None).style(
                     'background:transparent;color:var(--text-light);border:none;'
                     'font-size:var(--fs-xs);padding:0;')
             if checked:
@@ -324,16 +324,16 @@ def render_detail_panel(ctx: SimpleNamespace) -> None:
     error_span = (meta.get('error_text') or '').strip()
     with ui.row().classes('w-full items-center gap-2 flex-wrap').style('margin-bottom:8px;'):
         ui.icon(severity_icon(f.severity), size='sm').style(f'color:{sev_clr};flex-shrink:0;')
-        ui.badge(sev_lbl).style(
+        ui.badge(sev_lbl, color=None).style(
             f'background:{sev_clr};color:var(--text-inverse);border-radius:var(--radius-pill);font-size:var(--fs-sm);')
         if phase_lbl:
-            ui.badge(phase_lbl).style(
+            ui.badge(phase_lbl, color=None).style(
                 'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:var(--radius-pill);')
-        ui.badge(f.code).style(
+        ui.badge(f.code, color=None).style(
             'background:transparent;color:var(--text-muted);border:1px solid var(--surface-border-strong);border-radius:var(--radius-pill);')
         diff = s.get('analysis_diff', {}) or {}
         if diff.get('has_prev') and idx in set(diff.get('new_idx', []) or []):
-            ui.badge('NEU').style(
+            ui.badge('NEU', color=None).style(
                 'background:var(--error-solid);color:var(--text-inverse);border-radius:var(--radius-pill);font-weight:700;font-size:var(--fs-xs);')
         ui.element('div').classes('flex-grow')
         cb = ui.checkbox('Geprüft',

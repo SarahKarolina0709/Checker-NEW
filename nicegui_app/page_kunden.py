@@ -190,7 +190,7 @@ def kunden_page():
                                             f'font-size:var(--fs-sm);font-weight:600;'
                                             f'color:{"var(--text)" if count else "var(--text-muted)"};')
                                         if count:
-                                            ui.badge(str(count)).style(
+                                            ui.badge(str(count), color=None).style(
                                                 'background:var(--bg-primary);color:var(--text-inverse);font-size:var(--fs-sm);border-radius:var(--radius-pill);')
                                         ui.element('div').classes('flex-grow')
                                         if os.path.isdir(folder_path):
