@@ -3677,19 +3677,26 @@ def index_page(kunde: str = '', auftrag: str = ''):
                 ):
                     ui.label('Export:').style(
                         'font-size:var(--fs-xs);font-weight:600;color:var(--text-muted);margin-right:4px;')
-                    ui.button('PDF', icon='picture_as_pdf',
-                        on_click=lambda: _do_export('pdf')).props('outline dense no-caps size=sm')
-                    ui.button('Excel', icon='table_chart',
-                        on_click=lambda: _do_export('excel')).props('outline dense no-caps size=sm')
-                    ui.button('TXT', icon='text_snippet',
-                        on_click=lambda: _do_export('txt')).props('outline dense no-caps size=sm')
-                    ui.button('ZIP', icon='archive',
-                        on_click=lambda: _do_export('zip')).props('outline dense no-caps size=sm').tooltip(
+                    # color=None: sonst erzwingt Quasar (Default color=primary)
+                    # die Button-Farbe per !important und das App-Token greift nicht.
+                    ui.button('PDF', icon='picture_as_pdf', color=None,
+                        on_click=lambda: _do_export('pdf')).props(
+                        'outline dense no-caps size=sm').style('color:var(--primary);')
+                    ui.button('Excel', icon='table_chart', color=None,
+                        on_click=lambda: _do_export('excel')).props(
+                        'outline dense no-caps size=sm').style('color:var(--primary);')
+                    ui.button('TXT', icon='text_snippet', color=None,
+                        on_click=lambda: _do_export('txt')).props(
+                        'outline dense no-caps size=sm').style('color:var(--primary);')
+                    ui.button('ZIP', icon='archive', color=None,
+                        on_click=lambda: _do_export('zip')).props(
+                        'outline dense no-caps size=sm').style('color:var(--primary);').tooltip(
                         'Korrekturpaket als ZIP')
                     # Gefilterter Export
-                    with ui.button(icon='filter_alt').props(
-                        'flat dense no-caps size=sm color=primary'
-                    ).tooltip('Nur sichtbare (gefilterte) Befunde exportieren'):
+                    with ui.button(icon='filter_alt', color=None).props(
+                        'flat dense no-caps size=sm'
+                    ).style('color:var(--text-muted);').tooltip(
+                        'Nur sichtbare (gefilterte) Befunde exportieren'):
                         with ui.menu():
                             ui.item('Gefilterte als PDF',
                                 on_click=lambda: _do_export('pdf', only_filtered=True))
@@ -3755,7 +3762,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                             pass
                         _refresh_results_area()
 
-                    ui.button('Korrektur hochladen', icon='replay',
+                    ui.button('Korrektur hochladen', icon='replay', color=None,
                         on_click=_start_correction_loop).props(
                         'unelevated dense no-caps size=sm').style(
                         'background:var(--warning-solid);color:var(--text-inverse);')
@@ -3778,6 +3785,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         btn = ui.button(
                             (f'{dot} ' if dot else '') + label_text,
                             on_click=lambda _, k=key: _set_filter(k),
+                            color=None,
                         ).props('flat dense no-caps size=sm').style(
                             f'border-radius:var(--radius-pill);padding:3px 12px;'
                             f'border:1px solid var(--surface-border);'
@@ -3797,19 +3805,19 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     refs['done_counter'] = ui.label('').style(
                         'font-size:var(--fs-sm);color:var(--text-muted);font-weight:600;padding:0 4px;')
                     ui.separator().props('vertical').style('height:20px;margin:0 4px;')
-                    # Bulk-Aktionen
-                    ui.button(icon='done_all',
+                    # Bulk-Aktionen (color=None -> inline-Farben greifen)
+                    ui.button(icon='done_all', color=None,
                         on_click=lambda: _bulk_mark_filtered(True),
                     ).props('flat dense round size=sm').tooltip(
                         'Alle sichtbaren als erledigt markieren'
                     ).style('color:var(--success);')
-                    ui.button(icon='remove_done',
+                    ui.button(icon='remove_done', color=None,
                         on_click=lambda: _bulk_mark_filtered(False),
                     ).props('flat dense round size=sm').tooltip(
                         'Alle sichtbaren als offen markieren'
                     ).style('color:var(--text-muted);')
                     # Undo
-                    refs['undo_btn'] = ui.button(icon='undo',
+                    refs['undo_btn'] = ui.button(icon='undo', color=None,
                         on_click=lambda: _undo_last(),
                     ).props('flat dense round size=sm').tooltip(
                         'Nichts rückgängig zu machen'
@@ -3832,7 +3840,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                     ).style('font-size:var(--fs-sm);min-width:120px;')
                     # Kompakt-Modus Toggle
                     _compact_icon = 'density_small' if s.get('view_mode') == 'normal' else 'density_medium'
-                    refs['compact_btn'] = ui.button(icon=_compact_icon,
+                    refs['compact_btn'] = ui.button(icon=_compact_icon, color=None,
                         on_click=lambda: _toggle_view_mode(),
                     ).props('flat dense round size=sm').tooltip(
                         'Kompakt-Ansicht umschalten'
@@ -3841,7 +3849,7 @@ def index_page(kunde: str = '', auftrag: str = ''):
                         on_change=_on_search_change).props('dense clearable').classes('w-52')
                     refs['search_counter'] = ui.label('').style(
                         'font-size:var(--fs-xs);color:var(--text-muted);white-space:nowrap;padding:0 2px;')
-                    ui.button(icon='keyboard',
+                    ui.button(icon='keyboard', color=None,
                         on_click=lambda: _show_keyboard_help(),
                     ).props('flat dense round size=sm').tooltip(
                         'Tastatur-Kürzel anzeigen (?)'
