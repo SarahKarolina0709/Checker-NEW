@@ -39,6 +39,15 @@ except ImportError:
     pytesseract = None  # type: ignore
     _HAS_OCR = False
 
+# Gebuendelte Tools (Repo-Root) bevorzugen, sonst System-PATH
+try:
+    from nicegui_app.ocr_paths import bundled_poppler_bin, configure_pytesseract
+except ImportError:
+    _POPPLER_BIN = None
+else:
+    configure_pytesseract(pytesseract)
+    _POPPLER_BIN = bundled_poppler_bin()
+
 # Encoding-Fallback-Kette für TXT-Dateien (Windows-Dateien oft cp1252)
 _TXT_ENCODINGS = ('utf-8-sig', 'utf-8', 'cp1252', 'latin-1')
 
@@ -87,7 +96,7 @@ def _ocr_pdf_page(path: str) -> str:
         from pdf2image import convert_from_path  # type: ignore
         images = []
         try:
-            images = convert_from_path(path, dpi=300)
+            images = convert_from_path(path, dpi=300, poppler_path=_POPPLER_BIN)
             texts = [pytesseract.image_to_string(img, lang='deu+eng') or '' for img in images]
             if any(t.strip() for t in texts):
                 return '\n'.join(texts)
