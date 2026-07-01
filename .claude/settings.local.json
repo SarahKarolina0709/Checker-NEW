@@ -138,7 +138,11 @@
       "Bash(sed -i \"s/Neuer Auftrag/Neues Projekt/g; s/1 Auftrag ohne/1 Projekt ohne/g; s/Aufträge ohne/Projekte ohne/g; s/leerer Auftrag/leeres Projekt/g; s/leere Aufträge/leere Projekte/g; s/Auftrag für heute/Projekt für heute/g; s/Auftrag angelegt/Projekt angelegt/g; s/Auftrag wählen/Projekt wählen/g; s/''Aufträge''/''Projekte''/g; s/''Auftrag''/''Projekt''/g; s/Aufträge zu sehen/Projekte zu sehen/g; s/Noch keine Aufträge/Noch keine Projekte/g; s/Auftrag: /Projekt: /g\" nicegui_app/main.py)",
       "Bash(echo \"Auftrag -> Projekt ersetzt\")",
       "Bash(sed -i \"s/des aktiven Auftrags/des aktiven Projekts/g; s/Aktiver Auftrag/Aktives Projekt/g; s/einen Auftrag und/ein Projekt und/g; s/Auftrag list/Projekt list/g; s/1 Auftrag und/1 Projekt und/g; s/ein Auftrag existiert/ein Projekt existiert/g\" nicegui_app/main.py)",
-      "Bash(sed -i \"s/\"\"Auftrag\"\"/\"\"Projekt\"\"/g; s/\"\"Aufträge\"\"/\"\"Projekte\"\"/g\" nicegui_app/main.py)"
+      "Bash(sed -i \"s/\"\"Auftrag\"\"/\"\"Projekt\"\"/g; s/\"\"Aufträge\"\"/\"\"Projekte\"\"/g\" nicegui_app/main.py)",
+      "Bash(cmd /c \"dir /b\")",
+      "Bash(cmd /c dir /b /a-d)",
+      "Bash(cmd /c \"dir /b *.py\")",
+      "Bash(cmd /c \"dir /b *.json\")"
     ]
   }
 }

@@ -45,6 +45,8 @@ ARCHIVE_*/
 #############################
 # Uncomment to ignore generated HTML reports
 # Bericht_*.html
+# Laufzeit-Verlauf der Analyse (enthaelt Kundennamen/Textausschnitte)
+reports/history/
 
 #############################
 # Node / Frontend leftovers #
